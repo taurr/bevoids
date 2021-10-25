@@ -1,6 +1,5 @@
-use std::path::PathBuf;
-
 use bevy::{asset::Asset, log, prelude::*};
+use std::path::PathBuf;
 
 pub trait RelativeAssetLoader {
     fn load_relative<T: Asset>(&self, relative_to: &Option<String>, asset: &str) -> Handle<T>;

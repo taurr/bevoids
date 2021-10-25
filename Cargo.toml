@@ -9,6 +9,8 @@ edition = "2021"
 structopt = "0.3"
 rand = "0.8.4"
 bevy = "0.5"
+thiserror = "1.0"
 
 [patch.crates-io]
 bevy = { git = "https://github.com/bevyengine/bevy" }
+#bevy = { path = "../bevy" }

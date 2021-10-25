@@ -1,20 +1,26 @@
 #![allow(clippy::complexity)]
 
-use asset_helper::RelativeAssetLoader;
-use asteroid_plugin::Asteroid;
-use bevy::{log, prelude::*, sprite::collide_aabb::collide, utils::HashMap};
-use fade_plugin::Fadein;
-use movement_plugin::Velocity;
-use player_plugin::{Bullet, Player};
-use rand::Rng;
-use std::f32::consts::PI;
-use structopt::StructOpt;
-
 use crate::{
+    asteroid_plugin::split_asteroid,
     fade_plugin::{FadePlugin, Fadeout},
     movement_plugin::MovementPlugin,
     player_plugin::PlayerPlugin,
 };
+use asset_helper::RelativeAssetLoader;
+use asteroid_plugin::{Asteroid, AsteroidPlugin};
+use bevy::{
+    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
+    log,
+    prelude::*,
+    sprite::{collide_aabb::collide, SpriteSettings},
+    utils::HashMap,
+};
+use fade_plugin::Fadein;
+use movement_plugin::{ShadowController, ShadowOf, Velocity};
+use player_plugin::Bullet;
+use rand::Rng;
+use std::f32::consts::PI;
+use structopt::StructOpt;
 
 mod asset_helper;
 mod asteroid_plugin;
@@ -34,21 +40,20 @@ enum GameState {
     InGame,
 }
 
-const MSAA: u32 = 1;
 const WIN_WIDTH: f32 = 1024.;
 const WIN_HEIGHT: f32 = 800.;
 
-const ASTEROIDS_MAX_ACTIVE: usize = 100;
-const ASTEROID_SPAWN_SECONDS: f32 = 4.;
+const ASTEROIDS_LEVEL_SPAWN: usize = 10;
+const ASTEROIDS_PLAYER_SPAWN_DISTANCE: f32 = 200.;
+const ASTEROIDS_MAX_ACTIVE: usize = 500;
 const ASTEROID_Z_MIN: f32 = 100.;
 const ASTEROID_Z_MAX: f32 = 200.;
 const ASTEROID_MIN_SIZE: f32 = 20.;
-const ASTEROID_MAX_SIZE: f32 = 250.;
+const ASTEROID_MAX_SIZE: f32 = 150.;
 const ASTEROID_MIN_SPEED: f32 = 25.;
 const ASTEROID_MAX_SPEED: f32 = 125.;
 const ASTEROID_FADEIN_SECONDS: f32 = 2.;
 const ASTEROID_FADEOUT_BULLET_SECONDS: f32 = 0.15;
-const ASTEROID_FADEOUT_ASTEROID_SECONDS: f32 = 0.01;
 const ASTEROID_FADEOUT_PLAYER_SECONDS: f32 = 1.0;
 
 const BULLET_RELATIVE_Z: f32 = -1.;
@@ -61,20 +66,20 @@ const BULLET_FADEOUT_SECONDS: f32 = 0.25;
 const FLAME_RELATIVE_Z: f32 = -10.;
 const FLAME_RELATIVE_Y: f32 = -32.;
 const FLAME_WIDTH: f32 = 15.;
-const FLAME_OPACITY: f32 = 0.5;
+const FLAME_OPACITY: f32 = 1.;
 
-const PLAYER_Z: f32 = 50.;
+const PLAYER_Z: f32 = 900.;
 const PLAYER_MAX_SIZE: f32 = 50.;
-const PLAYER_ACCELLERATION: f32 = 200.;
+const PLAYER_ACCELLERATION: f32 = 250.;
+const PLAYER_DECCELLERATION: f32 = 100.;
 const PLAYER_START_SPEED: f32 = 50.;
 const PLAYER_MAX_SPEED: f32 = 800.;
 const PLAYER_FADEOUT_SECONDS: f32 = 0.5;
 const PLAYER_TURN_SPEED: f32 = 2. * PI;
 
-// TODO: stages: menu, playing, gameover
 // TODO: scoring
-// TODO: respawn player / lives
-// TODO: pre-calc asteroid / bullet bounding box sizes, use for collision check
+// TODO: respawn player / lives / levels
+// TODO: player hit asteroid
 
 pub struct Textures {
     pub spaceship: Handle<Texture>,
@@ -112,6 +117,11 @@ impl Textures {
     }
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum AsteroidMaterialError {
+    #[error("no asteroid materials available")]
+    NoMaterialsAvailable,
+}
 pub struct AsteroidMaterials {
     sizes_by_material: HashMap<Handle<ColorMaterial>, Vec2>,
     materials: Vec<Handle<ColorMaterial>>,
@@ -146,9 +156,22 @@ impl AsteroidMaterials {
             materials,
         }
     }
+
+    pub fn pop(&mut self) -> Result<(Handle<ColorMaterial>, Vec2), AsteroidMaterialError> {
+        self.materials
+            .pop()
+            .map(|material| {
+                let size = self.sizes_by_material.get(&material).unwrap().clone();
+                (material, size)
+            })
+            .ok_or(AsteroidMaterialError::NoMaterialsAvailable)
+    }
 }
 
-#[derive(Debug, Component)]
+#[derive(Debug, Component, Copy, Clone)]
+pub struct SpriteSize(pub Vec2);
+
+#[derive(Debug, Component, Copy, Clone)]
 pub struct WinSize(pub Vec2);
 impl WinSize {
     fn from_window(window: &Window) -> Self {
@@ -159,6 +182,11 @@ impl WinSize {
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugin(LogDiagnosticsPlugin::default())
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        .insert_resource(SpriteSettings {
+            frustum_culling_enabled: true,
+        })
         // set the starting state
         .add_state(GameState::Initialize)
         .add_system_set(SystemSet::on_enter(GameState::Initialize).with_system(initialize.system()))
@@ -167,22 +195,21 @@ fn main() {
         )
         // plugins
         .add_plugin(PlayerPlugin)
-        //.add_plugin(AsteroidPlugin)
+        .add_plugin(AsteroidPlugin)
         .add_plugin(MovementPlugin)
         .add_plugin(FadePlugin)
         // add resources that are always available
         .insert_resource(Args::from_args())
-        .insert_resource(Msaa { samples: MSAA })
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(WindowDescriptor {
             width: WIN_WIDTH,
             height: WIN_HEIGHT,
             ..Default::default()
         })
-        //.add_system(shot_hit_asteroid.system())
-        //.add_system(asteroid_hit_asteroid.system())
-        //.add_system(asteroid_hit_player.system())
-        //.add_system(collect_asteroid_textures.system())
+        .add_system_set(
+            SystemSet::on_update(GameState::InGame).with_system(shot_hit_asteroid.system()),
+        )
+        //.with_system(asteroid_hit_player.system())
         .run();
 }
 
@@ -241,51 +268,74 @@ fn collect_textures(
     }
 }
 
-/*
 fn shot_hit_asteroid(
-    mut commands: Commands,
-    bullet_query: Query<(Entity, &Transform, &ScaledSize), With<Bullet>>,
-    asteroid_query: Query<
-        (Entity, &Transform, &Velocity, &ScaledSize, &ScaleToMaxSize),
+    bullet_query: Query<(Entity, &Transform, &SpriteSize), With<Bullet>>,
+    asteroids_query: Query<
+        (
+            Entity,
+            &Transform,
+            &SpriteSize,
+            Option<&Velocity>,
+            Option<&ShadowOf>,
+        ),
         (With<Asteroid>, Without<Fadeout>),
     >,
-    materials: Res<Textures>,
-    mut color_material_assets: ResMut<Assets<ColorMaterial>>,
+    controller_query: Query<
+        (Entity, Option<&Velocity>),
+        (With<Asteroid>, With<ShadowController>, Without<Fadeout>),
+    >,
+    shadows_query: Query<(Entity, &ShadowOf), With<Asteroid>>,
+    win_size: Res<WinSize>,
+    mut commands: Commands,
+    mut materials: ResMut<AsteroidMaterials>,
 ) {
     let mut spent_bullets = vec![];
     let mut asteroids_hit = vec![];
 
     'bullet: for (bullet_entity, bullet_transform, bullet_size) in bullet_query.iter() {
-        for (
-            asteroid_entity,
-            asteroid_transform,
-            asteroid_velocity,
-            asteroid_size,
-            asteroid_max_size,
-        ) in asteroid_query.iter()
+        for (asteroid_entity, asteroid_transform, asteroid_size, velocity, shadowof) in
+            asteroids_query.iter()
         {
-            if asteroids_hit.contains(&asteroid_entity) {
+            let (controller, velocity) = shadowof
+                .and_then(|shadowof| {
+                    controller_query
+                        .iter()
+                        .find(|(controller, _)| controller == &shadowof.0)
+                })
+                .unwrap_or((asteroid_entity, velocity));
+
+            if asteroids_hit.contains(&controller) {
                 continue;
             }
 
+            if velocity.is_none() {
+                log::warn!(
+                    "no velocity on controller - it's likely a double hit on a stopped asteroid"
+                );
+                continue;
+            }
+            let velocity = velocity.unwrap();
+
+            // TODO: take bullet orientation into account for collision check!
             if collide(
                 bullet_transform.translation,
-                **bullet_size,
+                bullet_size.0,
                 asteroid_transform.translation,
-                **asteroid_size,
+                asteroid_size.0,
             )
             .is_some()
             {
-                asteroids_hit.push(asteroid_entity);
+                log::debug!("bullet hits asteroid");
+                asteroids_hit.push(controller);
                 spent_bullets.push(bullet_entity);
 
                 split_asteroid(
+                    &asteroid_size.0,
+                    &asteroid_transform.translation,
+                    velocity,
+                    &win_size,
+                    &mut materials,
                     &mut commands,
-                    asteroid_max_size,
-                    asteroid_velocity,
-                    asteroid_transform.translation,
-                    &materials,
-                    &mut color_material_assets,
                 );
 
                 continue 'bullet;
@@ -298,88 +348,32 @@ fn shot_hit_asteroid(
     }
 
     for asteroid in asteroids_hit {
+        // TODO: once in a blue moon, we try to insert Fadeout on an entity that has been removed - why?
+
+        // removing Asteroid component stops us from finding the asteroid again
+        // removing the Velocity stops the asteroid movement
+        // removing any FadeIn as it kinda conflicts with the FadeOut
+        // adding FadeOut fades the asteroids, and despawns when done!
+
+        // do remember the "shadows" as well as the controller
+        for entity in shadows_query
+            .iter()
+            .filter(|(_, shadowof)| asteroid == shadowof.0)
+            .map(|(entity, _)| entity)
+        {
+            commands
+                .entity(entity)
+                .remove_bundle::<(Asteroid, Fadein)>()
+                .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_BULLET_SECONDS));
+        }
         commands
             .entity(asteroid)
             .remove_bundle::<(Asteroid, Velocity, Fadein)>()
-            //.remove::<Velocity>()
-            //.remove::<Fadein>()
             .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_BULLET_SECONDS));
     }
 }
 
-#[allow(dead_code)]
-fn asteroid_hit_asteroid(
-    mut commands: Commands,
-    asteroid_query: Query<
-        (Entity, &Transform, &Velocity, &ScaledSize, &ScaleToMaxSize),
-        (With<Asteroid>, Without<Fadeout>, Without<Fadein>),
-    >,
-    materials: Res<Textures>,
-    mut color_material_assets: ResMut<Assets<ColorMaterial>>,
-) {
-    let mut removed = vec![];
-
-    for (
-        asteroid_entity,
-        asteroid_transform,
-        asteroid_velocity,
-        asteroid_size,
-        asteroid_max_size,
-    ) in asteroid_query.iter()
-    {
-        for (
-            asteroid_2_entity,
-            asteroid_2_transform,
-            asteroid_2_velocity,
-            asteroid_2_size,
-            asteroid_2_max_size,
-        ) in asteroid_query.iter().filter(|a| a.0 != asteroid_entity)
-        {
-            if collide(
-                asteroid_transform.translation,
-                **asteroid_size,
-                asteroid_2_transform.translation,
-                **asteroid_2_size,
-            )
-            .is_some()
-            {
-                if !removed.contains(&asteroid_entity) {
-                    removed.push(asteroid_entity);
-                    commands
-                        .entity(asteroid_entity)
-                        .remove::<Asteroid>()
-                        .remove::<Velocity>()
-                        .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_ASTEROID_SECONDS));
-                    split_asteroid(
-                        &mut commands,
-                        asteroid_max_size,
-                        asteroid_velocity,
-                        asteroid_transform.translation,
-                        &materials,
-                        &mut color_material_assets,
-                    );
-                }
-                if !removed.contains(&asteroid_2_entity) {
-                    removed.push(asteroid_2_entity);
-                    commands
-                        .entity(asteroid_2_entity)
-                        .remove::<Asteroid>()
-                        .remove::<Velocity>()
-                        .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_ASTEROID_SECONDS));
-                    split_asteroid(
-                        &mut commands,
-                        asteroid_2_max_size,
-                        asteroid_2_velocity,
-                        asteroid_2_transform.translation,
-                        &materials,
-                        &mut color_material_assets,
-                    );
-                }
-            }
-        }
-    }
-}
-
+/*
 fn asteroid_hit_player(
     mut commands: Commands,
     asteroid_query: Query<

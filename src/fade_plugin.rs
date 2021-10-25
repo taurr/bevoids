@@ -1,7 +1,6 @@
+use crate::GameState;
 use bevy::prelude::*;
 use std::time::Duration;
-
-use crate::GameState;
 
 #[derive(Debug, Default, Component)]
 pub struct Fadeout {

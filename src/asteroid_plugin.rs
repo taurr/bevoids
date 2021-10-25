@@ -1,151 +1,187 @@
 use crate::{
-    fade_plugin::Fadein, movement_plugin::Velocity, GameState, Textures, WinSize,
-    ASTEROID_FADEIN_SECONDS, ASTEROID_MAX_SIZE, ASTEROID_MAX_SPEED, ASTEROID_MIN_SIZE,
-    ASTEROID_MIN_SPEED, ASTEROID_SPAWN_SECONDS, ASTEROID_Z_MAX, ASTEROID_Z_MIN,
+    movement_plugin::{spawn_shadows_for_display_wrap, ShadowController, Velocity},
+    player_plugin::Player,
+    AsteroidMaterials, GameState, SpriteSize, WinSize, ASTEROIDS_LEVEL_SPAWN,
+    ASTEROIDS_PLAYER_SPAWN_DISTANCE, ASTEROID_FADEIN_SECONDS, ASTEROID_MAX_SIZE,
+    ASTEROID_MAX_SPEED, ASTEROID_MIN_SIZE, ASTEROID_MIN_SPEED, ASTEROID_Z_MAX, ASTEROID_Z_MIN,
 };
-use bevy::{core::FixedTimestep, log, math::vec3, prelude::*};
+use bevy::{ecs::system::EntityCommands, log, prelude::*};
 use rand::Rng;
-use std::f32::consts::PI;
+use std::{f32::consts::PI, time::Duration};
 
 pub struct AsteroidPlugin;
 
 impl Plugin for AsteroidPlugin {
     fn build(&self, app: &mut App) {
-        // app.add_system_set(
-        //     SystemSet::on_update(GameState::InGame)
-        //         .with_run_criteria(FixedTimestep::step(ASTEROID_SPAWN_SECONDS as f64))
-        //         .with_system(asteroid_spawn.system()),
-        // );
+        app.add_system_set(
+            SystemSet::on_enter(GameState::InGame).with_system(asteroid_level_init.system()),
+        );
+        app.add_system_set(
+            SystemSet::on_update(GameState::InGame).with_system(asteroid_spawner.system()),
+        );
     }
 }
 
 #[derive(Debug, Default, Component)]
-pub struct Asteroid;
-/*
-#[allow(dead_code)]
-pub fn split_asteroid(
-    commands: &mut Commands,
-    asteroid_max_size: &ScaleToMaxSize,
-    asteroid_velocity: &Velocity,
-    asteroid_position: Vec3,
-    materials: &Res<Textures>,
-    color_material_assets: &mut ResMut<Assets<ColorMaterial>>,
-) {
-    let max_size = **asteroid_max_size * 2. / 3.;
-    if max_size >= ASTEROID_MIN_SIZE {
-        let mut rng = rand::thread_rng();
-        let direction = asteroid_velocity.normalize();
-        let min_v = f32::min(max_size / ASTEROID_FADEIN_SECONDS, ASTEROID_MIN_SPEED);
-        let velocity_1 = Quat::from_rotation_z(PI / 4.)
-            .mul_vec3(direction * rng.gen_range(min_v..ASTEROID_MAX_SPEED));
-        let velocity_2 = Quat::from_rotation_z(-PI / 4.)
-            .mul_vec3(direction * rng.gen_range(min_v..ASTEROID_MAX_SPEED));
-        spawn_explicit_asteroid(
-            commands,
-            max_size,
-            asteroid_position, // + velocity_1.normalize() * max_size,
-            velocity_1,
-            materials,
-            color_material_assets,
-        );
-        spawn_explicit_asteroid(
-            commands,
-            max_size,
-            asteroid_position, // + velocity_2.normalize() * max_size,
-            velocity_2,
-            materials,
-            color_material_assets,
-        );
-    }
-}
-*/
+struct AsteroidsToSpawn(usize);
 
-/*
-pub fn spawn_explicit_asteroid(
+#[derive(Debug, Default, Component)]
+pub struct Asteroid;
+
+pub fn split_asteroid(
+    asteroid_size: &Vec2,
+    asteroid_position: &Vec3,
+    asteroid_velocity: &Velocity,
+    win_size: &WinSize,
+    materials: &mut AsteroidMaterials,
     commands: &mut Commands,
-    max_size: f32,
-    position: Vec3,
-    velocity: Vec3,
-    textures: &Res<Textures>,
-    color_material_assets: &mut ResMut<Assets<ColorMaterial>>,
 ) {
-    if textures.asteroids.is_empty() {
-        eprintln!("No textures for the asteroids!");
+    let size = asteroid_size.max_element() * 2. / 3.;
+    if size < ASTEROID_MIN_SIZE {
         return;
     }
-    let mut rng = rand::thread_rng();
-    let texture = textures.asteroids[rng.gen_range(0..textures.asteroids.len())].clone();
-    let position = vec3(
-        position.x,
-        position.y,
-        rng.gen_range(ASTEROID_Z_MIN..ASTEROID_Z_MAX),
-    );
 
-    log::info!("launching asteroid");
-        commands
-        .spawn_bundle(SpriteBundle {
-            material: material_assets.add(textures.spaceship.clone().into()),
-            transform: Transform {
-                translation: random_position.extend(PLAYER_Z),
-                rotation: random_rotation,
-                scale: Vec2::splat(scale).extend(1.),
-            },
-            ..Default::default()
-        })
-        .insert(Player)
-        .insert(Orientation(random_rotation))
-        .insert(Velocity::new(velocity));
-
-    commands
-        .spawn()
-        .insert_bundle(SpriteBundle {
-            material: color_material_assets.add(texture.into()),
-            transform: Transform {
-                translation: position,
-                ..Default::default()
-            },
-            visible: Visible {
-                is_transparent: true,
-                is_visible: false,
-            },
-            ..Default::default()
-        })
-        .insert(ScaleToMaxSize::new(max_size))
-        //.insert(Fadein::from_secs_f32(ASTEROID_FADEIN_SECONDS))
-        .insert(Asteroid)
-        .insert(Velocity::new(velocity));
-}
-*/
-
-/*
-fn asteroid_spawn(
-    kb: Res<Input<KeyCode>>,
-    mut commands: Commands,
-    win_size: Res<WinSize>,
-    materials: Res<Textures>,
-    mut color_material_assets: ResMut<Assets<ColorMaterial>>,
-) {
-    if kb.just_pressed(KeyCode::Escape) {
+    let tracjetories = {
         let mut rng = rand::thread_rng();
+        let direction = asteroid_velocity.normalize();
+        let minimum_speed = f32::min(size / ASTEROID_FADEIN_SECONDS, ASTEROID_MIN_SPEED);
+        const ANGLE: f32 = PI / 3.;
+        [
+            Quat::from_rotation_z(ANGLE)
+                .mul_vec3(direction * rng.gen_range(minimum_speed..ASTEROID_MAX_SPEED)),
+            Quat::from_rotation_z(-ANGLE)
+                .mul_vec3(direction * rng.gen_range(minimum_speed..ASTEROID_MAX_SPEED)),
+        ]
+    };
 
-        let angle = rng.gen_range(0.0..(2. * PI));
-        let velocity = Quat::from_rotation_z(angle).mul_vec3(Vec3::Y)
-            * rng.gen_range(ASTEROID_MIN_SPEED..ASTEROID_MAX_SPEED);
-        let max_size = rng.gen_range(ASTEROID_MIN_SIZE..ASTEROID_MAX_SIZE);
-        let target_position = {
-            let w = win_size.0.x / 2.0 - 50.;
-            let h = win_size.0.y / 2.0 - 50.;
-            Vec3::new(rng.gen_range(-w..w), rng.gen_range(-h..h), 0.)
+    for velocity in tracjetories {
+        match spawn_asteroid(
+            size,
+            asteroid_position,
+            &velocity,
+            win_size,
+            materials,
+            commands,
+        ) {
+            Ok(_) => log::debug!("spawned child asteroid"),
+            Err(_) => log::warn!("failed spawning child asteroid"),
         };
-
-        spawn_explicit_asteroid(
-            &mut commands,
-            max_size,
-            target_position,
-            velocity,
-            &materials,
-            &mut color_material_assets,
-        );
     }
 }
-*/
+
+fn asteroid_level_init(mut commands: Commands) {
+    commands
+        .spawn()
+        .insert(Timer::new(Duration::from_secs_f32(0.15), true))
+        .insert(AsteroidsToSpawn(ASTEROIDS_LEVEL_SPAWN));
+}
+
+fn asteroid_spawner(
+    mut commands: Commands,
+    win_size: Res<WinSize>,
+    mut query: Query<(Entity, &mut AsteroidsToSpawn, Option<&mut Timer>)>,
+    player_query: Query<&Transform, With<Player>>,
+    mut materials: ResMut<AsteroidMaterials>,
+    time: Res<Time>,
+) {
+    if let Ok((entity, mut level_asteroids, timer)) = query.get_single_mut() {
+        if let Some(mut timer) = timer {
+            if !timer.tick(time.delta()).finished() {
+                return;
+            }
+        }
+
+        level_asteroids.0 -= 1;
+        if level_asteroids.0 == 0 {
+            log::info!("all asteroids spawned for level");
+            commands.entity(entity).despawn();
+        }
+
+        let mut rng = rand::thread_rng();
+
+        let size = rng.gen_range(ASTEROID_MIN_SIZE..ASTEROID_MAX_SIZE);
+
+        let position = loop {
+            let position = {
+                let [w, h] = (win_size.0 / 2.0).to_array();
+                Vec2::new(rng.gen_range(-w..w), rng.gen_range(-h..h))
+            };
+            if player_query.iter().all(|player| {
+                position
+                    .extend(player.translation.z)
+                    .distance(player.translation)
+                    > ASTEROIDS_PLAYER_SPAWN_DISTANCE
+            }) {
+                break position;
+            }
+        }
+        .extend(rng.gen_range(ASTEROID_Z_MIN..ASTEROID_Z_MAX));
+
+        let velocity = {
+            let random_direction = rng.gen_range(0.0..(2. * PI));
+            let random_speed = rng.gen_range(ASTEROID_MIN_SPEED..ASTEROID_MAX_SPEED);
+            Quat::from_rotation_z(random_direction).mul_vec3(Vec3::Y) * random_speed
+        };
+
+        match spawn_asteroid(
+            size,
+            &position,
+            &velocity,
+            &win_size,
+            &mut materials,
+            &mut commands,
+        ) {
+            Ok(_) => log::debug!("spawned asteroid"),
+            Err(_) => log::warn!("failed spawning asteroid"),
+        };
+    }
+}
+
+fn spawn_asteroid(
+    size: f32,
+    position: &Vec3,
+    velocity: &Vec3,
+    win_size: &WinSize,
+    materials: &mut AsteroidMaterials,
+    commands: &mut Commands,
+) -> Result<(), ()> {
+    match materials.pop() {
+        Ok((material, material_size)) => {
+            let mut rng = rand::thread_rng();
+            let scale = size / material_size.max_element();
+            log::debug!("spawn child asteroid");
+            let translation =
+                Vec2::from(*position).extend(rng.gen_range(ASTEROID_Z_MIN..ASTEROID_Z_MAX));
+            let id = commands
+                .spawn_bundle(SpriteBundle {
+                    material: material.clone(),
+                    transform: Transform {
+                        translation,
+                        scale: Vec2::splat(scale).extend(1.),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(Asteroid)
+                .insert(SpriteSize(material_size * scale))
+                .insert(ShadowController)
+                .insert(Velocity::new(*velocity))
+                .id();
+
+            spawn_shadows_for_display_wrap(
+                id,
+                material,
+                SpriteSize(material_size * scale),
+                win_size,
+                scale,
+                translation,
+                &Some(|mut cmds: EntityCommands| {
+                    cmds.insert(Asteroid);
+                }),
+                &mut *commands,
+            );
+            Ok(())
+        }
+        Err(_) => Err(()),
+    }
+}

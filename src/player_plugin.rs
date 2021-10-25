@@ -1,14 +1,14 @@
 use crate::{
-    fade_plugin::DelayedFadeout, movement_plugin::Velocity, GameState, Textures, WinSize,
-    BULLET_FADEOUT_SECONDS, BULLET_LIFETIME_SECONDS, BULLET_MAX_SIZE, BULLET_RELATIVE_Y,
-    BULLET_RELATIVE_Z, BULLET_SPEED, FLAME_OPACITY, FLAME_RELATIVE_Y, FLAME_RELATIVE_Z,
-    FLAME_WIDTH, PLAYER_ACCELLERATION, PLAYER_MAX_SIZE, PLAYER_MAX_SPEED, PLAYER_START_SPEED,
-    PLAYER_TURN_SPEED, PLAYER_Z,
+    fade_plugin::DelayedFadeout,
+    movement_plugin::{spawn_shadows_for_display_wrap, ShadowController, Velocity},
+    GameState, SpriteSize, Textures, WinSize, BULLET_FADEOUT_SECONDS, BULLET_LIFETIME_SECONDS,
+    BULLET_MAX_SIZE, BULLET_RELATIVE_Y, BULLET_RELATIVE_Z, BULLET_SPEED, FLAME_OPACITY,
+    FLAME_RELATIVE_Y, FLAME_RELATIVE_Z, FLAME_WIDTH, PLAYER_ACCELLERATION, PLAYER_DECCELLERATION,
+    PLAYER_MAX_SIZE, PLAYER_MAX_SPEED, PLAYER_START_SPEED, PLAYER_TURN_SPEED, PLAYER_Z,
 };
-use bevy::{core::FixedTimestep, log, math::vec3, prelude::*};
+use bevy::{core::FixedTimestep, ecs::system::EntityCommands, log, math::vec3, prelude::*};
 use rand::Rng;
 use std::{f32::consts::PI, time::Duration};
-
 pub struct PlayerPlugin;
 
 #[derive(Debug, Default, Component)]
@@ -32,9 +32,16 @@ impl Plugin for PlayerPlugin {
             SystemSet::on_update(GameState::InGame).with_system(player_controls.system()),
         );
         app.add_system_set(
-             SystemSet::on_update(GameState::InGame)
-                 .with_run_criteria(FixedTimestep::step(1.0 as f64))
-                 .with_system(log_player_stats.system()));
+            SystemSet::on_update(GameState::InGame)
+                .with_run_criteria(FixedTimestep::step(1.0 as f64))
+                .with_system(player_stats.system()),
+        );
+    }
+}
+
+fn player_stats(player_query: Query<&Velocity, With<Player>>) {
+    for velocity in player_query.iter() {
+        log::trace!("speed: {}", velocity.length());
     }
 }
 
@@ -47,29 +54,44 @@ fn player_spawn(
     log::debug!("player created");
     let mut rng = rand::thread_rng();
 
-    let [w, h] = (win_size.0 * 2. / 6.).to_array();
-    let random_position = Vec2::new(rng.gen_range(-w..w), rng.gen_range(-h..h));
+    let position = Vec2::ZERO;
     let random_rotation = Quat::from_rotation_z(rng.gen_range(0.0..(2. * PI)));
-    let scale = PLAYER_MAX_SIZE
-        / textures
-            .get_size(&textures.spaceship)
-            .unwrap()
-            .max_element();
+    let texture_size = textures.get_size(&textures.spaceship).unwrap();
+    let scale = PLAYER_MAX_SIZE / texture_size.max_element();
     let velocity = random_rotation.mul_vec3(Vec3::Y) * PLAYER_START_SPEED;
+    let material = material_assets.add(textures.spaceship.clone().into());
 
-    commands
+    let translation = position.extend(PLAYER_Z);
+    let sprite_size = SpriteSize(texture_size * scale);
+    let id: Entity = commands
         .spawn_bundle(SpriteBundle {
-            material: material_assets.add(textures.spaceship.clone().into()),
+            material: material.clone(),
             transform: Transform {
-                translation: random_position.extend(PLAYER_Z),
+                translation,
                 rotation: random_rotation,
                 scale: Vec2::splat(scale).extend(1.),
             },
             ..Default::default()
         })
+        .insert(sprite_size)
         .insert(Player)
+        .insert(ShadowController)
         .insert(Orientation(random_rotation))
-        .insert(Velocity::new(velocity));
+        .insert(Velocity::new(velocity))
+        .id();
+
+    spawn_shadows_for_display_wrap(
+        id,
+        material,
+        sprite_size,
+        &win_size,
+        scale,
+        translation,
+        &Some(|mut cmds: EntityCommands| {
+            cmds.insert(Player);
+        }),
+        &mut commands,
+    );
 }
 
 fn player_controls(
@@ -117,7 +139,7 @@ fn player_controls(
             if player_velocity.length() > 0. {
                 let v = player_velocity.normalize()
                     * f32::min(
-                        PLAYER_ACCELLERATION * 0.5 * time.delta_seconds(),
+                        PLAYER_DECCELLERATION * time.delta_seconds(),
                         player_velocity.length(),
                     );
                 **player_velocity -= v;
@@ -148,6 +170,7 @@ fn player_controls(
                 &textures,
                 &mut material_assets,
                 &player_transform,
+                &player_velocity,
                 &player_orientation,
             );
         }
@@ -159,10 +182,15 @@ fn spawn_bullet(
     textures: &Textures,
     material_assets: &mut Assets<ColorMaterial>,
     player_transform: &Transform,
+    player_velocity: &Velocity,
     player_orientation: &Orientation,
 ) {
-    let texture = textures.shot.clone();
-    let scale = BULLET_MAX_SIZE / textures.get_size(&texture).unwrap().max_element();
+    let texture_handle = textures.shot.clone();
+    let texture_size = textures.get_size(&texture_handle).unwrap();
+    let scale = BULLET_MAX_SIZE / texture_size.max_element();
+    let mut bullet_velocity = player_orientation.0.mul_vec3(vec3(0., BULLET_SPEED, 0.));
+    bullet_velocity += player_velocity.project_onto(bullet_velocity);
+
     commands
         .spawn_bundle(SpriteBundle {
             // TODO: ColorMaterial should not be created each time we show the flame
@@ -179,15 +207,12 @@ fn spawn_bullet(
             ..Default::default()
         })
         .insert(Bullet)
+        .insert(SpriteSize(texture_size * scale))
         .insert(DelayedFadeout::new(
             Duration::from_secs_f32(BULLET_LIFETIME_SECONDS),
             Duration::from_secs_f32(BULLET_FADEOUT_SECONDS),
         ))
-        .insert(Velocity::new(player_orientation.0.mul_vec3(vec3(
-            0.,
-            BULLET_SPEED,
-            0.,
-        ))));
+        .insert(Velocity::new(bullet_velocity));
 }
 
 fn spawn_flame(
@@ -218,12 +243,4 @@ fn spawn_flame(
         .insert(Flame)
         .id();
     flame
-}
-
-fn log_player_stats(
-        player_query: Query<&Velocity, With<Player>>,
-) {
-    for velocity in player_query.iter() {
-        log::trace!("speed: {}", velocity.length());
-    }
 }

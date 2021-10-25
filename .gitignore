@@ -1,3 +1,4 @@
 /target
 src/player_plugin.rs
 Cargo.lock
+.vscode/settings.json

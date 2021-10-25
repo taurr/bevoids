@@ -1,0 +1,39 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'bevoids'",
+      "cargo": {
+        "args": ["build", "--bin=bevoids", "--package=bevoids"],
+        "filter": {
+          "name": "bevoids",
+          "kind": "bin"
+        }
+      },
+      "env": {
+        "RUST_LOG": "info,bevoids=trace"
+      },
+      "args": ["--assets", "${workspaceFolder}/assets"],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in executable 'bevoids'",
+      "cargo": {
+        "args": ["test", "--no-run", "--bin=bevoids", "--package=bevoids"],
+        "filter": {
+          "name": "bevoids",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

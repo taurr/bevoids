@@ -54,7 +54,10 @@ fn player_spawn(
     log::debug!("player created");
     let mut rng = rand::thread_rng();
 
-    let position = Vec2::ZERO;
+    let position = Vec2::new(
+        rng.gen_range(-win_size.0.x / 2.0..win_size.0.x / 2.0),
+        rng.gen_range(-win_size.0.y / 2.0..win_size.0.y / 2.0),
+    );
     let random_rotation = Quat::from_rotation_z(rng.gen_range(0.0..(2. * PI)));
     let texture_size = textures.get_size(&textures.spaceship).unwrap();
     let scale = PLAYER_MAX_SIZE / texture_size.max_element();

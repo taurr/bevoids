@@ -15,9 +15,8 @@ use bevy::{
     sprite::{collide_aabb::collide, SpriteSettings},
     utils::HashMap,
 };
-use fade_plugin::Fadein;
 use movement_plugin::{ShadowController, ShadowOf, Velocity};
-use player_plugin::Bullet;
+use player_plugin::{Bullet, Player};
 use rand::Rng;
 use std::f32::consts::PI;
 use structopt::StructOpt;
@@ -44,6 +43,7 @@ const WIN_WIDTH: f32 = 1024.;
 const WIN_HEIGHT: f32 = 800.;
 
 const ASTEROIDS_LEVEL_SPAWN: usize = 10;
+const ASTEROID_SPAWN_DELAY: f32 = 0.1;
 const ASTEROIDS_PLAYER_SPAWN_DISTANCE: f32 = 200.;
 const ASTEROIDS_MAX_ACTIVE: usize = 500;
 const ASTEROID_Z_MIN: f32 = 100.;
@@ -52,8 +52,8 @@ const ASTEROID_MIN_SIZE: f32 = 20.;
 const ASTEROID_MAX_SIZE: f32 = 150.;
 const ASTEROID_MIN_SPEED: f32 = 25.;
 const ASTEROID_MAX_SPEED: f32 = 125.;
-const ASTEROID_FADEIN_SECONDS: f32 = 2.;
-const ASTEROID_FADEOUT_BULLET_SECONDS: f32 = 0.15;
+const ASTEROID_FADEIN_SECONDS: f32 = 0.20;
+const ASTEROID_FADEOUT_BULLET_SECONDS: f32 = 0.20;
 const ASTEROID_FADEOUT_PLAYER_SECONDS: f32 = 1.0;
 
 const BULLET_RELATIVE_Z: f32 = -1.;
@@ -71,8 +71,8 @@ const FLAME_OPACITY: f32 = 1.;
 const PLAYER_Z: f32 = 900.;
 const PLAYER_MAX_SIZE: f32 = 50.;
 const PLAYER_ACCELLERATION: f32 = 250.;
-const PLAYER_DECCELLERATION: f32 = 100.;
-const PLAYER_START_SPEED: f32 = 50.;
+const PLAYER_DECCELLERATION: f32 = 40.;
+const PLAYER_START_SPEED: f32 = 200.;
 const PLAYER_MAX_SPEED: f32 = 800.;
 const PLAYER_FADEOUT_SECONDS: f32 = 0.5;
 const PLAYER_TURN_SPEED: f32 = 2. * PI;
@@ -270,6 +270,7 @@ fn collect_textures(
 
 fn shot_hit_asteroid(
     bullet_query: Query<(Entity, &Transform, &SpriteSize), With<Bullet>>,
+    player_query: Query<&Transform, With<Player>>,
     asteroids_query: Query<
         (
             Entity,
@@ -292,53 +293,54 @@ fn shot_hit_asteroid(
     let mut spent_bullets = vec![];
     let mut asteroids_hit = vec![];
 
-    'bullet: for (bullet_entity, bullet_transform, bullet_size) in bullet_query.iter() {
-        for (asteroid_entity, asteroid_transform, asteroid_size, velocity, shadowof) in
-            asteroids_query.iter()
-        {
-            let (controller, velocity) = shadowof
-                .and_then(|shadowof| {
-                    controller_query
-                        .iter()
-                        .find(|(controller, _)| controller == &shadowof.0)
-                })
-                .unwrap_or((asteroid_entity, velocity));
+    for player_tf in player_query.iter() {
+        'bullet: for (bullet_entity, bullet_transform, bullet_size) in bullet_query.iter() {
+            for (asteroid_entity, asteroid_transform, asteroid_size, velocity, shadowof) in
+                asteroids_query.iter()
+            {
+                let (controller, velocity) = shadowof
+                    .and_then(|shadowof| {
+                        controller_query
+                            .iter()
+                            .find(|(controller, _)| controller == &shadowof.0)
+                    })
+                    .unwrap_or((asteroid_entity, velocity));
 
-            if asteroids_hit.contains(&controller) {
-                continue;
-            }
+                if asteroids_hit.contains(&controller) {
+                    continue;
+                }
 
-            if velocity.is_none() {
-                log::warn!(
+                if velocity.is_none() {
+                    log::warn!(
                     "no velocity on controller - it's likely a double hit on a stopped asteroid"
                 );
-                continue;
-            }
-            let velocity = velocity.unwrap();
+                    continue;
+                }
 
-            // TODO: take bullet orientation into account for collision check!
-            if collide(
-                bullet_transform.translation,
-                bullet_size.0,
-                asteroid_transform.translation,
-                asteroid_size.0,
-            )
-            .is_some()
-            {
-                log::debug!("bullet hits asteroid");
-                asteroids_hit.push(controller);
-                spent_bullets.push(bullet_entity);
+                // TODO: take bullet orientation into account for collision check!
+                if collide(
+                    bullet_transform.translation,
+                    bullet_size.0,
+                    asteroid_transform.translation,
+                    asteroid_size.0,
+                )
+                .is_some()
+                {
+                    log::debug!("bullet hits asteroid");
+                    asteroids_hit.push(controller);
+                    spent_bullets.push(bullet_entity);
 
-                split_asteroid(
-                    &asteroid_size.0,
-                    &asteroid_transform.translation,
-                    velocity,
-                    &win_size,
-                    &mut materials,
-                    &mut commands,
-                );
+                    split_asteroid(
+                        &asteroid_size.0,
+                        &asteroid_transform.translation,
+                        &player_tf.translation,
+                        &win_size,
+                        &mut materials,
+                        &mut commands,
+                    );
 
-                continue 'bullet;
+                    continue 'bullet;
+                }
             }
         }
     }
@@ -352,7 +354,6 @@ fn shot_hit_asteroid(
 
         // removing Asteroid component stops us from finding the asteroid again
         // removing the Velocity stops the asteroid movement
-        // removing any FadeIn as it kinda conflicts with the FadeOut
         // adding FadeOut fades the asteroids, and despawns when done!
 
         // do remember the "shadows" as well as the controller
@@ -363,12 +364,12 @@ fn shot_hit_asteroid(
         {
             commands
                 .entity(entity)
-                .remove_bundle::<(Asteroid, Fadein)>()
+                .remove_bundle::<(Asteroid, Velocity)>()
                 .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_BULLET_SECONDS));
         }
         commands
             .entity(asteroid)
-            .remove_bundle::<(Asteroid, Velocity, Fadein)>()
+            .remove_bundle::<(Asteroid, Velocity)>()
             .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_BULLET_SECONDS));
     }
 }

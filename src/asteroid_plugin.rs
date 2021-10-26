@@ -2,8 +2,8 @@ use crate::{
     movement_plugin::{spawn_shadows_for_display_wrap, ShadowController, Velocity},
     player_plugin::Player,
     AsteroidMaterials, GameState, SpriteSize, WinSize, ASTEROIDS_LEVEL_SPAWN,
-    ASTEROIDS_PLAYER_SPAWN_DISTANCE, ASTEROID_FADEIN_SECONDS, ASTEROID_MAX_SIZE,
-    ASTEROID_MAX_SPEED, ASTEROID_MIN_SIZE, ASTEROID_MIN_SPEED, ASTEROID_Z_MAX, ASTEROID_Z_MIN,
+    ASTEROIDS_PLAYER_SPAWN_DISTANCE, ASTEROID_MAX_SIZE, ASTEROID_MAX_SPEED, ASTEROID_MIN_SIZE,
+    ASTEROID_MIN_SPEED, ASTEROID_SPAWN_DELAY, ASTEROID_Z_MAX, ASTEROID_Z_MIN,
 };
 use bevy::{ecs::system::EntityCommands, log, prelude::*};
 use rand::Rng;
@@ -31,7 +31,7 @@ pub struct Asteroid;
 pub fn split_asteroid(
     asteroid_size: &Vec2,
     asteroid_position: &Vec3,
-    asteroid_velocity: &Velocity,
+    player_position: &Vec3,
     win_size: &WinSize,
     materials: &mut AsteroidMaterials,
     commands: &mut Commands,
@@ -41,20 +41,23 @@ pub fn split_asteroid(
         return;
     }
 
-    let tracjetories = {
-        let mut rng = rand::thread_rng();
-        let direction = asteroid_velocity.normalize();
-        let minimum_speed = f32::min(size / ASTEROID_FADEIN_SECONDS, ASTEROID_MIN_SPEED);
-        const ANGLE: f32 = PI / 3.;
-        [
-            Quat::from_rotation_z(ANGLE)
-                .mul_vec3(direction * rng.gen_range(minimum_speed..ASTEROID_MAX_SPEED)),
-            Quat::from_rotation_z(-ANGLE)
-                .mul_vec3(direction * rng.gen_range(minimum_speed..ASTEROID_MAX_SPEED)),
-        ]
-    };
+    const SPLIT_INTO: usize = 2;
 
-    for velocity in tracjetories {
+    let angle_between_splits = 2. * PI / SPLIT_INTO as f32;
+    // to not send a split asteroid towards the user, skew the angle generation with half the angle
+    let skew_angle = angle_between_splits / 2.;
+    // skew is in relation to the vector between the asteroid and the player
+    let player_asteroid_dir = asteroid_position.truncate() - player_position.truncate();
+
+    let mut rng = rand::thread_rng();
+
+    for velocity in (0..SPLIT_INTO).map(|i| {
+        let asteroid_angle = angle_between_splits * i as f32 + skew_angle;
+        Quat::from_rotation_z(asteroid_angle)
+            .mul_vec3(player_asteroid_dir.extend(0.))
+            .normalize()
+            * rng.gen_range(ASTEROID_MIN_SPEED..ASTEROID_MAX_SPEED)
+    }) {
         match spawn_asteroid(
             size,
             asteroid_position,
@@ -72,7 +75,10 @@ pub fn split_asteroid(
 fn asteroid_level_init(mut commands: Commands) {
     commands
         .spawn()
-        .insert(Timer::new(Duration::from_secs_f32(0.15), true))
+        .insert(Timer::new(
+            Duration::from_secs_f32(ASTEROID_SPAWN_DELAY),
+            true,
+        ))
         .insert(AsteroidsToSpawn(ASTEROIDS_LEVEL_SPAWN));
 }
 
@@ -150,8 +156,9 @@ fn spawn_asteroid(
             let mut rng = rand::thread_rng();
             let scale = size / material_size.max_element();
             log::debug!("spawn child asteroid");
-            let translation =
-                Vec2::from(*position).extend(rng.gen_range(ASTEROID_Z_MIN..ASTEROID_Z_MAX));
+            let translation = position
+                .truncate()
+                .extend(rng.gen_range(ASTEROID_Z_MIN..ASTEROID_Z_MAX));
             let id = commands
                 .spawn_bundle(SpriteBundle {
                     material: material.clone(),

@@ -10,6 +10,7 @@ structopt = "0.3"
 rand = "0.8.4"
 bevy = "0.5"
 thiserror = "1.0"
+derive_more = "0.99"
 
 [patch.crates-io]
 bevy = { git = "https://github.com/bevyengine/bevy" }

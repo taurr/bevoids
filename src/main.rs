@@ -1,43 +1,70 @@
 #![allow(clippy::complexity)]
 
-use crate::{
-    asteroid_plugin::split_asteroid,
-    fade_plugin::{FadePlugin, Fadeout},
-    movement_plugin::MovementPlugin,
-    player_plugin::PlayerPlugin,
-};
 use asset_helper::RelativeAssetLoader;
-use asteroid_plugin::{Asteroid, AsteroidPlugin};
+use asteroid_plugin::AsteroidPlugin;
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     log,
     prelude::*,
-    sprite::{collide_aabb::collide, SpriteSettings},
+    sprite::SpriteSettings,
     utils::HashMap,
 };
-use movement_plugin::{ShadowController, ShadowOf, Velocity};
-use player_plugin::{Bullet, Player};
+use derive_more::{Display, From, Into};
+use hit_test::HitTestPlugin;
 use rand::Rng;
 use std::f32::consts::PI;
 use structopt::StructOpt;
+use thiserror::Error;
+
+use crate::{
+    fade_plugin::FadePlugin, movement_plugin::MovementPlugin, player_plugin::PlayerPlugin,
+};
 
 mod asset_helper;
 mod asteroid_plugin;
 mod fade_plugin;
+mod hit_test;
 mod movement_plugin;
 mod player_plugin;
 
 #[derive(Debug, StructOpt)]
 struct Args {
-    #[structopt(short, long)]
+    #[structopt(long)]
     assets: Option<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Display, Copy, Clone, Eq, PartialEq, Hash)]
 enum GameState {
     Initialize,
     InGame,
 }
+
+struct Textures {
+    pub spaceship: Handle<Texture>,
+    pub flame: Handle<Texture>,
+    pub shot: Handle<Texture>,
+    pub asteroids: Vec<Handle<Texture>>,
+    sizes: HashMap<Handle<Texture>, Vec2>,
+}
+
+#[derive(Debug, Error, Copy, Clone)]
+enum AsteroidMaterialError {
+    #[error("no asteroid materials available")]
+    NoMaterialsAvailable,
+}
+
+struct AsteroidMaterials {
+    sizes_by_material: HashMap<Handle<ColorMaterial>, Vec2>,
+    materials: Vec<Handle<ColorMaterial>>,
+}
+
+#[derive(Debug, Component, Copy, Clone, Display, From, Into)]
+struct SpriteSize(Vec2);
+
+#[derive(Debug, Component, Copy, Clone, Display, From, Into)]
+struct WinSize(pub Vec2);
+
+// region: constants
 
 const WIN_WIDTH: f32 = 1024.;
 const WIN_HEIGHT: f32 = 800.;
@@ -77,107 +104,11 @@ const PLAYER_MAX_SPEED: f32 = 800.;
 const PLAYER_FADEOUT_SECONDS: f32 = 0.5;
 const PLAYER_TURN_SPEED: f32 = 2. * PI;
 
+// endregion constants
+
 // TODO: scoring
 // TODO: respawn player / lives / levels
 // TODO: player hit asteroid
-
-pub struct Textures {
-    pub spaceship: Handle<Texture>,
-    pub flame: Handle<Texture>,
-    pub shot: Handle<Texture>,
-    pub asteroids: Vec<Handle<Texture>>,
-    sizes: HashMap<Handle<Texture>, Vec2>,
-}
-impl Textures {
-    pub fn from_path(asset_server: &AssetServer, assets_path: &Option<String>) -> Self {
-        Self {
-            spaceship: asset_server.load_relative(assets_path, "spaceship.png"),
-            flame: asset_server.load_relative(assets_path, "flame.png"),
-            shot: asset_server.load_relative(assets_path, "laser.png"),
-            asteroids: (1..20)
-                .map(|n| asset_server.attempt_relative(assets_path, &format!("asteroid_{}.png", n)))
-                .filter_map(|x| x)
-                .collect(),
-            sizes: Default::default(),
-        }
-    }
-
-    pub fn has_size_for_all(&self) -> bool {
-        3 + self.asteroids.len() == self.sizes.len()
-    }
-
-    pub fn capture_size(&mut self, handle: &Handle<Texture>, texture_assets: &Assets<Texture>) {
-        let texture = texture_assets.get(handle).unwrap();
-        let size = Vec2::new(texture.size.width as f32, texture.size.height as f32);
-        self.sizes.insert(handle.clone(), size);
-    }
-
-    pub fn get_size(&self, handle: &Handle<Texture>) -> Option<Vec2> {
-        self.sizes.get(handle).map(Vec2::clone)
-    }
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum AsteroidMaterialError {
-    #[error("no asteroid materials available")]
-    NoMaterialsAvailable,
-}
-pub struct AsteroidMaterials {
-    sizes_by_material: HashMap<Handle<ColorMaterial>, Vec2>,
-    materials: Vec<Handle<ColorMaterial>>,
-}
-impl AsteroidMaterials {
-    fn from_textures(
-        textures: &Textures,
-        size: usize,
-        material_assets: &mut Assets<ColorMaterial>,
-    ) -> Self {
-        let mut sizes_by_material = HashMap::default();
-        let mut materials = Vec::new();
-
-        let mut rng = rand::thread_rng();
-        for _ in 0..size {
-            let random_texture = textures
-                .asteroids
-                .get(rng.gen_range(0..textures.asteroids.len()))
-                .unwrap()
-                .clone();
-            let size = textures.sizes.get(&random_texture).unwrap().clone();
-            let color_material = material_assets.add(ColorMaterial {
-                color: Color::WHITE,
-                texture: Some(random_texture),
-            });
-            materials.push(color_material.clone());
-            sizes_by_material.insert(color_material, size);
-        }
-
-        Self {
-            sizes_by_material,
-            materials,
-        }
-    }
-
-    pub fn pop(&mut self) -> Result<(Handle<ColorMaterial>, Vec2), AsteroidMaterialError> {
-        self.materials
-            .pop()
-            .map(|material| {
-                let size = self.sizes_by_material.get(&material).unwrap().clone();
-                (material, size)
-            })
-            .ok_or(AsteroidMaterialError::NoMaterialsAvailable)
-    }
-}
-
-#[derive(Debug, Component, Copy, Clone)]
-pub struct SpriteSize(pub Vec2);
-
-#[derive(Debug, Component, Copy, Clone)]
-pub struct WinSize(pub Vec2);
-impl WinSize {
-    fn from_window(window: &Window) -> Self {
-        Self(Vec2::new(window.width(), window.height()))
-    }
-}
 
 fn main() {
     App::new()
@@ -198,6 +129,7 @@ fn main() {
         .add_plugin(AsteroidPlugin)
         .add_plugin(MovementPlugin)
         .add_plugin(FadePlugin)
+        .add_plugin(HitTestPlugin)
         // add resources that are always available
         .insert_resource(Args::from_args())
         .insert_resource(ClearColor(Color::BLACK))
@@ -206,10 +138,6 @@ fn main() {
             height: WIN_HEIGHT,
             ..Default::default()
         })
-        .add_system_set(
-            SystemSet::on_update(GameState::InGame).with_system(shot_hit_asteroid.system()),
-        )
-        //.with_system(asteroid_hit_player.system())
         .run();
 }
 
@@ -268,151 +196,79 @@ fn collect_textures(
     }
 }
 
-fn shot_hit_asteroid(
-    bullet_query: Query<(Entity, &Transform, &SpriteSize), With<Bullet>>,
-    player_query: Query<&Transform, With<Player>>,
-    asteroids_query: Query<
-        (
-            Entity,
-            &Transform,
-            &SpriteSize,
-            Option<&Velocity>,
-            Option<&ShadowOf>,
-        ),
-        (With<Asteroid>, Without<Fadeout>),
-    >,
-    controller_query: Query<
-        (Entity, Option<&Velocity>),
-        (With<Asteroid>, With<ShadowController>, Without<Fadeout>),
-    >,
-    shadows_query: Query<(Entity, &ShadowOf), With<Asteroid>>,
-    win_size: Res<WinSize>,
-    mut commands: Commands,
-    mut materials: ResMut<AsteroidMaterials>,
-) {
-    let mut spent_bullets = vec![];
-    let mut asteroids_hit = vec![];
-
-    for player_tf in player_query.iter() {
-        'bullet: for (bullet_entity, bullet_transform, bullet_size) in bullet_query.iter() {
-            for (asteroid_entity, asteroid_transform, asteroid_size, velocity, shadowof) in
-                asteroids_query.iter()
-            {
-                let (controller, velocity) = shadowof
-                    .and_then(|shadowof| {
-                        controller_query
-                            .iter()
-                            .find(|(controller, _)| controller == &shadowof.0)
-                    })
-                    .unwrap_or((asteroid_entity, velocity));
-
-                if asteroids_hit.contains(&controller) {
-                    continue;
-                }
-
-                if velocity.is_none() {
-                    log::warn!(
-                    "no velocity on controller - it's likely a double hit on a stopped asteroid"
-                );
-                    continue;
-                }
-
-                // TODO: take bullet orientation into account for collision check!
-                if collide(
-                    bullet_transform.translation,
-                    bullet_size.0,
-                    asteroid_transform.translation,
-                    asteroid_size.0,
-                )
-                .is_some()
-                {
-                    log::debug!("bullet hits asteroid");
-                    asteroids_hit.push(controller);
-                    spent_bullets.push(bullet_entity);
-
-                    split_asteroid(
-                        &asteroid_size.0,
-                        &asteroid_transform.translation,
-                        &player_tf.translation,
-                        &win_size,
-                        &mut materials,
-                        &mut commands,
-                    );
-
-                    continue 'bullet;
-                }
-            }
+impl Textures {
+    pub fn from_path(asset_server: &AssetServer, assets_path: &Option<String>) -> Self {
+        Self {
+            spaceship: asset_server.load_relative(assets_path, "spaceship.png"),
+            flame: asset_server.load_relative(assets_path, "flame.png"),
+            shot: asset_server.load_relative(assets_path, "laser.png"),
+            asteroids: (1..20)
+                .map(|n| asset_server.attempt_relative(assets_path, &format!("asteroid_{}.png", n)))
+                .filter_map(|x| x)
+                .collect(),
+            sizes: Default::default(),
         }
     }
 
-    for bullet in spent_bullets {
-        commands.entity(bullet).despawn();
+    pub fn has_size_for_all(&self) -> bool {
+        3 + self.asteroids.len() == self.sizes.len()
     }
 
-    for asteroid in asteroids_hit {
-        // TODO: once in a blue moon, we try to insert Fadeout on an entity that has been removed - why?
+    pub fn capture_size(&mut self, handle: &Handle<Texture>, texture_assets: &Assets<Texture>) {
+        let texture = texture_assets.get(handle).unwrap();
+        let size = Vec2::new(texture.size.width as f32, texture.size.height as f32);
+        self.sizes.insert(handle.clone(), size);
+    }
 
-        // removing Asteroid component stops us from finding the asteroid again
-        // removing the Velocity stops the asteroid movement
-        // adding FadeOut fades the asteroids, and despawns when done!
-
-        // do remember the "shadows" as well as the controller
-        for entity in shadows_query
-            .iter()
-            .filter(|(_, shadowof)| asteroid == shadowof.0)
-            .map(|(entity, _)| entity)
-        {
-            commands
-                .entity(entity)
-                .remove_bundle::<(Asteroid, Velocity)>()
-                .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_BULLET_SECONDS));
-        }
-        commands
-            .entity(asteroid)
-            .remove_bundle::<(Asteroid, Velocity)>()
-            .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_BULLET_SECONDS));
+    pub fn get_size(&self, handle: &Handle<Texture>) -> Option<Vec2> {
+        self.sizes.get(handle).map(Vec2::clone)
     }
 }
 
-/*
-fn asteroid_hit_player(
-    mut commands: Commands,
-    asteroid_query: Query<
-        (Entity, &Transform, &ScaledSize),
-        (With<Asteroid>, Without<Fadeout>, Without<Fadein>),
-    >,
-    player_query: Query<(Entity, &Transform, &ScaledSize), With<Player>>,
-) {
-    let mut removed = vec![];
+impl AsteroidMaterials {
+    fn from_textures(
+        textures: &Textures,
+        size: usize,
+        material_assets: &mut Assets<ColorMaterial>,
+    ) -> Self {
+        let mut sizes_by_material = HashMap::default();
+        let mut materials = Vec::new();
 
-    for (asteroid_entity, asteroid_transform, asteroid_size) in asteroid_query.iter() {
-        for (player_entity, player_transform, player_size) in player_query.iter() {
-            if collide(
-                asteroid_transform.translation,
-                **asteroid_size,
-                player_transform.translation,
-                **player_size,
-            )
-            .is_some()
-            {
-                if !removed.contains(&asteroid_entity) {
-                    removed.push(asteroid_entity);
-                    commands
-                        .entity(asteroid_entity)
-                        .remove::<Asteroid>()
-                        .remove::<Velocity>()
-                        .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_PLAYER_SECONDS));
-                }
-                if !removed.contains(&player_entity) {
-                    commands
-                        .entity(player_entity)
-                        .remove::<Player>()
-                        .remove::<Velocity>()
-                        .insert(Fadeout::from_secs_f32(PLAYER_FADEOUT_SECONDS));
-                    removed.push(player_entity);
-                }
-            }
+        let mut rng = rand::thread_rng();
+        for _ in 0..size {
+            let random_texture = textures
+                .asteroids
+                .get(rng.gen_range(0..textures.asteroids.len()))
+                .unwrap()
+                .clone();
+            let size = textures.sizes.get(&random_texture).unwrap().clone();
+            let color_material = material_assets.add(ColorMaterial {
+                color: Color::WHITE,
+                texture: Some(random_texture),
+            });
+            materials.push(color_material.clone());
+            sizes_by_material.insert(color_material, size);
+        }
+
+        Self {
+            sizes_by_material,
+            materials,
         }
     }
+
+    pub fn pop(&mut self) -> Result<(Handle<ColorMaterial>, Vec2), AsteroidMaterialError> {
+        self.materials
+            .pop()
+            .map(|material| {
+                let size = self.sizes_by_material.get(&material).unwrap().clone();
+                (material, size)
+            })
+            .ok_or(AsteroidMaterialError::NoMaterialsAvailable)
+    }
 }
-*/
+
+impl WinSize {
+    fn from_window(window: &Window) -> Self {
+        Self(Vec2::new(window.width(), window.height()))
+    }
+}

@@ -1,12 +1,22 @@
-use crate::GameState;
 use bevy::prelude::*;
 use std::time::Duration;
 
+use crate::GameState;
+
+pub(crate) struct FadePlugin;
+
 #[derive(Debug, Default, Component)]
-pub struct Fadeout {
+pub(crate) struct Fadeout {
     speed: f32,
     value: f32,
 }
+
+#[derive(Debug, Default, Component)]
+pub(crate) struct DelayedFadeout {
+    timer: Timer,
+    speed: Duration,
+}
+
 impl Fadeout {
     #[allow(dead_code)]
     pub fn new(duration: Duration) -> Self {
@@ -25,11 +35,6 @@ impl Fadeout {
     }
 }
 
-#[derive(Debug, Default, Component)]
-pub struct DelayedFadeout {
-    timer: Timer,
-    speed: Duration,
-}
 impl DelayedFadeout {
     pub fn new(delay: Duration, fade: Duration) -> Self {
         Self {
@@ -38,8 +43,6 @@ impl DelayedFadeout {
         }
     }
 }
-
-pub struct FadePlugin;
 
 impl Plugin for FadePlugin {
     fn build(&self, app: &mut App) {

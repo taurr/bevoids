@@ -1,3 +1,8 @@
+use bevy::{core::FixedTimestep, ecs::system::EntityCommands, log, math::vec3, prelude::*};
+use derive_more::{Display, From, Into};
+use rand::Rng;
+use std::{f32::consts::PI, time::Duration};
+
 use crate::{
     fade_plugin::DelayedFadeout,
     movement_plugin::{spawn_shadows_for_display_wrap, ShadowController, Velocity},
@@ -6,22 +11,20 @@ use crate::{
     FLAME_RELATIVE_Y, FLAME_RELATIVE_Z, FLAME_WIDTH, PLAYER_ACCELLERATION, PLAYER_DECCELLERATION,
     PLAYER_MAX_SIZE, PLAYER_MAX_SPEED, PLAYER_START_SPEED, PLAYER_TURN_SPEED, PLAYER_Z,
 };
-use bevy::{core::FixedTimestep, ecs::system::EntityCommands, log, math::vec3, prelude::*};
-use rand::Rng;
-use std::{f32::consts::PI, time::Duration};
-pub struct PlayerPlugin;
 
-#[derive(Debug, Default, Component)]
-pub struct Player;
+pub(crate) struct PlayerPlugin;
 
-#[derive(Debug, Default, Component)]
-pub struct Bullet;
+#[derive(Debug, Component, Display)]
+pub(crate) struct Player;
 
-#[derive(Debug, Default, Component)]
-pub struct Orientation(pub Quat);
+#[derive(Debug, Component, Display)]
+pub(crate) struct Bullet;
 
-#[derive(Debug, Default, Component)]
-pub struct Flame;
+#[derive(Debug, Default, Component, Display, From, Into, Copy, Clone)]
+pub(crate) struct Orientation(Quat);
+
+#[derive(Debug, Component, Display)]
+pub(crate) struct Flame;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {

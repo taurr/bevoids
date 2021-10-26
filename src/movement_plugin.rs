@@ -1,51 +1,22 @@
-use crate::{GameState, SpriteSize, WinSize};
 use bevy::{ecs::system::EntityCommands, log, math::vec3, prelude::*};
+use derive_more::{Display, From, Into};
 use std::ops::{Deref, DerefMut};
 
-pub struct MovementPlugin;
+use crate::{GameState, SpriteSize, WinSize};
 
-#[derive(Debug, Default, Component, Copy, Clone)]
-pub struct Velocity(pub Vec3);
+pub(crate) struct MovementPlugin;
 
-impl Velocity {
-    pub fn new(movement_pr_sec: Vec3) -> Self {
-        Self(movement_pr_sec)
-    }
-}
+#[derive(Debug, Default, Component, Copy, Clone, Display, From, Into)]
+pub(crate) struct Velocity(Vec3);
 
-impl Deref for Velocity {
-    type Target = Vec3;
+#[derive(Debug, Default, Component, Display)]
+pub(crate) struct ShadowController;
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Velocity {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl Plugin for MovementPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_update(GameState::InGame)
-                .with_system(linear_movement.system())
-                .with_system(move_shadow.system())
-                .with_system(keep_in_bounds.system()),
-        );
-    }
-}
-
-#[derive(Debug, Default, Component)]
-pub struct ShadowController;
-
-#[derive(Debug, Component)]
-pub struct ShadowOf(pub Entity, pub Vec3);
+#[derive(Debug, Component, From, Into)]
+pub(crate) struct ShadowOf(pub Entity, pub Vec3);
 
 #[allow(dead_code)]
-pub fn overlaps(pos1: Vec3, size1: Vec2, pos2: Vec3, size2: Vec2) -> bool {
+pub(crate) fn overlaps(pos1: Vec3, size1: Vec2, pos2: Vec3, size2: Vec2) -> bool {
     fn overlaps_segment(p1: f32, len1: f32, p2: f32, len2: f32) -> bool {
         let p1_left = p1 - len1 / 2.0;
         let p1_right = p1 + len1 / 2.0;
@@ -61,6 +32,67 @@ pub fn overlaps(pos1: Vec3, size1: Vec2, pos2: Vec3, size2: Vec2) -> bool {
     let r1 = overlaps_segment(pos1.x, size1.x, pos2.x, size2.x);
     let r2 = overlaps_segment(pos1.y, size1.y, pos2.y, size2.y);
     r1 && r2
+}
+
+pub(crate) fn spawn_shadows_for_display_wrap(
+    id: Entity,
+    material: Handle<ColorMaterial>,
+    sprite_size: SpriteSize,
+    win_size: &WinSize,
+    controller_scale: f32,
+    controller_translation: Vec3,
+    component_inserter: &Option<impl Fn(EntityCommands)>,
+    commands: &mut Commands,
+) {
+    for x in [-win_size.0.x, win_size.0.x] {
+        for y in [-win_size.0.y, win_size.0.y] {
+            spawn_shadow(
+                id,
+                sprite_size,
+                controller_scale,
+                controller_translation,
+                Vec3::new(x, y, 0.),
+                &material,
+                component_inserter,
+                commands,
+            );
+        }
+    }
+    for x in [-win_size.0.x, win_size.0.x] {
+        spawn_shadow(
+            id,
+            sprite_size,
+            controller_scale,
+            controller_translation,
+            Vec3::new(x, 0., 0.),
+            &material,
+            component_inserter,
+            commands,
+        );
+    }
+    for y in [-win_size.0.y, win_size.0.y] {
+        spawn_shadow(
+            id,
+            sprite_size,
+            controller_scale,
+            controller_translation,
+            Vec3::new(0., y, 0.),
+            &material,
+            component_inserter,
+            commands,
+        );
+    }
+}
+
+impl Plugin for MovementPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_system_set(
+            SystemSet::on_update(GameState::InGame)
+                .with_system(linear_movement.system())
+                .with_system(move_shadow.system())
+                .with_system(keep_in_bounds.system()),
+        );
+    }
 }
 
 fn linear_movement(mut query: Query<(&mut Transform, &Velocity)>, time: Res<Time>) {
@@ -119,56 +151,6 @@ fn keep_in_bounds(mut query: Query<&mut Transform, With<Velocity>>, win_size: Re
     }
 }
 
-pub fn spawn_shadows_for_display_wrap(
-    id: Entity,
-    material: Handle<ColorMaterial>,
-    sprite_size: SpriteSize,
-    win_size: &WinSize,
-    controller_scale: f32,
-    controller_translation: Vec3,
-    component_inserter: &Option<impl Fn(EntityCommands)>,
-    commands: &mut Commands,
-) {
-    for x in [-win_size.0.x, win_size.0.x] {
-        for y in [-win_size.0.y, win_size.0.y] {
-            spawn_shadow(
-                id,
-                sprite_size,
-                controller_scale,
-                controller_translation,
-                Vec3::new(x, y, 0.),
-                &material,
-                component_inserter,
-                commands,
-            );
-        }
-    }
-    for x in [-win_size.0.x, win_size.0.x] {
-        spawn_shadow(
-            id,
-            sprite_size,
-            controller_scale,
-            controller_translation,
-            Vec3::new(x, 0., 0.),
-            &material,
-            component_inserter,
-            commands,
-        );
-    }
-    for y in [-win_size.0.y, win_size.0.y] {
-        spawn_shadow(
-            id,
-            sprite_size,
-            controller_scale,
-            controller_translation,
-            Vec3::new(0., y, 0.),
-            &material,
-            component_inserter,
-            commands,
-        );
-    }
-}
-
 fn spawn_shadow(
     shadow_controller: Entity,
     sprite_size: SpriteSize,
@@ -194,5 +176,25 @@ fn spawn_shadow(
         .id();
     if let Some(component_inserter) = component_inserter {
         component_inserter(commands.entity(id));
+    }
+}
+
+impl Velocity {
+    pub fn new(movement_pr_sec: Vec3) -> Self {
+        Self(movement_pr_sec)
+    }
+}
+
+impl Deref for Velocity {
+    type Target = Vec3;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Velocity {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }

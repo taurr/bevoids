@@ -47,7 +47,7 @@ pub fn split_asteroid(
     // to not send a split asteroid towards the user, skew the angle generation with half the angle
     let skew_angle = angle_between_splits / 2.;
     // skew is in relation to the vector between the asteroid and the player
-    let player_asteroid_dir = asteroid_position.truncate() - player_position.truncate();
+    let player_asteroid_dir = player_position.truncate() - asteroid_position.truncate();
 
     let mut rng = rand::thread_rng();
 

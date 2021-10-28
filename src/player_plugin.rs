@@ -6,10 +6,11 @@ use std::{f32::consts::PI, time::Duration};
 use crate::{
     fade_plugin::DelayedFadeout,
     movement_plugin::{spawn_shadows_for_display_wrap, ShadowController, Velocity},
-    GameState, SpriteSize, Textures, WinSize, BULLET_FADEOUT_SECONDS, BULLET_LIFETIME_SECONDS,
-    BULLET_MAX_SIZE, BULLET_RELATIVE_Y, BULLET_RELATIVE_Z, BULLET_SPEED, FLAME_OPACITY,
-    FLAME_RELATIVE_Y, FLAME_RELATIVE_Z, FLAME_WIDTH, PLAYER_ACCELLERATION, PLAYER_DECCELLERATION,
-    PLAYER_MAX_SIZE, PLAYER_MAX_SPEED, PLAYER_START_SPEED, PLAYER_TURN_SPEED, PLAYER_Z,
+    Despawn, GameState, SpriteSize, Textures, WinSize, BULLET_FADEOUT_SECONDS,
+    BULLET_LIFETIME_SECONDS, BULLET_MAX_SIZE, BULLET_RELATIVE_Y, BULLET_RELATIVE_Z, BULLET_SPEED,
+    FLAME_OPACITY, FLAME_RELATIVE_Y, FLAME_RELATIVE_Z, FLAME_WIDTH, PLAYER_ACCELLERATION,
+    PLAYER_DECCELLERATION, PLAYER_MAX_SIZE, PLAYER_MAX_SPEED, PLAYER_START_SPEED,
+    PLAYER_TURN_SPEED, PLAYER_Z,
 };
 
 pub(crate) struct PlayerPlugin;
@@ -25,6 +26,16 @@ pub(crate) struct Orientation(Quat);
 
 #[derive(Debug, Component, Display)]
 pub(crate) struct Flame;
+
+pub(crate) fn kill_player(commands: &mut Commands, player: Entity) {
+    log::warn!(?player, "player dead");
+    commands.entity(player).remove::<Player>().insert(Despawn);
+}
+
+pub(crate) fn bullet_spent(commands: &mut Commands, bullet: Entity) {
+    log::debug!(?bullet, "bullet spent");
+    commands.entity(bullet).despawn();
+}
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
@@ -44,7 +55,7 @@ impl Plugin for PlayerPlugin {
 
 fn player_stats(player_query: Query<&Velocity, With<Player>>) {
     for velocity in player_query.iter() {
-        log::trace!("speed: {}", velocity.length());
+        log::trace!(speed=velocity.length());
     }
 }
 
@@ -54,7 +65,7 @@ fn player_spawn(
     textures: Res<Textures>,
     mut material_assets: ResMut<Assets<ColorMaterial>>,
 ) {
-    log::debug!("player created");
+    log::debug!("spawning player");
     let mut rng = rand::thread_rng();
 
     let position = Vec2::new(
@@ -81,10 +92,13 @@ fn player_spawn(
         })
         .insert(sprite_size)
         .insert(Player)
+        .insert(SpriteSize(texture_size * scale))
         .insert(ShadowController)
         .insert(Orientation(random_rotation))
         .insert(Velocity::new(velocity))
         .id();
+
+    log::info!(player=?id, "player spawned");
 
     spawn_shadows_for_display_wrap(
         id,
@@ -197,7 +211,7 @@ fn spawn_bullet(
     let mut bullet_velocity = player_orientation.0.mul_vec3(vec3(0., BULLET_SPEED, 0.));
     bullet_velocity += player_velocity.project_onto(bullet_velocity);
 
-    commands
+    let id = commands
         .spawn_bundle(SpriteBundle {
             // TODO: ColorMaterial should not be created each time we show the flame
             material: material_assets.add(ColorMaterial::texture(textures.shot.clone())),
@@ -218,7 +232,8 @@ fn spawn_bullet(
             Duration::from_secs_f32(BULLET_LIFETIME_SECONDS),
             Duration::from_secs_f32(BULLET_FADEOUT_SECONDS),
         ))
-        .insert(Velocity::new(bullet_velocity));
+        .insert(Velocity::new(bullet_velocity)).id();
+    log::debug!(buller=?id, "spawned bullet");
 }
 
 fn spawn_flame(

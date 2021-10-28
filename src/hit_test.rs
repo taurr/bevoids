@@ -1,11 +1,11 @@
 use bevy::{log, prelude::*, sprite::collide_aabb::collide};
 
 use crate::{
-    asteroid_plugin::{split_asteroid, Asteroid},
+    asteroid_plugin::{despawn_asteroid, spawn_split_asteroids, Asteroid},
     fade_plugin::Fadeout,
     movement_plugin::{ShadowController, ShadowOf, Velocity},
-    player_plugin::{Bullet, Player},
-    AsteroidMaterials, GameState, SpriteSize, WinSize, ASTEROID_FADEOUT_BULLET_SECONDS,
+    player_plugin::{bullet_spent, kill_player, Bullet, Player},
+    AsteroidMaterials, Despawn, GameState, SpriteSize, WinSize,
 };
 
 pub(crate) struct HitTestPlugin;
@@ -21,7 +21,7 @@ impl Plugin for HitTestPlugin {
 }
 
 fn shot_hit_asteroid(
-    bullet_query: Query<(Entity, &Transform, &SpriteSize), With<Bullet>>,
+    bullet_query: Query<(Entity, &Transform, &SpriteSize), (With<Bullet>, Without<Despawn>)>,
     asteroids_query: Query<
         (
             Entity,
@@ -30,13 +30,18 @@ fn shot_hit_asteroid(
             Option<&Velocity>,
             Option<&ShadowOf>,
         ),
-        (With<Asteroid>, Without<Fadeout>),
+        (With<Asteroid>, Without<Fadeout>, Without<Despawn>),
     >,
     controller_query: Query<
         (Entity, Option<&Velocity>),
-        (With<Asteroid>, With<ShadowController>, Without<Fadeout>),
+        (
+            With<Asteroid>,
+            With<ShadowController>,
+            Without<Fadeout>,
+            Without<Despawn>,
+        ),
     >,
-    shadows_query: Query<(Entity, &ShadowOf), With<Asteroid>>,
+    shadows_query: Query<(Entity, &ShadowOf), (With<Asteroid>, Without<Fadeout>, Without<Despawn>)>,
     player_query: Query<&Transform, With<Player>>,
     win_size: Res<WinSize>,
     mut commands: Commands,
@@ -47,29 +52,22 @@ fn shot_hit_asteroid(
 
     for player_tf in player_query.iter() {
         'bullet: for (bullet_entity, bullet_transform, bullet_size) in bullet_query.iter() {
-            for (asteroid_entity, asteroid_transform, asteroid_size, velocity, shadowof) in
+            'asteroid: for (asteroid, asteroid_transform, asteroid_size, velocity, shadowof) in
                 asteroids_query.iter()
             {
-                let (controller, velocity) = shadowof
+                let (asteroid_ctrl, velocity) = shadowof
                     .and_then(|shadowof| {
                         controller_query
                             .iter()
                             .find(|(controller, _)| controller == &shadowof.0)
                     })
-                    .unwrap_or((asteroid_entity, velocity));
+                    .unwrap_or((asteroid, velocity));
 
-                if asteroids_hit.contains(&controller) {
-                    continue;
+                if asteroids_hit.contains(&asteroid_ctrl) || velocity.is_none() {
+                    continue 'asteroid;
                 }
 
-                if velocity.is_none() {
-                    log::warn!(
-                    "no velocity on controller - it's likely a double hit on a stopped asteroid"
-                );
-                    continue;
-                }
-
-                // TODO: take bullet orientation into account for collision check!
+                // TODO: take bullet/asteroid orientation into account for collision check!
                 if collide(
                     bullet_transform.translation,
                     (*bullet_size).into(),
@@ -78,11 +76,11 @@ fn shot_hit_asteroid(
                 )
                 .is_some()
                 {
-                    log::debug!("bullet hits asteroid");
-                    asteroids_hit.push(controller);
+                    log::info!(?asteroid_ctrl, ?asteroid, "bullet hit",);
+                    asteroids_hit.push(asteroid_ctrl);
                     spent_bullets.push(bullet_entity);
 
-                    split_asteroid(
+                    spawn_split_asteroids(
                         &Vec2::from(*asteroid_size),
                         &asteroid_transform.translation,
                         &player_tf.translation,
@@ -98,54 +96,99 @@ fn shot_hit_asteroid(
     }
 
     for bullet in spent_bullets {
-        commands.entity(bullet).despawn();
+        bullet_spent(&mut commands, bullet);
     }
 
     for asteroid in asteroids_hit {
-        // TODO: once in a blue moon, we try to insert Fadeout on an entity that has been removed - why?
-
-        // removing Asteroid component stops us from finding the asteroid again
-        // removing the Velocity stops the asteroid movement
-        // adding FadeOut fades the asteroids, and despawns when done!
-
-        // do remember the "shadows" as well as the controller
-        for entity in shadows_query
-            .iter()
-            .filter(|(_, shadowof)| asteroid == shadowof.0)
-            .map(|(entity, _)| entity)
-        {
-            commands
-                .entity(entity)
-                .remove_bundle::<(Asteroid, Velocity)>()
-                .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_BULLET_SECONDS));
-        }
-        commands
-            .entity(asteroid)
-            .remove_bundle::<(Asteroid, Velocity)>()
-            .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_BULLET_SECONDS));
+        despawn_asteroid(&mut commands, asteroid, &shadows_query);
     }
 }
 
 fn asteroid_hit_player(
+    player_query: Query<
+        (Entity, &Transform, &SpriteSize, Option<&ShadowOf>),
+        (With<Player>, Without<Fadeout>, Without<Despawn>),
+    >,
     asteroids_query: Query<
+        (Entity, &Transform, &SpriteSize, Option<&ShadowOf>),
+        (With<Asteroid>, Without<Fadeout>, Without<Despawn>),
+    >,
+    player_ctrl_query: Query<
+        Entity,
         (
-            Entity,
-            &Transform,
-            &SpriteSize,
-            Option<&Velocity>,
-            Option<&ShadowOf>,
+            With<Player>,
+            With<ShadowController>,
+            Without<Fadeout>,
+            Without<Despawn>,
         ),
-        (With<Asteroid>, Without<Fadeout>),
     >,
-    controller_query: Query<
-        (Entity, Option<&Velocity>),
-        (With<Asteroid>, With<ShadowController>, Without<Fadeout>),
+    asteroid_ctrl_query: Query<
+        Entity,
+        (
+            With<Asteroid>,
+            With<ShadowController>,
+            Without<Fadeout>,
+            Without<Despawn>,
+        ),
     >,
-    shadows_query: Query<(Entity, &ShadowOf), With<Asteroid>>,
-    player_query: Query<&Transform, With<Player>>,
-    win_size: Res<WinSize>,
+    shadows_query: Query<(Entity, &ShadowOf), (With<Asteroid>, Without<Fadeout>, Without<Despawn>)>,
     mut commands: Commands,
-    mut materials: ResMut<AsteroidMaterials>,
 ) {
-    // TODO: implement this hit test
+    let mut players_hit = vec![];
+    let mut asteroids_hit = vec![];
+
+    'player: for (player, player_tf, player_size, shadowof) in player_query.iter() {
+        let player_ctrl = shadowof
+            .and_then(|shadowof| {
+                player_ctrl_query
+                    .iter()
+                    .find(|player_ctrl| player_ctrl == &shadowof.0)
+            })
+            .unwrap_or(player);
+        'asteroid: for (asteroid, asteroid_transform, asteroid_size, shadowof) in
+            asteroids_query.iter()
+        {
+            let asteroid_ctrl = shadowof
+                .and_then(|shadowof| {
+                    asteroid_ctrl_query
+                        .iter()
+                        .find(|controller| controller == &shadowof.0)
+                })
+                .unwrap_or(asteroid);
+
+            if asteroids_hit.contains(&asteroid_ctrl) {
+                continue 'asteroid;
+            }
+
+            // TODO: take player/asteroid orientation into account for collision check!
+            if collide(
+                player_tf.translation,
+                (*player_size).into(),
+                asteroid_transform.translation,
+                (*asteroid_size).into(),
+            )
+            .is_some()
+            {
+                log::info!(
+                    ?player_ctrl,
+                    ?player,
+                    ?asteroid_ctrl,
+                    ?asteroid,
+                    "player hit!",
+                );
+                asteroids_hit.push(asteroid_ctrl);
+                players_hit.push(player_ctrl);
+
+                continue 'player;
+            }
+        }
+    }
+
+    for player in players_hit {
+        kill_player(&mut commands, player);
+    }
+
+    for asteroid in asteroids_hit {
+        despawn_asteroid(&mut commands, asteroid, &shadows_query);
+    }
 }

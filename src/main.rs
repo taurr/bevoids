@@ -64,12 +64,15 @@ struct SpriteSize(Vec2);
 #[derive(Debug, Component, Copy, Clone, Display, From, Into)]
 struct WinSize(pub Vec2);
 
+#[derive(Debug, Component, Display)]
+struct Despawn;
+
 // region: constants
 
 const WIN_WIDTH: f32 = 1024.;
 const WIN_HEIGHT: f32 = 800.;
 
-const ASTEROIDS_LEVEL_SPAWN: usize = 10;
+const ASTEROIDS_LEVEL_SPAWN: usize = 1;
 const ASTEROID_SPAWN_DELAY: f32 = 0.1;
 const ASTEROIDS_PLAYER_SPAWN_DISTANCE: f32 = 200.;
 const ASTEROIDS_MAX_ACTIVE: usize = 500;
@@ -79,9 +82,7 @@ const ASTEROID_MIN_SIZE: f32 = 20.;
 const ASTEROID_MAX_SIZE: f32 = 150.;
 const ASTEROID_MIN_SPEED: f32 = 25.;
 const ASTEROID_MAX_SPEED: f32 = 125.;
-const ASTEROID_FADEIN_SECONDS: f32 = 0.20;
-const ASTEROID_FADEOUT_BULLET_SECONDS: f32 = 0.20;
-const ASTEROID_FADEOUT_PLAYER_SECONDS: f32 = 1.0;
+const ASTEROID_FADEOUT_SECONDS: f32 = 0.20;
 
 const BULLET_RELATIVE_Z: f32 = -1.;
 const BULLET_RELATIVE_Y: f32 = 20.;
@@ -108,16 +109,17 @@ const PLAYER_TURN_SPEED: f32 = 2. * PI;
 
 // TODO: scoring
 // TODO: respawn player / lives / levels
-// TODO: player hit asteroid
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugin(LogDiagnosticsPlugin::default())
-        .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        //.add_plugin(LogDiagnosticsPlugin::default())
+        //.add_plugin(FrameTimeDiagnosticsPlugin::default())
         .insert_resource(SpriteSettings {
             frustum_culling_enabled: true,
         })
+        // general systems
+        .add_system_to_stage(CoreStage::PostUpdate, despawn.system())
         // set the starting state
         .add_state(GameState::Initialize)
         .add_system_set(SystemSet::on_enter(GameState::Initialize).with_system(initialize.system()))
@@ -139,6 +141,13 @@ fn main() {
             ..Default::default()
         })
         .run();
+}
+
+fn despawn(mut commands: Commands, query: Query<Entity, With<Despawn>>) {
+    for entity in query.iter() {
+        log::debug!(?entity, "despawning");
+        commands.entity(entity).despawn_recursive();
+    }
 }
 
 fn initialize(
@@ -176,7 +185,7 @@ fn collect_textures(
     for ev in texture_event.iter() {
         match ev {
             AssetEvent::Created { handle } => {
-                log::trace!("texture created/modified {:?}", handle.id);
+                log::trace!(texture=?handle.id, "texture created/modified");
                 textures.capture_size(handle, &texture_assets);
                 if textures.has_size_for_all() {
                     log::trace!("generating asteroid materials");
@@ -228,14 +237,16 @@ impl Textures {
 impl AsteroidMaterials {
     fn from_textures(
         textures: &Textures,
-        size: usize,
+        max_asteroid_sprites: usize,
         material_assets: &mut Assets<ColorMaterial>,
     ) -> Self {
         let mut sizes_by_material = HashMap::default();
         let mut materials = Vec::new();
 
         let mut rng = rand::thread_rng();
-        for _ in 0..size {
+
+        // pre-generate materials
+        for _ in 0..max_asteroid_sprites {
             let random_texture = textures
                 .asteroids
                 .get(rng.gen_range(0..textures.asteroids.len()))
@@ -264,6 +275,14 @@ impl AsteroidMaterials {
                 (material, size)
             })
             .ok_or(AsteroidMaterialError::NoMaterialsAvailable)
+    }
+
+    pub fn push(&mut self, material: Handle<ColorMaterial>) {
+        if self.sizes_by_material.get(&material).is_some() {
+            let mut rng = rand::thread_rng();
+            self.materials
+                .insert(rng.gen_range(0..=self.materials.len()), material);
+        }
     }
 }
 

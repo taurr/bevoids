@@ -46,7 +46,7 @@ pub(crate) fn spawn_shadows_for_display_wrap(
 ) {
     for x in [-win_size.0.x, win_size.0.x] {
         for y in [-win_size.0.y, win_size.0.y] {
-            spawn_shadow(
+            let child = spawn_shadow(
                 id,
                 sprite_size,
                 controller_scale,
@@ -56,10 +56,11 @@ pub(crate) fn spawn_shadows_for_display_wrap(
                 component_inserter,
                 commands,
             );
+            log::debug!(shadow=?child, ctrl=?id, "shadow spawned");
         }
     }
     for x in [-win_size.0.x, win_size.0.x] {
-        spawn_shadow(
+        let child = spawn_shadow(
             id,
             sprite_size,
             controller_scale,
@@ -69,9 +70,10 @@ pub(crate) fn spawn_shadows_for_display_wrap(
             component_inserter,
             commands,
         );
+            log::debug!(shadow=?child, ctrl=?id, "shadow spawned");
     }
     for y in [-win_size.0.y, win_size.0.y] {
-        spawn_shadow(
+        let child = spawn_shadow(
             id,
             sprite_size,
             controller_scale,
@@ -81,6 +83,7 @@ pub(crate) fn spawn_shadows_for_display_wrap(
             component_inserter,
             commands,
         );
+            log::debug!(shadow=?child, ctrl=?id, "shadow spawned");
     }
 }
 
@@ -128,7 +131,7 @@ fn move_shadow(
             shadow_tf.translation = controller_tf.translation + displacement;
             shadow_tf.rotation = controller_tf.rotation;
         } else {
-            log::debug!("despawning child w.o. controller");
+            log::debug!(?shadow, "despawning orphan");
             commands.entity(shadow).despawn_recursive();
         }
     }
@@ -160,7 +163,7 @@ fn spawn_shadow(
     material: &Handle<ColorMaterial>,
     component_inserter: &Option<impl Fn(EntityCommands)>,
     commands: &mut Commands,
-) {
+) -> Entity {
     let id = commands
         .spawn_bundle(SpriteBundle {
             material: material.clone(),
@@ -177,6 +180,7 @@ fn spawn_shadow(
     if let Some(component_inserter) = component_inserter {
         component_inserter(commands.entity(id));
     }
+    id
 }
 
 impl Velocity {

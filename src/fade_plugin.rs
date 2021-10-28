@@ -1,7 +1,7 @@
-use bevy::prelude::*;
+use bevy::{log, prelude::*};
 use std::time::Duration;
 
-use crate::GameState;
+use crate::{Despawn, GameState};
 
 pub(crate) struct FadePlugin;
 
@@ -84,7 +84,8 @@ fn fadeout(
         .clamp(0.0, 1.0);
 
         if fadeout.value <= 0. {
-            commands.entity(entity).despawn_recursive();
+            log::debug!(?entity, "faded");
+            commands.entity(entity).remove::<Fadeout>().insert(Despawn);
         }
         if let Some(material) = color_material_assets.get_mut(material_handle) {
             material.color.set_a(fadeout.value);

@@ -84,8 +84,8 @@ const ASTEROID_MIN_SPEED: f32 = 25.;
 const ASTEROID_MAX_SPEED: f32 = 125.;
 const ASTEROID_FADEOUT_SECONDS: f32 = 0.20;
 
-const BULLET_RELATIVE_Z: f32 = -1.;
-const BULLET_RELATIVE_Y: f32 = 20.;
+const BULLET_PLAYER_RELATIVE_Z: f32 = -1.;
+const BULLET_PLAYER_RELATIVE_Y: f32 = 20.;
 const BULLET_MAX_SIZE: f32 = 25.;
 const BULLET_SPEED: f32 = 500.;
 const BULLET_LIFETIME_SECONDS: f32 = 1.5;
@@ -98,12 +98,12 @@ const FLAME_OPACITY: f32 = 1.;
 
 const PLAYER_Z: f32 = 900.;
 const PLAYER_MAX_SIZE: f32 = 50.;
+const PLAYER_TURN_SPEED: f32 = 2. * PI;
 const PLAYER_ACCELLERATION: f32 = 250.;
-const PLAYER_DECCELLERATION: f32 = 40.;
+const PLAYER_DECCELLERATION: f32 = 33.3;
 const PLAYER_START_SPEED: f32 = 200.;
 const PLAYER_MAX_SPEED: f32 = 800.;
 const PLAYER_FADEOUT_SECONDS: f32 = 0.5;
-const PLAYER_TURN_SPEED: f32 = 2. * PI;
 
 // endregion constants
 
@@ -159,7 +159,7 @@ fn initialize(
     log::info!("initializing game");
     let window = windows.get_primary_mut().unwrap();
     window.set_resizable(false);
-    window.set_vsync(true);
+    window.set_vsync(false);
     window.set_title(module_path!().into());
 
     commands.insert_resource(WinSize::from_window(window));

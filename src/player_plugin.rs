@@ -7,7 +7,7 @@ use crate::{
     fade_plugin::{DelayedFadeout, Fadeout},
     movement_plugin::{spawn_shadows_for_display_wrap, ShadowController, Velocity},
     Despawn, GameState, SpriteSize, Textures, WinSize, BULLET_FADEOUT_SECONDS,
-    BULLET_LIFETIME_SECONDS, BULLET_MAX_SIZE, BULLET_RELATIVE_Y, BULLET_RELATIVE_Z, BULLET_SPEED,
+    BULLET_LIFETIME_SECONDS, BULLET_MAX_SIZE, BULLET_PLAYER_RELATIVE_Y, BULLET_PLAYER_RELATIVE_Z, BULLET_SPEED,
     FLAME_OPACITY, FLAME_RELATIVE_Y, FLAME_RELATIVE_Z, FLAME_WIDTH, PLAYER_ACCELLERATION,
     PLAYER_DECCELLERATION, PLAYER_FADEOUT_SECONDS, PLAYER_MAX_SIZE, PLAYER_MAX_SPEED,
     PLAYER_START_SPEED, PLAYER_TURN_SPEED, PLAYER_Z,
@@ -224,7 +224,7 @@ fn spawn_bullet(
                 translation: player_transform.translation
                     + player_orientation
                         .0
-                        .mul_vec3(vec3(0., BULLET_RELATIVE_Y, BULLET_RELATIVE_Z)),
+                        .mul_vec3(vec3(0., BULLET_PLAYER_RELATIVE_Y, BULLET_PLAYER_RELATIVE_Z)),
                 rotation: Quat::from_rotation_z(PI / 2.).mul_quat(player_orientation.0),
                 scale: Vec2::splat(scale).extend(1.),
             },

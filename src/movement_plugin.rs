@@ -70,7 +70,7 @@ pub(crate) fn spawn_shadows_for_display_wrap(
             component_inserter,
             commands,
         );
-            log::debug!(shadow=?child, ctrl=?id, "shadow spawned");
+        log::debug!(shadow=?child, ctrl=?id, "shadow spawned");
     }
     for y in [-win_size.0.y, win_size.0.y] {
         let child = spawn_shadow(
@@ -83,17 +83,19 @@ pub(crate) fn spawn_shadows_for_display_wrap(
             component_inserter,
             commands,
         );
-            log::debug!(shadow=?child, ctrl=?id, "shadow spawned");
+        log::debug!(shadow=?child, ctrl=?id, "shadow spawned");
     }
 }
 
 impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
-            SystemSet::on_update(GameState::InGame)
-                .with_system(linear_movement.system())
-                .with_system(move_shadow.system())
-                .with_system(keep_in_bounds.system()),
+            SystemSet::on_update(GameState::InGame).with_system(
+                linear_movement
+                    .system()
+                    .chain(move_shadow.system())
+                    .chain(keep_in_bounds.system()),
+            ),
         );
     }
 }

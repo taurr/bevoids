@@ -20,6 +20,30 @@ impl Plugin for HitTestPlugin {
     }
 }
 
+fn rotate_bounding_box(size: Vec2, rotation: Quat) -> Vec2 {
+    // get 4 corners around the position
+    let (p1, p2, p3, p4) = {
+        let (w, h) = (size / 2.0).into();
+        (
+            Vec3::from((-w, h, 0.0)),
+            Vec3::from((w, h, 0.0)),
+            Vec3::from((-w, -h, 0.0)),
+            Vec3::from((w, -h, 0.0)),
+        )
+    };
+    // rotate each corner
+    let (p1, p2, p3, p4) = (
+        rotation.mul_vec3(p1),
+        rotation.mul_vec3(p2),
+        rotation.mul_vec3(p3),
+        rotation.mul_vec3(p4),
+    );
+    // we only need 2D
+    let (p1, p2, p3, p4) = (p1.truncate(), p2.truncate(), p3.truncate(), p4.truncate());
+    // final bounding box around position
+    p1.max(p2).max(p3).max(p4) * 2.0
+}
+
 fn shot_hit_asteroid(
     bullet_query: Query<(Entity, &Transform, &SpriteSize), (With<Bullet>, Without<Despawn>)>,
     asteroids_query: Query<
@@ -67,10 +91,9 @@ fn shot_hit_asteroid(
                     continue 'asteroid;
                 }
 
-                // TODO: take bullet/asteroid orientation into account for collision check!
                 if collide(
                     bullet_transform.translation,
-                    (*bullet_size).into(),
+                    rotate_bounding_box((*bullet_size).into(), bullet_transform.rotation),
                     asteroid_transform.translation,
                     (*asteroid_size).into(),
                 )
@@ -167,10 +190,9 @@ fn asteroid_hit_player(
                     continue 'asteroid;
                 }
 
-                // TODO: take player/asteroid orientation into account for collision check!
                 if collide(
                     player_tf.translation,
-                    (*player_size).into(),
+                    rotate_bounding_box((*player_size).into(), player_tf.rotation),
                     asteroid_transform.translation,
                     (*asteroid_size).into(),
                 )

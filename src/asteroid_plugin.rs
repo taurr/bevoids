@@ -74,7 +74,7 @@ pub(crate) fn despawn_asteroid(
     commands
         .entity(asteroid_ctrl)
         .remove_bundle::<(Asteroid, Velocity)>()
-        .insert(FreeMaterialThenDespawn);
+        .insert(FreeMaterialAndFadeout);
 
     // despawn all children
     for entity in shadows_query
@@ -85,7 +85,7 @@ pub(crate) fn despawn_asteroid(
         commands
             .entity(entity)
             .remove_bundle::<(Asteroid, Velocity)>()
-            .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_SECONDS));
+            .insert(Despawn);
     }
 }
 
@@ -103,11 +103,11 @@ impl Plugin for AsteroidPlugin {
 }
 
 #[derive(Debug, Component)]
-struct FreeMaterialThenDespawn;
+struct FreeMaterialAndFadeout;
 
 fn asteroid_despawner(
     mut commands: Commands,
-    asteroid_query: Query<(Entity, &Handle<ColorMaterial>), With<FreeMaterialThenDespawn>>,
+    asteroid_query: Query<(Entity, &Handle<ColorMaterial>), With<FreeMaterialAndFadeout>>,
     mut materials: ResMut<AsteroidMaterials>,
 ) {
     for (asteroid, material) in asteroid_query.iter() {
@@ -116,7 +116,7 @@ fn asteroid_despawner(
         log::warn!("free material");
         commands
             .entity(asteroid)
-            .remove_bundle::<(Asteroid, Velocity, FreeMaterialThenDespawn)>()
+            .remove_bundle::<(Asteroid, Velocity, FreeMaterialAndFadeout)>()
             .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_SECONDS));
     }
 }

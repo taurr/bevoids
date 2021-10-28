@@ -34,7 +34,7 @@ pub(crate) fn kill_player(commands: &mut Commands, player: Entity) {
 
 pub(crate) fn bullet_spent(commands: &mut Commands, bullet: Entity) {
     log::debug!(?bullet, "bullet spent");
-    commands.entity(bullet).despawn();
+    commands.entity(bullet).remove::<Bullet>().insert(Despawn);
 }
 
 impl Plugin for PlayerPlugin {

@@ -106,7 +106,13 @@ fn shot_hit_asteroid(
 
 fn asteroid_hit_player(
     player_query: Query<
-        (Entity, &Transform, &SpriteSize, Option<&ShadowOf>),
+        (
+            Entity,
+            &Transform,
+            &SpriteSize,
+            Option<&ShadowOf>,
+            Option<&ShadowController>,
+        ),
         (With<Player>, Without<Fadeout>, Without<Despawn>),
     >,
     asteroids_query: Query<
@@ -137,49 +143,51 @@ fn asteroid_hit_player(
     let mut players_hit = vec![];
     let mut asteroids_hit = vec![];
 
-    'player: for (player, player_tf, player_size, shadowof) in player_query.iter() {
-        let player_ctrl = shadowof
+    'player: for (player, player_tf, player_size, shadowof, controller) in player_query.iter() {
+        if let Some(player_ctrl) = shadowof
             .and_then(|shadowof| {
                 player_ctrl_query
                     .iter()
                     .find(|player_ctrl| player_ctrl == &shadowof.0)
             })
-            .unwrap_or(player);
-        'asteroid: for (asteroid, asteroid_transform, asteroid_size, shadowof) in
-            asteroids_query.iter()
+            .or_else(|| controller.map(|_| player))
         {
-            let asteroid_ctrl = shadowof
-                .and_then(|shadowof| {
-                    asteroid_ctrl_query
-                        .iter()
-                        .find(|controller| controller == &shadowof.0)
-                })
-                .unwrap_or(asteroid);
-
-            if asteroids_hit.contains(&asteroid_ctrl) {
-                continue 'asteroid;
-            }
-
-            // TODO: take player/asteroid orientation into account for collision check!
-            if collide(
-                player_tf.translation,
-                (*player_size).into(),
-                asteroid_transform.translation,
-                (*asteroid_size).into(),
-            )
-            .is_some()
+            'asteroid: for (asteroid, asteroid_transform, asteroid_size, shadowof) in
+                asteroids_query.iter()
             {
-                log::info!(
-                    ?player_ctrl,
-                    ?player,
-                    ?asteroid_ctrl,
-                    ?asteroid,
-                    "player hit!",
-                );
-                asteroids_hit.push(asteroid_ctrl);
-                players_hit.push(player_ctrl);
+                let asteroid_ctrl = shadowof
+                    .and_then(|shadowof| {
+                        asteroid_ctrl_query
+                            .iter()
+                            .find(|controller| controller == &shadowof.0)
+                    })
+                    .unwrap_or(asteroid);
 
-                continue 'player;
+                if asteroids_hit.contains(&asteroid_ctrl) {
+                    continue 'asteroid;
+                }
+
+                // TODO: take player/asteroid orientation into account for collision check!
+                if collide(
+                    player_tf.translation,
+                    (*player_size).into(),
+                    asteroid_transform.translation,
+                    (*asteroid_size).into(),
+                )
+                .is_some()
+                {
+                    log::info!(
+                        ?player_ctrl,
+                        ?player,
+                        ?asteroid_ctrl,
+                        ?asteroid,
+                        "player hit!",
+                    );
+                    asteroids_hit.push(asteroid_ctrl);
+                    players_hit.push(player_ctrl);
+
+                    continue 'player;
+                }
             }
         }
     }

@@ -72,7 +72,7 @@ struct Despawn;
 const WIN_WIDTH: f32 = 1024.;
 const WIN_HEIGHT: f32 = 800.;
 
-const ASTEROIDS_LEVEL_SPAWN: usize = 1;
+const ASTEROIDS_LEVEL_SPAWN: usize = 5;
 const ASTEROID_SPAWN_DELAY: f32 = 0.1;
 const ASTEROIDS_PLAYER_SPAWN_DISTANCE: f32 = 200.;
 const ASTEROIDS_MAX_ACTIVE: usize = 500;

@@ -66,7 +66,7 @@ pub(crate) fn spawn_split_asteroids(
 pub(crate) fn despawn_asteroid(
     commands: &mut Commands,
     asteroid_ctrl: Entity,
-    _shadows_query: &Query<
+    shadows_query: &Query<
         (Entity, &ShadowOf),
         (With<Asteroid>, Without<Fadeout>, Without<Despawn>),
     >,
@@ -74,7 +74,19 @@ pub(crate) fn despawn_asteroid(
     commands
         .entity(asteroid_ctrl)
         .remove_bundle::<(Asteroid, Velocity)>()
-        .insert(Kill);
+        .insert(FreeMaterialThenDespawn);
+
+    // despawn all children
+    for entity in shadows_query
+        .iter()
+        .filter(|(_, shadowof)| asteroid_ctrl == shadowof.0)
+        .map(|(entity, _)| entity)
+    {
+        commands
+            .entity(entity)
+            .remove_bundle::<(Asteroid, Velocity)>()
+            .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_SECONDS));
+    }
 }
 
 impl Plugin for AsteroidPlugin {
@@ -91,36 +103,21 @@ impl Plugin for AsteroidPlugin {
 }
 
 #[derive(Debug, Component)]
-struct Kill;
+struct FreeMaterialThenDespawn;
 
 fn asteroid_despawner(
     mut commands: Commands,
-    asteroid_query: Query<(Entity, &Handle<ColorMaterial>), With<Kill>>,
-    shadows_query: Query<(Entity, &ShadowOf), (With<Asteroid>, Without<Fadeout>, Without<Despawn>)>,
+    asteroid_query: Query<(Entity, &Handle<ColorMaterial>), With<FreeMaterialThenDespawn>>,
     mut materials: ResMut<AsteroidMaterials>,
 ) {
     for (asteroid, material) in asteroid_query.iter() {
         materials.push(material.clone());
 
         log::warn!("free material");
-        // removing Asteroid component stops us from finding the asteroid again
-        // removing the Velocity stops the asteroid movement
-        // adding FadeOut fades the asteroids, and despawns when done!
-
         commands
             .entity(asteroid)
-            .remove_bundle::<(Asteroid, Velocity, Kill)>()
+            .remove_bundle::<(Asteroid, Velocity, FreeMaterialThenDespawn)>()
             .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_SECONDS));
-        for entity in shadows_query
-            .iter()
-            .filter(|(_, shadowof)| asteroid == shadowof.0)
-            .map(|(entity, _)| entity)
-        {
-            commands
-                .entity(entity)
-                .remove_bundle::<(Asteroid, Velocity, Kill)>()
-                .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_SECONDS));
-        }
     }
 }
 

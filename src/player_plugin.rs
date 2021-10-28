@@ -4,13 +4,13 @@ use rand::Rng;
 use std::{f32::consts::PI, time::Duration};
 
 use crate::{
-    fade_plugin::DelayedFadeout,
+    fade_plugin::{DelayedFadeout, Fadeout},
     movement_plugin::{spawn_shadows_for_display_wrap, ShadowController, Velocity},
     Despawn, GameState, SpriteSize, Textures, WinSize, BULLET_FADEOUT_SECONDS,
     BULLET_LIFETIME_SECONDS, BULLET_MAX_SIZE, BULLET_RELATIVE_Y, BULLET_RELATIVE_Z, BULLET_SPEED,
     FLAME_OPACITY, FLAME_RELATIVE_Y, FLAME_RELATIVE_Z, FLAME_WIDTH, PLAYER_ACCELLERATION,
-    PLAYER_DECCELLERATION, PLAYER_MAX_SIZE, PLAYER_MAX_SPEED, PLAYER_START_SPEED,
-    PLAYER_TURN_SPEED, PLAYER_Z,
+    PLAYER_DECCELLERATION, PLAYER_FADEOUT_SECONDS, PLAYER_MAX_SIZE, PLAYER_MAX_SPEED,
+    PLAYER_START_SPEED, PLAYER_TURN_SPEED, PLAYER_Z,
 };
 
 pub(crate) struct PlayerPlugin;
@@ -29,7 +29,11 @@ pub(crate) struct Flame;
 
 pub(crate) fn kill_player(commands: &mut Commands, player: Entity) {
     log::warn!(?player, "player dead");
-    commands.entity(player).remove::<Player>().insert(Despawn);
+    commands
+        .entity(player)
+        .remove::<Player>()
+        .remove::<Velocity>()
+        .insert(Fadeout::from_secs_f32(PLAYER_FADEOUT_SECONDS));
 }
 
 pub(crate) fn bullet_spent(commands: &mut Commands, bullet: Entity) {
@@ -55,7 +59,7 @@ impl Plugin for PlayerPlugin {
 
 fn player_stats(player_query: Query<&Velocity, With<Player>>) {
     for velocity in player_query.iter() {
-        log::trace!(speed=velocity.length());
+        log::trace!(speed = velocity.length());
     }
 }
 
@@ -232,7 +236,8 @@ fn spawn_bullet(
             Duration::from_secs_f32(BULLET_LIFETIME_SECONDS),
             Duration::from_secs_f32(BULLET_FADEOUT_SECONDS),
         ))
-        .insert(Velocity::new(bullet_velocity)).id();
+        .insert(Velocity::new(bullet_velocity))
+        .id();
     log::debug!(buller=?id, "spawned bullet");
 }
 

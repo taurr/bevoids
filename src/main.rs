@@ -3,7 +3,7 @@
 use asset_helper::RelativeAssetLoader;
 use asteroid_plugin::AsteroidPlugin;
 use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
+    //diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     log,
     prelude::*,
     sprite::SpriteSettings,

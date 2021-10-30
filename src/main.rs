@@ -1,10 +1,5 @@
 #![allow(clippy::complexity)]
-use bevy::{
-    //diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    log,
-    prelude::*,
-    sprite::SpriteSettings,
-};
+use bevy::{log, prelude::*, sprite::SpriteSettings};
 use derive_more::Display;
 use scoreboard::ScoreBoardPlugin;
 use structopt::StructOpt;
@@ -52,8 +47,8 @@ fn main() {
         .add_startup_system_to_stage(StartupStage::PreStartup, initialize.system())
         .add_system_to_stage(CoreStage::PostUpdate, despawn.system())
         .add_plugins(DefaultPlugins)
-        //.add_plugin(LogDiagnosticsPlugin::default())
-        //.add_plugin(FrameTimeDiagnosticsPlugin::default())
+        // .add_plugin(bevy::diagnostic::LogDiagnosticsPlugin::default())
+        // .add_plugin(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default())
         //
         // game plugins
         .add_plugin(ScoreBoardPlugin)
@@ -63,6 +58,11 @@ fn main() {
         .add_plugin(MovementPlugin)
         .add_plugin(FadePlugin)
         .add_plugin(HitTestPlugin)
+
+        .add_system_set(
+            SystemSet::on_update(GameState::GameOver).with_system(restart_on_enter.system()),
+        )
+
         //
         // resources
         .insert_resource(Args::from_args())
@@ -82,7 +82,7 @@ fn initialize(mut commands: Commands, mut windows: ResMut<Windows>) {
     log::info!("initializing game");
     let window = windows.get_primary_mut().unwrap();
     window.set_resizable(false);
-    window.set_vsync(false);
+    window.set_vsync(true);
     window.set_title(module_path!().into());
 
     commands.insert_resource(Bounds::from_window(window));
@@ -98,5 +98,14 @@ fn despawn(mut commands: Commands, query: Query<Entity, With<Despawn>>) {
     for entity in query.iter() {
         log::debug!(?entity, "despawning");
         commands.entity(entity).despawn_recursive();
+    }
+}
+
+fn restart_on_enter(
+    kb: Res<Input<KeyCode>>,
+    mut state: ResMut<State<GameState>>,
+) {
+    if kb.pressed(KeyCode::Return) {
+        state.set(GameState::InGame).unwrap();
     }
 }

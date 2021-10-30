@@ -115,7 +115,14 @@ struct FreeMaterialAndFadeout;
 #[derive(Component, Debug)]
 struct AsteroidsSpawner;
 
-fn asteroid_level_init(mut commands: Commands) {
+fn asteroid_level_init(
+    mut commands: Commands,
+    old_asteroids: Query<Entity, With<Asteroid>>,
+    old_spawner: Query<Entity, With<AsteroidsSpawner>>,
+) {
+    old_asteroids.iter().for_each(|e| commands.entity(e).despawn_recursive());
+    old_spawner.iter().for_each(|e| commands.entity(e).despawn_recursive());
+
     commands
         .spawn()
         .insert(AsteroidsSpawner)
@@ -127,11 +134,12 @@ fn difficulty_raiser(
     query: Query<(Entity, &AsteroidSpawnDelay), With<AsteroidsSpawner>>,
 ) {
     for (entity, delay) in query.iter() {
-        let new_delay = delay.0 * DIFFICULTY_RAISER_SPAWN_DELAY_MULTIPLIER;
+        let delay = delay.0 * DIFFICULTY_RAISER_SPAWN_DELAY_MULTIPLIER;
+        log::info!(delay, "new delay between spawning asteroids");
         commands
             .entity(entity)
             .remove::<Timer>()
-            .insert(AsteroidSpawnDelay(new_delay));
+            .insert(AsteroidSpawnDelay(delay));
     }
 }
 
@@ -244,7 +252,7 @@ fn spawn_asteroid(
                 .insert(InsideWindow)
                 .id();
 
-            log::info!(?asteroid_size, asteroid=?asteroid_id, "asteroid spawned");
+            log::info!(asteroid=?asteroid_id, "asteroid spawned");
 
             spawn_display_shadows(
                 asteroid_id,

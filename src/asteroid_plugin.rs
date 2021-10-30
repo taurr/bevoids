@@ -198,7 +198,7 @@ fn asteroid_spawner(
                 &mut materials,
                 &mut commands,
             ) {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(_) => log::warn!("failed spawning level asteroid"),
             };
         }

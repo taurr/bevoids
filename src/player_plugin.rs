@@ -3,7 +3,12 @@ use derive_more::{Deref, DerefMut, From, Into};
 use rand::Rng;
 use std::{f32::consts::PI, time::Duration};
 
-use crate::{Bounds, Despawn, GameState, Textures, constants::*, fade_plugin::{DelayedFadeout, Fadeout}, movement_plugin::{InsideWindow, ShadowController, Velocity, spawn_shadows_for_display_wrap}};
+use crate::{
+    constants::*,
+    fade_plugin::{DelayedFadeout, Fadeout},
+    movement_plugin::{spawn_shadows_for_display_wrap, InsideWindow, ShadowController, Velocity},
+    Bounds, Despawn, GameState, Textures,
+};
 
 pub(crate) struct PlayerPlugin;
 
@@ -44,15 +49,8 @@ impl Plugin for PlayerPlugin {
         );
         app.add_system_set(
             SystemSet::on_update(GameState::InGame)
-                .with_run_criteria(FixedTimestep::step(1.0 as f64))
-                //.with_system(player_stats.system()),
+                .with_run_criteria(FixedTimestep::step(1.0 as f64)),
         );
-    }
-}
-
-fn player_stats(player_query: Query<&Velocity, With<Player>>) {
-    for velocity in player_query.iter() {
-        log::trace!(speed = velocity.length());
     }
 }
 

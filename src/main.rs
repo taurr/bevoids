@@ -11,7 +11,7 @@ use bevy::{
     sprite::SpriteSettings,
     utils::HashMap,
 };
-use derive_more::{Deref, DerefMut, Display, From, Into};
+use derive_more::Display;
 use hit_test::HitTestPlugin;
 use parry2d::{
     bounding_volume::{BoundingSphere, AABB},

@@ -15,7 +15,6 @@ use crate::{
     hit_test::HitTestPlugin, movement_plugin::MovementPlugin, player_plugin::PlayerPlugin,
 };
 
-mod scoreboard;
 mod asset_helper;
 mod asteroid_plugin;
 mod bounds;
@@ -24,6 +23,7 @@ mod fade_plugin;
 mod hit_test;
 mod movement_plugin;
 mod player_plugin;
+mod scoreboard;
 mod textures;
 
 #[derive(Debug, StructOpt)]

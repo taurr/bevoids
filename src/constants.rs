@@ -14,7 +14,6 @@ pub(crate) const ASTEROID_SPLIT_INTO: usize = 2;
 
 pub(crate) const ASTEROID_SPLIT_SIZE_RATIO: f32 = 2. / 3.;
 
-
 pub(crate) const ASTEROIDS_PLAYER_SPAWN_DISTANCE: f32 = 200.;
 
 pub(crate) const ASTEROIDS_MAX_ACTIVE: usize = 500;

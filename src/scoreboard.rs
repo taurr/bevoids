@@ -54,7 +54,10 @@ fn init_scoreboard(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(board);
 }
 
-fn update_scoreboard(mut commands: Commands, query: Query<(Entity, &ScoreBoard), Changed<ScoreBoard>>) {
+fn update_scoreboard(
+    mut commands: Commands,
+    query: Query<(Entity, &ScoreBoard), Changed<ScoreBoard>>,
+) {
     for (entity, board) in query.iter() {
         commands.entity(entity).insert(Text::from(board));
     }

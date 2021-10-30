@@ -93,9 +93,10 @@ impl Textures {
     }
 
     pub fn capture_size(&mut self, handle: &Handle<Texture>, texture_assets: &Assets<Texture>) {
-        let texture = texture_assets.get(handle).unwrap();
-        let size = Vec2::new(texture.size.width as f32, texture.size.height as f32);
-        self.sizes.insert(handle.clone(), size);
+        if let Some(texture) = texture_assets.get(handle) {
+            let size = Vec2::new(texture.size.width as f32, texture.size.height as f32);
+            self.sizes.insert(handle.clone(), size);
+        }
     }
 
     pub fn get_size(&self, handle: &Handle<Texture>) -> Option<Vec2> {
@@ -116,18 +117,20 @@ impl AsteroidMaterials {
 
         // pre-generate materials
         for _ in 0..max_asteroid_sprites {
-            let random_texture = textures
+            if let Some(random_texture) = textures
                 .asteroids
                 .get(rng.gen_range(0..textures.asteroids.len()))
-                .unwrap()
-                .clone();
-            let size = textures.sizes.get(&random_texture).unwrap().clone();
-            let color_material = material_assets.add(ColorMaterial {
-                color: Color::WHITE,
-                texture: Some(random_texture),
-            });
-            materials.push(color_material.clone());
-            sizes_by_material.insert(color_material, size);
+                .cloned()
+            {
+                if let Some(size) = textures.sizes.get(&random_texture).copied() {
+                    let color_material = material_assets.add(ColorMaterial {
+                        color: Color::WHITE,
+                        texture: Some(random_texture),
+                    });
+                    materials.push(color_material.clone());
+                    sizes_by_material.insert(color_material, size);
+                }
+            }
         }
 
         Self {

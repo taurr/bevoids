@@ -1,5 +1,4 @@
 use bevy::{core::FixedTimestep, ecs::system::EntityCommands, log, prelude::*};
-use derive_more::{From, Into};
 use rand::Rng;
 use std::{f32::consts::PI, time::Duration};
 
@@ -105,8 +104,7 @@ impl Plugin for AsteroidPlugin {
                 .with_system(asteroid_despawner.system()),
         );
         app.add_system_set(
-            SystemSet::on_update(GameState::GameOver)
-                .with_system(asteroid_despawner.system()),
+            SystemSet::on_update(GameState::GameOver).with_system(asteroid_despawner.system()),
         );
     }
 }

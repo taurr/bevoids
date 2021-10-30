@@ -1,5 +1,7 @@
 #![allow(clippy::complexity)]
 
+use std::f32::consts::PI;
+
 use asset_helper::RelativeAssetLoader;
 use asteroid_plugin::AsteroidPlugin;
 use bevy::{
@@ -9,10 +11,13 @@ use bevy::{
     sprite::SpriteSettings,
     utils::HashMap,
 };
-use derive_more::{Display, From, Into};
+use derive_more::{Deref, DerefMut, Display, From, Into};
 use hit_test::HitTestPlugin;
+use parry2d::{
+    bounding_volume::{BoundingSphere, AABB},
+    math::Point,
+};
 use rand::Rng;
-use std::f32::consts::PI;
 use structopt::StructOpt;
 use thiserror::Error;
 
@@ -22,6 +27,7 @@ use crate::{
 
 mod asset_helper;
 mod asteroid_plugin;
+mod constants;
 mod fade_plugin;
 mod hit_test;
 mod movement_plugin;
@@ -58,54 +64,14 @@ struct AsteroidMaterials {
     materials: Vec<Handle<ColorMaterial>>,
 }
 
-#[derive(Debug, Component, Copy, Clone, Display, From, Into)]
-struct SpriteSize(Vec2);
-
-#[derive(Debug, Component, Copy, Clone, Display, From, Into)]
-struct WinSize(pub Vec2);
+#[derive(Debug, Component, Copy, Clone)]
+struct Bounds {
+    aabb: AABB,
+    min_sphere: BoundingSphere,
+}
 
 #[derive(Debug, Component, Display)]
 struct Despawn;
-
-// region: constants
-
-const WIN_WIDTH: f32 = 1024.;
-const WIN_HEIGHT: f32 = 800.;
-
-const ASTEROIDS_LEVEL_SPAWN: usize = 5;
-const ASTEROID_SPAWN_DELAY: f32 = 0.1;
-const ASTEROIDS_PLAYER_SPAWN_DISTANCE: f32 = 200.;
-const ASTEROIDS_MAX_ACTIVE: usize = 500;
-const ASTEROID_Z_MIN: f32 = 100.;
-const ASTEROID_Z_MAX: f32 = 200.;
-const ASTEROID_MIN_SIZE: f32 = 20.;
-const ASTEROID_MAX_SIZE: f32 = 150.;
-const ASTEROID_MIN_SPEED: f32 = 25.;
-const ASTEROID_MAX_SPEED: f32 = 125.;
-const ASTEROID_FADEOUT_SECONDS: f32 = 0.20;
-
-const BULLET_PLAYER_RELATIVE_Z: f32 = -1.;
-const BULLET_PLAYER_RELATIVE_Y: f32 = 20.;
-const BULLET_MAX_SIZE: f32 = 25.;
-const BULLET_SPEED: f32 = 500.;
-const BULLET_LIFETIME_SECONDS: f32 = 1.5;
-const BULLET_FADEOUT_SECONDS: f32 = 0.25;
-
-const FLAME_RELATIVE_Z: f32 = -10.;
-const FLAME_RELATIVE_Y: f32 = -32.;
-const FLAME_WIDTH: f32 = 15.;
-const FLAME_OPACITY: f32 = 1.;
-
-const PLAYER_Z: f32 = 900.;
-const PLAYER_MAX_SIZE: f32 = 50.;
-const PLAYER_TURN_SPEED: f32 = 2. * PI;
-const PLAYER_ACCELLERATION: f32 = 250.;
-const PLAYER_DECCELLERATION: f32 = 33.3;
-const PLAYER_START_SPEED: f32 = 200.;
-const PLAYER_MAX_SPEED: f32 = 800.;
-const PLAYER_FADEOUT_SECONDS: f32 = 0.5;
-
-// endregion constants
 
 // TODO: scoring
 // TODO: respawn player / lives / levels
@@ -136,8 +102,8 @@ fn main() {
         .insert_resource(Args::from_args())
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(WindowDescriptor {
-            width: WIN_WIDTH,
-            height: WIN_HEIGHT,
+            width: constants::WIN_WIDTH,
+            height: constants::WIN_HEIGHT,
             ..Default::default()
         })
         .run();
@@ -162,7 +128,7 @@ fn initialize(
     window.set_vsync(false);
     window.set_title(module_path!().into());
 
-    commands.insert_resource(WinSize::from_window(window));
+    commands.insert_resource(Bounds::from_window(window));
 
     // Spawns the camera
     commands
@@ -191,7 +157,7 @@ fn collect_textures(
                     log::trace!("generating asteroid materials");
                     commands.insert_resource(AsteroidMaterials::from_textures(
                         &textures,
-                        ASTEROIDS_MAX_ACTIVE,
+                        constants::ASTEROIDS_MAX_ACTIVE,
                         &mut material_assets,
                     ));
 
@@ -286,8 +252,54 @@ impl AsteroidMaterials {
     }
 }
 
-impl WinSize {
-    fn from_window(window: &Window) -> Self {
-        Self(Vec2::new(window.width(), window.height()))
+fn min_aabb_radius(aabb: &AABB) -> f32 {
+    let ext = aabb.half_extents();
+    f32::cos(PI / 4.0) * f32::max(ext.x, ext.y)
+}
+
+impl Bounds {
+    pub fn from_window(window: &Window) -> Self {
+        Bounds::from_pos_and_size(Vec2::ZERO, Vec2::from((window.width(), window.height())))
+    }
+
+    pub fn from_pos_and_size(position: Vec2, size: Vec2) -> Bounds {
+        let (w, h) = (size.x / 2., size.y / 2.);
+        let aabb = {
+            AABB::new(
+                Point::from([position.x - w, position.y - h]),
+                Point::from([position.x + w, position.y + h]),
+            )
+        };
+        let min_sphere = BoundingSphere::new(aabb.center(), min_aabb_radius(&aabb));
+        Self { aabb, min_sphere }
+    }
+
+    pub fn size(&self) -> Vec2 {
+        let extents = self.aabb.extents();
+        Vec2::from((extents.x, extents.y))
+    }
+
+    pub fn width(&self) -> f32 {
+        self.aabb.extents().x
+    }
+
+    pub fn height(&self) -> f32 {
+        self.aabb.extents().y
+    }
+
+    pub fn set_center(&mut self, position: &Vec2) {
+        self.aabb = AABB::from_half_extents(
+            Point::from([position.x, position.y]),
+            self.aabb.half_extents(),
+        );
+        self.min_sphere = BoundingSphere::new(self.aabb.center(), min_aabb_radius(&self.aabb));
+    }
+
+    pub fn as_aabb(&self) -> AABB {
+        self.aabb
+    }
+
+    pub fn as_min_sphere(&self) -> BoundingSphere {
+        self.min_sphere
     }
 }

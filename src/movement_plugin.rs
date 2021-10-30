@@ -1,148 +1,117 @@
-use bevy::{ecs::system::EntityCommands, log, math::vec3, prelude::*};
-use derive_more::{Display, From, Into};
-use std::ops::{Deref, DerefMut};
+use bevy::{ecs::system::EntityCommands, log, prelude::*};
+use derive_more::{Add, AddAssign, Deref, DerefMut, From, Into, Sub, SubAssign};
+use parry2d::bounding_volume::BoundingVolume;
 
-use crate::{GameState, SpriteSize, WinSize};
+use crate::{Bounds, GameState};
 
 pub(crate) struct MovementPlugin;
 
-#[derive(Debug, Default, Component, Copy, Clone, Display, From, Into)]
-pub(crate) struct Velocity(Vec3);
+#[derive(
+    Component,
+    Default,
+    Debug,
+    Copy,
+    Clone,
+    Deref,
+    DerefMut,
+    Add,
+    Sub,
+    AddAssign,
+    SubAssign,
+    From,
+    Into,
+)]
+pub(crate) struct Velocity(Vec2);
 
-#[derive(Debug, Default, Component, Display)]
+#[derive(Component, Debug)]
 pub(crate) struct ShadowController;
 
-#[derive(Debug, Component, From, Into)]
-pub(crate) struct ShadowOf(pub Entity, pub Vec3);
-
-#[allow(dead_code)]
-pub(crate) fn overlaps(pos1: Vec3, size1: Vec2, pos2: Vec3, size2: Vec2) -> bool {
-    fn overlaps_segment(p1: f32, len1: f32, p2: f32, len2: f32) -> bool {
-        let p1_left = p1 - len1 / 2.0;
-        let p1_right = p1 + len1 / 2.0;
-        let p2_left = p2 - len2 / 2.0;
-        let p2_right = p2 + len2 / 2.0;
-
-        (p1_left >= p2_left && p1_left <= p2_right)
-            || (p1_right >= p2_left && p1_right <= p2_right)
-            || (p2_left >= p1_left && p2_left <= p1_right)
-            || (p2_right >= p1_left && p2_right <= p1_right)
-    }
-
-    let r1 = overlaps_segment(pos1.x, size1.x, pos2.x, size2.x);
-    let r2 = overlaps_segment(pos1.y, size1.y, pos2.y, size2.y);
-    r1 && r2
+#[derive(Component, Debug, From, Into)]
+pub(crate) struct ShadowOf {
+    pub controller: Entity,
+    pub displacement: Vec2,
 }
 
+#[derive(Component, Debug)]
+pub(crate) struct InsideWindow;
+
 pub(crate) fn spawn_shadows_for_display_wrap(
-    id: Entity,
-    material: Handle<ColorMaterial>,
-    sprite_size: SpriteSize,
-    win_size: &WinSize,
+    controller: Entity,
+    controller_position: Vec3,
+    controller_size: Vec2,
     controller_scale: f32,
-    controller_translation: Vec3,
+    controller_material: Handle<ColorMaterial>,
     component_inserter: &Option<impl Fn(EntityCommands)>,
+    window_bounds: &Bounds,
     commands: &mut Commands,
 ) {
-    for x in [-win_size.0.x, win_size.0.x] {
-        for y in [-win_size.0.y, win_size.0.y] {
+    for x in [-window_bounds.width(), window_bounds.width()] {
+        for y in [-window_bounds.height(), window_bounds.height()] {
             let child = spawn_shadow(
-                id,
-                sprite_size,
+                controller,
+                controller_position,
+                controller_size,
                 controller_scale,
-                controller_translation,
-                Vec3::new(x, y, 0.),
-                &material,
+                &controller_material,
+                Vec2::new(x, y),
                 component_inserter,
                 commands,
             );
-            log::debug!(shadow=?child, ctrl=?id, "shadow spawned");
+            log::trace!(shadow=?child, ctrl=?controller, "shadow spawned");
         }
     }
-    for x in [-win_size.0.x, win_size.0.x] {
+    for x in [-window_bounds.width(), window_bounds.width()] {
         let child = spawn_shadow(
-            id,
-            sprite_size,
+            controller,
+            controller_position,
+            controller_size,
             controller_scale,
-            controller_translation,
-            Vec3::new(x, 0., 0.),
-            &material,
+            &controller_material,
+            Vec2::new(x, 0.),
             component_inserter,
             commands,
         );
-        log::debug!(shadow=?child, ctrl=?id, "shadow spawned");
+        log::trace!(shadow=?child, ctrl=?controller, "shadow spawned");
     }
-    for y in [-win_size.0.y, win_size.0.y] {
+    for y in [-window_bounds.height(), window_bounds.height()] {
         let child = spawn_shadow(
-            id,
-            sprite_size,
+            controller,
+            controller_position,
+            controller_size,
             controller_scale,
-            controller_translation,
-            Vec3::new(0., y, 0.),
-            &material,
+            &controller_material,
+            Vec2::new(0., y),
             component_inserter,
             commands,
         );
-        log::debug!(shadow=?child, ctrl=?id, "shadow spawned");
+        log::trace!(shadow=?child, ctrl=?controller, "shadow spawned");
     }
 }
 
 impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
-            SystemSet::on_update(GameState::InGame).with_system(
-                linear_movement
-                    .system()
-                    .chain(move_shadow.system())
-                    .chain(keep_in_bounds.system()),
-            ),
+            SystemSet::on_update(GameState::InGame)
+                .with_system(linear_movement.system().chain(move_shadow.system())),
         );
     }
 }
 
-fn linear_movement(mut query: Query<(&mut Transform, &Velocity)>, time: Res<Time>) {
-    for (mut transform, velocity) in query.iter_mut() {
-        let d = velocity.0 * time.delta_seconds();
-        transform.translation = vec3(
-            transform.translation.x + d.x,
-            transform.translation.y + d.y,
-            transform.translation.z,
-        );
-    }
-}
-
-fn move_shadow(
-    mut commands: Commands,
-    mut shadows: Query<(Entity, &mut Transform, &ShadowOf)>,
-    controllers: Query<(Entity, &Transform), (With<ShadowController>, Without<ShadowOf>)>,
+fn linear_movement(
+    mut query: Query<(&mut Transform, &mut Bounds, &Velocity), Without<ShadowOf>>,
+    window_bounds: Res<Bounds>,
+    time: Res<Time>,
 ) {
-    for (shadow, mut shadow_tf, displacement, controller_tf) in
-        shadows.iter_mut().map(|(entity, transform, shadowof)| {
-            (
-                entity,
-                transform,
-                shadowof.1,
-                controllers
-                    .iter()
-                    .find(|(e, _)| e == &shadowof.0)
-                    .map(|(_, t)| t),
-            )
-        })
-    {
-        if let Some(controller_tf) = controller_tf {
-            shadow_tf.translation = controller_tf.translation + displacement;
-            shadow_tf.rotation = controller_tf.rotation;
-        } else {
-            log::debug!(?shadow, "despawning orphan");
-            commands.entity(shadow).despawn_recursive();
-        }
-    }
-}
-
-fn keep_in_bounds(mut query: Query<&mut Transform, With<Velocity>>, win_size: Res<WinSize>) {
-    for mut transform in query.iter_mut() {
+    for (mut transform, mut bounds, velocity) in query.iter_mut() {
         let pos = &mut transform.translation;
-        let [w, h] = (win_size.0 / 2.).to_array();
+        // move
+        *pos += (Vec2::from(*velocity) * time.delta_seconds()).extend(0.);
+
+        // keep inside window bounds
+        let (w, h) = {
+            let hext = window_bounds.as_aabb().half_extents();
+            (hext.x, hext.y)
+        };
         if pos.x > w {
             pos.x -= w * 2.;
         } else if pos.x < -w {
@@ -153,54 +122,88 @@ fn keep_in_bounds(mut query: Query<&mut Transform, With<Velocity>>, win_size: Re
         } else if pos.y < -h {
             pos.y += h * 2.;
         }
+
+        // set new bounds
+        // TODO: should probably follow rotation as that changes bounds
+        bounds.set_center(&transform.translation.truncate());
+    }
+}
+
+fn move_shadow(
+    mut commands: Commands,
+    mut shadows: Query<(Entity, &mut Transform, &mut Bounds, &ShadowOf)>,
+    window_bounds: Res<Bounds>,
+    controllers: Query<(Entity, &Transform), (With<ShadowController>, Without<ShadowOf>)>,
+) {
+    for (shadow, mut shadow_bounds, mut shadow_tf, displacement, controller_tf) in shadows
+        .iter_mut()
+        .map(|(entity, transform, bounds, shadowof)| {
+            (
+                entity,
+                bounds,
+                transform,
+                shadowof.displacement,
+                controllers
+                    .iter()
+                    .find(|(controller, _)| controller == &shadowof.controller)
+                    .map(|(_, t)| t),
+            )
+        })
+    {
+        if let Some(controller_tf) = controller_tf {
+            // follow controller
+            shadow_tf.translation = controller_tf.translation + displacement.extend(0.);
+            shadow_tf.rotation = controller_tf.rotation;
+
+            // set new bounds
+            // TODO: should probably follow rotation as that changes bounds
+            shadow_bounds.set_center(&shadow_tf.translation.truncate());
+
+            // detect visibility
+            if shadow_bounds.as_aabb().intersects(&window_bounds.as_aabb()) {
+                commands.entity(shadow).insert(InsideWindow);
+            } else {
+                commands.entity(shadow).remove::<InsideWindow>();
+            }
+        } else {
+            log::trace!(?shadow, "despawning orphan");
+            commands.entity(shadow).despawn_recursive();
+        }
     }
 }
 
 fn spawn_shadow(
-    shadow_controller: Entity,
-    sprite_size: SpriteSize,
+    controller: Entity,
+    controller_position: Vec3,
+    controller_size: Vec2,
     controller_scale: f32,
-    controller_translation: Vec3,
-    displacement: Vec3,
-    material: &Handle<ColorMaterial>,
+    controller_material: &Handle<ColorMaterial>,
+    displacement: Vec2,
     component_inserter: &Option<impl Fn(EntityCommands)>,
     commands: &mut Commands,
 ) -> Entity {
-    let id = commands
+    let position = controller_position + displacement.extend(0.);
+    let shadow_id = commands
         .spawn_bundle(SpriteBundle {
-            material: material.clone(),
+            material: controller_material.clone(),
             transform: Transform {
-                translation: controller_translation + displacement,
+                translation: position,
                 scale: Vec2::splat(controller_scale).extend(1.),
                 ..Default::default()
             },
             ..Default::default()
         })
-        .insert(sprite_size)
-        .insert(ShadowOf(shadow_controller, displacement))
+        .insert(Bounds::from_pos_and_size(
+            position.truncate(),
+            controller_size,
+        ))
+        .insert(ShadowOf {
+            controller,
+            displacement,
+        })
         .id();
     if let Some(component_inserter) = component_inserter {
-        component_inserter(commands.entity(id));
+        component_inserter(commands.entity(shadow_id));
     }
-    id
-}
-
-impl Velocity {
-    pub fn new(movement_pr_sec: Vec3) -> Self {
-        Self(movement_pr_sec)
-    }
-}
-
-impl Deref for Velocity {
-    type Target = Vec3;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Velocity {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
+    shadow_id
 }

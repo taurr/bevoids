@@ -84,7 +84,7 @@ fn fadeout(
         .clamp(0.0, 1.0);
 
         if fadeout.value <= 0. {
-            log::debug!(?entity, "faded");
+            log::trace!(?entity, "faded");
             commands.entity(entity).remove::<Fadeout>().insert(Despawn);
         }
         if let Some(material) = color_material_assets.get_mut(material_handle) {

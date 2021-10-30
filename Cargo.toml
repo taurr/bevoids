@@ -7,8 +7,9 @@ edition = "2021"
 
 [dependencies]
 structopt = "0.3"
-rand = "0.8.4"
 bevy = "0.5"
+parry2d = "0.7"
+rand = "0.8.4"
 thiserror = "1.0"
 derive_more = "0.99"
 

@@ -1,31 +1,24 @@
 use bevy::{core::FixedTimestep, ecs::system::EntityCommands, log, math::vec3, prelude::*};
-use derive_more::{Display, From, Into};
+use derive_more::{Deref, DerefMut, From, Into};
 use rand::Rng;
 use std::{f32::consts::PI, time::Duration};
 
-use crate::{
-    fade_plugin::{DelayedFadeout, Fadeout},
-    movement_plugin::{spawn_shadows_for_display_wrap, ShadowController, Velocity},
-    Despawn, GameState, SpriteSize, Textures, WinSize, BULLET_FADEOUT_SECONDS,
-    BULLET_LIFETIME_SECONDS, BULLET_MAX_SIZE, BULLET_PLAYER_RELATIVE_Y, BULLET_PLAYER_RELATIVE_Z, BULLET_SPEED,
-    FLAME_OPACITY, FLAME_RELATIVE_Y, FLAME_RELATIVE_Z, FLAME_WIDTH, PLAYER_ACCELLERATION,
-    PLAYER_DECCELLERATION, PLAYER_FADEOUT_SECONDS, PLAYER_MAX_SIZE, PLAYER_MAX_SPEED,
-    PLAYER_START_SPEED, PLAYER_TURN_SPEED, PLAYER_Z,
-};
+use crate::{Bounds, Despawn, GameState, Textures, constants::*, fade_plugin::{DelayedFadeout, Fadeout}, movement_plugin::{InsideWindow, ShadowController, Velocity, spawn_shadows_for_display_wrap}};
 
 pub(crate) struct PlayerPlugin;
 
-#[derive(Debug, Component, Display)]
+#[derive(Component, Debug)]
 pub(crate) struct Player;
 
-#[derive(Debug, Component, Display)]
+#[derive(Component, Debug)]
+pub(crate) struct Flame;
+
+#[derive(Component, Debug)]
 pub(crate) struct Bullet;
 
-#[derive(Debug, Default, Component, Display, From, Into, Copy, Clone)]
+// TODO: not needed - part of Transform
+#[derive(Component, Debug, Default, From, Into, Copy, Clone, Deref, DerefMut)]
 pub(crate) struct Orientation(Quat);
-
-#[derive(Debug, Component, Display)]
-pub(crate) struct Flame;
 
 pub(crate) fn kill_player(commands: &mut Commands, player: Entity) {
     log::warn!(?player, "player dead");
@@ -52,7 +45,7 @@ impl Plugin for PlayerPlugin {
         app.add_system_set(
             SystemSet::on_update(GameState::InGame)
                 .with_run_criteria(FixedTimestep::step(1.0 as f64))
-                .with_system(player_stats.system()),
+                //.with_system(player_stats.system()),
         );
     }
 }
@@ -65,57 +58,58 @@ fn player_stats(player_query: Query<&Velocity, With<Player>>) {
 
 fn player_spawn(
     mut commands: Commands,
-    win_size: Res<WinSize>,
+    window_bounds: Res<Bounds>,
     textures: Res<Textures>,
     mut material_assets: ResMut<Assets<ColorMaterial>>,
 ) {
     log::debug!("spawning player");
     let mut rng = rand::thread_rng();
 
-    let position = Vec2::new(
-        rng.gen_range(-win_size.0.x / 2.0..win_size.0.x / 2.0),
-        rng.gen_range(-win_size.0.y / 2.0..win_size.0.y / 2.0),
+    let player_position_vec2 = Vec2::new(
+        rng.gen_range(-window_bounds.width() / 2.0..window_bounds.width() / 2.0),
+        rng.gen_range(-window_bounds.height() / 2.0..window_bounds.height() / 2.0),
     );
+    let player_position_vec3 = player_position_vec2.extend(PLAYER_Z);
     let random_rotation = Quat::from_rotation_z(rng.gen_range(0.0..(2. * PI)));
     let texture_size = textures.get_size(&textures.spaceship).unwrap();
-    let scale = PLAYER_MAX_SIZE / texture_size.max_element();
-    let velocity = random_rotation.mul_vec3(Vec3::Y) * PLAYER_START_SPEED;
-    let material = material_assets.add(textures.spaceship.clone().into());
+    let player_scale = PLAYER_MAX_SIZE / texture_size.max_element();
+    let player_velocity = random_rotation.mul_vec3(Vec3::Y).truncate() * PLAYER_START_SPEED;
+    let player_material = material_assets.add(textures.spaceship.clone().into());
+    let player_size = texture_size * player_scale;
+    let player_bounds = Bounds::from_pos_and_size(player_position_vec2, player_size);
 
-    let translation = position.extend(PLAYER_Z);
-    let sprite_size = SpriteSize(texture_size * scale);
-    let id: Entity = commands
+    let player_id: Entity = commands
         .spawn_bundle(SpriteBundle {
-            material: material.clone(),
+            material: player_material.clone(),
             transform: Transform {
-                translation,
+                translation: player_position_vec3,
                 rotation: random_rotation,
-                scale: Vec2::splat(scale).extend(1.),
+                scale: Vec2::splat(player_scale).extend(1.),
             },
             ..Default::default()
         })
-        .insert(sprite_size)
         .insert(Player)
-        .insert(SpriteSize(texture_size * scale))
-        .insert(ShadowController)
+        .insert(player_bounds)
+        .insert(Velocity::from(player_velocity))
         .insert(Orientation(random_rotation))
-        .insert(Velocity::new(velocity))
+        .insert(ShadowController)
+        .insert(InsideWindow)
         .id();
 
-    log::info!(player=?id, "player spawned");
-
     spawn_shadows_for_display_wrap(
-        id,
-        material,
-        sprite_size,
-        &win_size,
-        scale,
-        translation,
+        player_id,
+        player_position_vec3,
+        player_size,
+        player_scale,
+        player_material,
         &Some(|mut cmds: EntityCommands| {
             cmds.insert(Player);
         }),
+        &window_bounds,
         &mut commands,
     );
+
+    log::info!(player=?player_id, "player spawned");
 }
 
 fn player_controls(
@@ -147,42 +141,37 @@ fn player_controls(
 
         if kb.pressed(KeyCode::Up) {
             // accelleration
-            let v = player_orientation
+            let delta_v = player_orientation
                 .0
                 .mul_vec3(vec3(0., PLAYER_ACCELLERATION, 0.))
+                .truncate()
                 * time.delta_seconds();
-            let velocity = **player_velocity + v;
-            let capped_velocity = if velocity.length() > PLAYER_MAX_SPEED {
-                velocity.normalize() * PLAYER_MAX_SPEED
-            } else {
-                velocity
-            };
-            **player_velocity = capped_velocity;
+            let velocity =
+                (Vec2::from(*player_velocity) + delta_v).clamp_length(0., PLAYER_MAX_SPEED);
+            **player_velocity = velocity.into();
+            if kb.just_pressed(KeyCode::Up) {
+                log::trace!("accellerate on");
+                let flame = spawn_flame(
+                    &mut commands,
+                    &textures,
+                    &mut material_assets,
+                    &player_transform,
+                );
+                commands.entity(player).push_children(&[flame]);
+            }
         } else {
             // decellerate
-            if player_velocity.length() > 0. {
-                let v = player_velocity.normalize()
-                    * f32::min(
-                        PLAYER_DECCELLERATION * time.delta_seconds(),
-                        player_velocity.length(),
-                    );
-                **player_velocity -= v;
-            }
-        }
-        if kb.just_pressed(KeyCode::Up) {
-            log::trace!("accellerate on");
-            let flame = spawn_flame(
-                &mut commands,
-                &textures,
-                &mut material_assets,
-                &player_transform,
-            );
-            commands.entity(player).push_children(&[flame]);
-        }
-        if kb.just_released(KeyCode::Up) {
-            log::trace!("accellerate off");
-            for flame in flame_query.iter() {
-                commands.entity(flame).despawn();
+            let delta_v = Vec2::from(*player_velocity).normalize()
+                * PLAYER_DECCELLERATION
+                * time.delta_seconds();
+            let velocity =
+                (Vec2::from(*player_velocity) - delta_v).clamp_length(0., PLAYER_MAX_SPEED);
+            **player_velocity = velocity.into();
+            if kb.just_released(KeyCode::Up) {
+                log::trace!("accellerate off");
+                for flame in flame_query.iter() {
+                    commands.entity(flame).despawn();
+                }
             }
         }
 
@@ -209,36 +198,46 @@ fn spawn_bullet(
     player_velocity: &Velocity,
     player_orientation: &Orientation,
 ) {
-    let texture_handle = textures.shot.clone();
-    let texture_size = textures.get_size(&texture_handle).unwrap();
-    let scale = BULLET_MAX_SIZE / texture_size.max_element();
-    let mut bullet_velocity = player_orientation.0.mul_vec3(vec3(0., BULLET_SPEED, 0.));
-    bullet_velocity += player_velocity.project_onto(bullet_velocity);
+    let bullet_texture_size = textures.get_size(&textures.shot).unwrap();
+    let bullet_scale = BULLET_MAX_SIZE / bullet_texture_size.max_element();
+    let bullet_velocity = {
+        let bullet_velocity = player_orientation
+            .mul_vec3(vec3(0., BULLET_SPEED, 0.))
+            .truncate();
+        Velocity::from(
+            bullet_velocity
+                + Vec2::from(*player_velocity).project_onto(Vec2::from(bullet_velocity)),
+        )
+    };
 
-    let id = commands
+    let bullet_position = player_transform.translation
+        + player_orientation.mul_vec3(Vec3::new(
+            0.,
+            BULLET_PLAYER_RELATIVE_Y,
+            BULLET_PLAYER_RELATIVE_Z,
+        ));
+    let bullet_id = commands
         .spawn_bundle(SpriteBundle {
-            // TODO: ColorMaterial should not be created each time we show the flame
             material: material_assets.add(ColorMaterial::texture(textures.shot.clone())),
-            // TODO: Transform should not be created each time we show the flame
             transform: Transform {
-                translation: player_transform.translation
-                    + player_orientation
-                        .0
-                        .mul_vec3(vec3(0., BULLET_PLAYER_RELATIVE_Y, BULLET_PLAYER_RELATIVE_Z)),
+                translation: bullet_position,
                 rotation: Quat::from_rotation_z(PI / 2.).mul_quat(player_orientation.0),
-                scale: Vec2::splat(scale).extend(1.),
+                scale: Vec2::splat(bullet_scale).extend(1.),
             },
             ..Default::default()
         })
         .insert(Bullet)
-        .insert(SpriteSize(texture_size * scale))
+        .insert(Bounds::from_pos_and_size(
+            bullet_position.truncate(),
+            bullet_texture_size * bullet_scale,
+        ))
         .insert(DelayedFadeout::new(
             Duration::from_secs_f32(BULLET_LIFETIME_SECONDS),
             Duration::from_secs_f32(BULLET_FADEOUT_SECONDS),
         ))
-        .insert(Velocity::new(bullet_velocity))
+        .insert(bullet_velocity)
         .id();
-    log::debug!(buller=?id, "spawned bullet");
+    log::debug!(buller=?bullet_id, "spawned bullet");
 }
 
 fn spawn_flame(
@@ -255,11 +254,10 @@ fn spawn_flame(
             // TODO: ColorMaterial should not be created each time we show the flame
             material: material_assets.add(ColorMaterial::modulated_texture(
                 texture,
-                *Color::WHITE.clone().set_a(FLAME_OPACITY),
+                Color::WHITE.clone(),
             )),
-            // TODO: Transform should not be created each time we show the flame
             transform: Transform {
-                translation: Vec2::new(0., FLAME_RELATIVE_Y).extend(FLAME_RELATIVE_Z)
+                translation: Vec3::new(0., FLAME_RELATIVE_Y, FLAME_RELATIVE_Z)
                     / player_transform.scale,
                 rotation: Default::default(),
                 scale: Vec2::splat(scale / player_transform.scale.x).extend(1.),

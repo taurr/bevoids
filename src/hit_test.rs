@@ -1,11 +1,12 @@
-use bevy::{log, prelude::*, sprite::collide_aabb::collide};
+use bevy::{log, prelude::*};
+use parry2d::bounding_volume::BoundingVolume;
 
 use crate::{
     asteroid_plugin::{despawn_asteroid, spawn_split_asteroids, Asteroid},
     fade_plugin::Fadeout,
-    movement_plugin::{ShadowController, ShadowOf, Velocity},
+    movement_plugin::{InsideWindow, ShadowController, ShadowOf},
     player_plugin::{bullet_spent, kill_player, Bullet, Player},
-    AsteroidMaterials, Despawn, GameState, SpriteSize, WinSize,
+    AsteroidMaterials, Bounds, Despawn, GameState,
 };
 
 pub(crate) struct HitTestPlugin;
@@ -20,44 +21,20 @@ impl Plugin for HitTestPlugin {
     }
 }
 
-fn rotate_bounding_box(size: Vec2, rotation: Quat) -> Vec2 {
-    // get 4 corners around the position
-    let (p1, p2, p3, p4) = {
-        let (w, h) = (size / 2.0).into();
-        (
-            Vec3::from((-w, h, 0.0)),
-            Vec3::from((w, h, 0.0)),
-            Vec3::from((-w, -h, 0.0)),
-            Vec3::from((w, -h, 0.0)),
-        )
-    };
-    // rotate each corner
-    let (p1, p2, p3, p4) = (
-        rotation.mul_vec3(p1),
-        rotation.mul_vec3(p2),
-        rotation.mul_vec3(p3),
-        rotation.mul_vec3(p4),
-    );
-    // we only need 2D
-    let (p1, p2, p3, p4) = (p1.truncate(), p2.truncate(), p3.truncate(), p4.truncate());
-    // final bounding box around position
-    p1.max(p2).max(p3).max(p4) * 2.0
-}
-
 fn shot_hit_asteroid(
-    bullet_query: Query<(Entity, &Transform, &SpriteSize), (With<Bullet>, Without<Despawn>)>,
+    player_query: Query<&Transform, (With<Player>, With<InsideWindow>)>,
+    bullet_query: Query<(Entity, &Bounds), (With<Bullet>, Without<Despawn>)>,
     asteroids_query: Query<
+        (Entity, &Transform, &Bounds, Option<&ShadowOf>),
         (
-            Entity,
-            &Transform,
-            &SpriteSize,
-            Option<&Velocity>,
-            Option<&ShadowOf>,
+            With<Asteroid>,
+            Without<Fadeout>,
+            Without<Despawn>,
+            With<InsideWindow>,
         ),
-        (With<Asteroid>, Without<Fadeout>, Without<Despawn>),
     >,
-    controller_query: Query<
-        (Entity, Option<&Velocity>),
+    asteroid_ctrl_query: Query<
+        Entity,
         (
             With<Asteroid>,
             With<ShadowController>,
@@ -66,8 +43,7 @@ fn shot_hit_asteroid(
         ),
     >,
     shadows_query: Query<(Entity, &ShadowOf), (With<Asteroid>, Without<Fadeout>, Without<Despawn>)>,
-    player_query: Query<&Transform, With<Player>>,
-    win_size: Res<WinSize>,
+    window_bounds: Res<Bounds>,
     mut commands: Commands,
     mut materials: ResMut<AsteroidMaterials>,
 ) {
@@ -75,39 +51,33 @@ fn shot_hit_asteroid(
     let mut asteroids_hit = vec![];
 
     for player_tf in player_query.iter() {
-        'bullet: for (bullet_entity, bullet_transform, bullet_size) in bullet_query.iter() {
-            'asteroid: for (asteroid, asteroid_transform, asteroid_size, velocity, shadowof) in
+        'bullet: for (bullet_entity, bullet_bounds) in bullet_query.iter() {
+            let bullet_sphere = bullet_bounds.as_min_sphere();
+            'asteroid: for (asteroid, asteroid_tf, asteroid_bounds, shadowof) in
                 asteroids_query.iter()
             {
-                let (asteroid_ctrl, velocity) = shadowof
+                let asteroid_ctrl = shadowof
                     .and_then(|shadowof| {
-                        controller_query
+                        asteroid_ctrl_query
                             .iter()
-                            .find(|(controller, _)| controller == &shadowof.0)
+                            .find(|controller| controller == &shadowof.controller)
                     })
-                    .unwrap_or((asteroid, velocity));
+                    .unwrap_or(asteroid);
 
-                if asteroids_hit.contains(&asteroid_ctrl) || velocity.is_none() {
+                if asteroids_hit.contains(&asteroid_ctrl) {
                     continue 'asteroid;
                 }
 
-                if collide(
-                    bullet_transform.translation,
-                    rotate_bounding_box((*bullet_size).into(), bullet_transform.rotation),
-                    asteroid_transform.translation,
-                    (*asteroid_size).into(),
-                )
-                .is_some()
-                {
+                if bullet_sphere.intersects(&asteroid_bounds.as_min_sphere()) {
                     log::info!(?asteroid_ctrl, ?asteroid, "bullet hit",);
                     asteroids_hit.push(asteroid_ctrl);
                     spent_bullets.push(bullet_entity);
 
                     spawn_split_asteroids(
-                        &Vec2::from(*asteroid_size),
-                        &asteroid_transform.translation,
+                        &asteroid_bounds.size(),
+                        &asteroid_tf.translation,
                         &player_tf.translation,
-                        &win_size,
+                        &window_bounds,
                         &mut materials,
                         &mut commands,
                     );
@@ -131,16 +101,25 @@ fn asteroid_hit_player(
     player_query: Query<
         (
             Entity,
-            &Transform,
-            &SpriteSize,
+            &Bounds,
             Option<&ShadowOf>,
             Option<&ShadowController>,
         ),
-        (With<Player>, Without<Fadeout>, Without<Despawn>),
+        (
+            With<Player>,
+            Without<Fadeout>,
+            Without<Despawn>,
+            With<InsideWindow>,
+        ),
     >,
     asteroids_query: Query<
-        (Entity, &Transform, &SpriteSize, Option<&ShadowOf>),
-        (With<Asteroid>, Without<Fadeout>, Without<Despawn>),
+        (Entity, &Bounds, Option<&ShadowOf>),
+        (
+            With<Asteroid>,
+            Without<Fadeout>,
+            Without<Despawn>,
+            With<InsideWindow>,
+        ),
     >,
     player_ctrl_query: Query<
         Entity,
@@ -166,23 +145,22 @@ fn asteroid_hit_player(
     let mut players_hit = vec![];
     let mut asteroids_hit = vec![];
 
-    'player: for (player, player_tf, player_size, shadowof, controller) in player_query.iter() {
+    'player: for (player, player_bounds, shadowof, controller) in player_query.iter() {
         if let Some(player_ctrl) = shadowof
             .and_then(|shadowof| {
                 player_ctrl_query
                     .iter()
-                    .find(|player_ctrl| player_ctrl == &shadowof.0)
+                    .find(|player_ctrl| player_ctrl == &shadowof.controller)
             })
             .or_else(|| controller.map(|_| player))
         {
-            'asteroid: for (asteroid, asteroid_transform, asteroid_size, shadowof) in
-                asteroids_query.iter()
-            {
+            let player_sphere = player_bounds.as_min_sphere();
+            'asteroid: for (asteroid, asteroid_bounds, shadowof) in asteroids_query.iter() {
                 let asteroid_ctrl = shadowof
                     .and_then(|shadowof| {
                         asteroid_ctrl_query
                             .iter()
-                            .find(|controller| controller == &shadowof.0)
+                            .find(|controller| controller == &shadowof.controller)
                     })
                     .unwrap_or(asteroid);
 
@@ -190,14 +168,9 @@ fn asteroid_hit_player(
                     continue 'asteroid;
                 }
 
-                if collide(
-                    player_tf.translation,
-                    rotate_bounding_box((*player_size).into(), player_tf.rotation),
-                    asteroid_transform.translation,
-                    (*asteroid_size).into(),
-                )
-                .is_some()
-                {
+                let asteroid_sphere = asteroid_bounds.as_min_sphere();
+                if player_sphere.intersects(&asteroid_sphere) {
+                    log::warn!(?player_sphere, ?asteroid_sphere);
                     log::info!(
                         ?player_ctrl,
                         ?player,

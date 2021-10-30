@@ -16,7 +16,7 @@
         }
       },
       "env": {
-        "RUST_LOG": "info,bevoids=trace"
+        "RUST_LOG": "info,bevoids=debug"
       },
       "args": ["--assets", "${workspaceFolder}/assets"],
       "cwd": "${workspaceFolder}"

@@ -3,10 +3,13 @@ use parry2d::bounding_volume::BoundingVolume;
 
 use crate::{
     asteroid_plugin::{despawn_asteroid, spawn_split_asteroids, Asteroid},
+    constants::{ASTEROID_MAX_SCORE, ASTEROID_MAX_SIZE, ASTEROID_MIN_SIZE},
     fade_plugin::Fadeout,
     movement_plugin::{InsideWindow, ShadowController, ShadowOf},
     player_plugin::{bullet_spent, kill_player, Bullet, Player},
-    AsteroidMaterials, Bounds, Despawn, GameState,
+    scoreboard::ScoreBoard,
+    textures::AsteroidMaterials,
+    Bounds, Despawn, GameState,
 };
 
 pub(crate) struct HitTestPlugin;
@@ -44,6 +47,7 @@ fn shot_hit_asteroid(
     >,
     shadows_query: Query<(Entity, &ShadowOf), (With<Asteroid>, Without<Fadeout>, Without<Despawn>)>,
     window_bounds: Res<Bounds>,
+    mut scores_query: Query<&mut ScoreBoard>,
     mut commands: Commands,
     mut materials: ResMut<AsteroidMaterials>,
 ) {
@@ -52,7 +56,7 @@ fn shot_hit_asteroid(
 
     for player_tf in player_query.iter() {
         'bullet: for (bullet_entity, bullet_bounds) in bullet_query.iter() {
-            let bullet_sphere = bullet_bounds.as_min_sphere();
+            let bullet_sphere = bullet_bounds.as_sphere();
             'asteroid: for (asteroid, asteroid_tf, asteroid_bounds, shadowof) in
                 asteroids_query.iter()
             {
@@ -68,8 +72,15 @@ fn shot_hit_asteroid(
                     continue 'asteroid;
                 }
 
-                if bullet_sphere.intersects(&asteroid_bounds.as_min_sphere()) {
+                if bullet_sphere.intersects(&asteroid_bounds.as_sphere()) {
                     log::info!(?asteroid_ctrl, ?asteroid, "bullet hit",);
+                    for mut board in scores_query.iter_mut() {
+                        let a = (ASTEROID_MAX_SIZE - asteroid_bounds.size().max_element())
+                            / (ASTEROID_MAX_SIZE - ASTEROID_MIN_SIZE)
+                            * ASTEROID_MAX_SCORE;
+                        let score: &mut u32 = (*board).as_mut();
+                        *score += a as u32;
+                    }
                     asteroids_hit.push(asteroid_ctrl);
                     spent_bullets.push(bullet_entity);
 
@@ -140,6 +151,7 @@ fn asteroid_hit_player(
         ),
     >,
     shadows_query: Query<(Entity, &ShadowOf), (With<Asteroid>, Without<Fadeout>, Without<Despawn>)>,
+    mut state: ResMut<State<GameState>>,
     mut commands: Commands,
 ) {
     let mut players_hit = vec![];
@@ -154,7 +166,7 @@ fn asteroid_hit_player(
             })
             .or_else(|| controller.map(|_| player))
         {
-            let player_sphere = player_bounds.as_min_sphere();
+            let player_sphere = player_bounds.as_sphere();
             'asteroid: for (asteroid, asteroid_bounds, shadowof) in asteroids_query.iter() {
                 let asteroid_ctrl = shadowof
                     .and_then(|shadowof| {
@@ -168,9 +180,9 @@ fn asteroid_hit_player(
                     continue 'asteroid;
                 }
 
-                let asteroid_sphere = asteroid_bounds.as_min_sphere();
+                let asteroid_sphere = asteroid_bounds.as_sphere();
                 if player_sphere.intersects(&asteroid_sphere) {
-                    log::warn!(?player_sphere, ?asteroid_sphere);
+                    log::debug!(?player_sphere, ?asteroid_sphere);
                     log::info!(
                         ?player_ctrl,
                         ?player,
@@ -180,6 +192,8 @@ fn asteroid_hit_player(
                     );
                     asteroids_hit.push(asteroid_ctrl);
                     players_hit.push(player_ctrl);
+
+                    state.set(GameState::GameOver).unwrap();
 
                     continue 'player;
                 }

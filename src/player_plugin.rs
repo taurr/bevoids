@@ -6,8 +6,9 @@ use std::{f32::consts::PI, time::Duration};
 use crate::{
     constants::*,
     fade_plugin::{DelayedFadeout, Fadeout},
-    movement_plugin::{spawn_shadows_for_display_wrap, InsideWindow, ShadowController, Velocity},
-    Bounds, Despawn, GameState, Textures,
+    movement_plugin::{spawn_display_shadows, InsideWindow, ShadowController, Velocity},
+    textures::Textures,
+    Bounds, Despawn, GameState,
 };
 
 pub(crate) struct PlayerPlugin;
@@ -94,7 +95,7 @@ fn player_spawn(
         .insert(InsideWindow)
         .id();
 
-    spawn_shadows_for_display_wrap(
+    spawn_display_shadows(
         player_id,
         player_position_vec3,
         player_size,

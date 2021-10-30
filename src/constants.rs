@@ -4,13 +4,16 @@ pub(crate) const WIN_WIDTH: f32 = 1024.;
 
 pub(crate) const WIN_HEIGHT: f32 = 800.;
 
+pub(crate) const DIFFICULTY_RAISER_TIMESTEP: f64 = 20.;
+pub(crate) const DIFFICULTY_RAISER_SPAWN_DELAY_MULTIPLIER: f32 = 0.95;
+pub(crate) const ASTEROID_START_SPAWN_DELAY: f32 = 5.;
+
+pub(crate) const ASTEROID_MAX_SCORE: f32 = 100.;
+
 pub(crate) const ASTEROID_SPLIT_INTO: usize = 2;
 
 pub(crate) const ASTEROID_SPLIT_SIZE_RATIO: f32 = 2. / 3.;
 
-pub(crate) const ASTEROIDS_LEVEL_SPAWN: usize = 2;
-
-pub(crate) const ASTEROID_SPAWN_DELAY: f32 = 5.;
 
 pub(crate) const ASTEROIDS_PLAYER_SPAWN_DISTANCE: f32 = 200.;
 

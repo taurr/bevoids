@@ -51,6 +51,11 @@ impl Plugin for FadePlugin {
                 .with_system(delayed_fadeout.system())
                 .with_system(fadeout.system()),
         );
+        app.add_system_set(
+            SystemSet::on_update(GameState::GameOver)
+                .with_system(delayed_fadeout.system())
+                .with_system(fadeout.system()),
+        );
     }
 }
 

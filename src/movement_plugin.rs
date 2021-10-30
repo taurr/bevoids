@@ -35,7 +35,7 @@ pub(crate) struct ShadowOf {
 #[derive(Component, Debug)]
 pub(crate) struct InsideWindow;
 
-pub(crate) fn spawn_shadows_for_display_wrap(
+pub(crate) fn spawn_display_shadows(
     controller: Entity,
     controller_position: Vec3,
     controller_size: Vec2,
@@ -92,6 +92,10 @@ impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::on_update(GameState::InGame)
+                .with_system(linear_movement.system().chain(move_shadow.system())),
+        );
+        app.add_system_set(
+            SystemSet::on_update(GameState::GameOver)
                 .with_system(linear_movement.system().chain(move_shadow.system())),
         );
     }

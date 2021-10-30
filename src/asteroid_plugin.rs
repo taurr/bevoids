@@ -1,4 +1,4 @@
-use bevy::{ecs::system::EntityCommands, log, prelude::*};
+use bevy::{core::FixedTimestep, ecs::system::EntityCommands, log, prelude::*};
 use derive_more::{From, Into};
 use rand::Rng;
 use std::{f32::consts::PI, time::Duration};
@@ -6,11 +6,10 @@ use std::{f32::consts::PI, time::Duration};
 use crate::{
     constants::*,
     fade_plugin::Fadeout,
-    movement_plugin::{
-        spawn_shadows_for_display_wrap, InsideWindow, ShadowController, ShadowOf, Velocity,
-    },
+    movement_plugin::{spawn_display_shadows, InsideWindow, ShadowController, ShadowOf, Velocity},
     player_plugin::Player,
-    AsteroidMaterials, Bounds, Despawn, GameState,
+    textures::AsteroidMaterials,
+    Bounds, Despawn, GameState,
 };
 
 pub struct AsteroidPlugin;
@@ -19,7 +18,7 @@ pub struct AsteroidPlugin;
 pub struct Asteroid;
 
 #[derive(Component, Debug)]
-pub struct AsteroidsInGame(u8);
+struct AsteroidSpawnDelay(f32);
 
 pub(crate) fn spawn_split_asteroids(
     asteroid_size: Vec2,
@@ -97,7 +96,16 @@ impl Plugin for AsteroidPlugin {
         );
         app.add_system_set(
             SystemSet::on_update(GameState::InGame)
+                .with_run_criteria(FixedTimestep::step(DIFFICULTY_RAISER_TIMESTEP))
+                .with_system(difficulty_raiser.system()),
+        );
+        app.add_system_set(
+            SystemSet::on_update(GameState::InGame)
                 .with_system(asteroid_spawner.system())
+                .with_system(asteroid_despawner.system()),
+        );
+        app.add_system_set(
+            SystemSet::on_update(GameState::GameOver)
                 .with_system(asteroid_despawner.system()),
         );
     }
@@ -106,8 +114,28 @@ impl Plugin for AsteroidPlugin {
 #[derive(Component, Debug)]
 struct FreeMaterialAndFadeout;
 
-#[derive(Component, Debug, From, Into)]
-struct AsteroidsToSpawn(usize);
+#[derive(Component, Debug)]
+struct AsteroidsSpawner;
+
+fn asteroid_level_init(mut commands: Commands) {
+    commands
+        .spawn()
+        .insert(AsteroidsSpawner)
+        .insert(AsteroidSpawnDelay(ASTEROID_START_SPAWN_DELAY));
+}
+
+fn difficulty_raiser(
+    mut commands: Commands,
+    query: Query<(Entity, &AsteroidSpawnDelay), With<AsteroidsSpawner>>,
+) {
+    for (entity, delay) in query.iter() {
+        let new_delay = delay.0 * DIFFICULTY_RAISER_SPAWN_DELAY_MULTIPLIER;
+        commands
+            .entity(entity)
+            .remove::<Timer>()
+            .insert(AsteroidSpawnDelay(new_delay));
+    }
+}
 
 fn asteroid_despawner(
     mut commands: Commands,
@@ -125,89 +153,65 @@ fn asteroid_despawner(
     }
 }
 
-fn asteroid_level_init(mut commands: Commands) {
-    commands.insert_resource(AsteroidsInGame(0));
-    commands
-        .spawn()
-        .insert(AsteroidsToSpawn(ASTEROIDS_LEVEL_SPAWN));
-}
-
 fn asteroid_spawner(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut AsteroidsToSpawn, Option<&mut Timer>)>,
+    mut query: Query<(Entity, &AsteroidSpawnDelay, Option<&mut Timer>), With<AsteroidsSpawner>>,
     mut materials: ResMut<AsteroidMaterials>,
     player_query: Query<&Transform, With<Player>>,
     window_bounds: Res<Bounds>,
     time: Res<Time>,
 ) {
-    if let Ok((entity, mut level_asteroids, timer)) = query.get_single_mut() {
-        let asteroids_to_spawn = timer
-            .and_then(|mut timer| {
-                if timer.tick(time.delta()).finished() {
-                    Some(Ok(1))
-                } else {
-                    Some(Err(()))
-                }
-            })
-            .unwrap_or_else(|| {
-                if ASTEROID_SPAWN_DELAY >= 0.01 {
-                    commands.entity(entity).insert(Timer::new(
-                        Duration::from_secs_f32(ASTEROID_SPAWN_DELAY),
-                        true,
-                    ));
-                }
-                Ok(1)
-            });
-        if asteroids_to_spawn.is_err() {
-            return;
-        }
-        let asteroids_to_spawn = asteroids_to_spawn.unwrap();
-
-        let mut rng = rand::thread_rng();
-        for _ in 0..asteroids_to_spawn {
-            let asteroid_max_size = rng.gen_range(ASTEROID_MIN_SIZE..ASTEROID_MAX_SIZE);
-
-            let asteroid_position = loop {
-                let position = {
-                    let (w, h) = (window_bounds.width() / 2.0, window_bounds.height() / 2.0);
-                    Vec2::new(rng.gen_range(-w..w), rng.gen_range(-h..h))
-                };
-                if player_query.iter().all(|player| {
-                    position
-                        .extend(player.translation.z)
-                        .distance(player.translation)
-                        > ASTEROIDS_PLAYER_SPAWN_DISTANCE
-                }) {
-                    break position;
+    if let Ok((entity, delay, timer)) = query.get_single_mut() {
+        match timer {
+            Some(mut timer) => {
+                if !timer.tick(time.delta()).finished() {
+                    return;
                 }
             }
-            .extend(rng.gen_range(ASTEROID_Z_MIN..ASTEROID_Z_MAX));
-
-            let asteroid_velocity = {
-                let random_direction = rng.gen_range(0.0..(2. * PI));
-                let random_speed = rng.gen_range(ASTEROID_MIN_SPEED..ASTEROID_MAX_SPEED);
-                Quat::from_rotation_z(random_direction).mul_vec3(Vec3::Y) * random_speed
-            };
-
-            log::debug!("spawning level asteroid");
-            match spawn_asteroid(
-                asteroid_max_size,
-                asteroid_position.truncate(),
-                asteroid_velocity.truncate(),
-                &window_bounds,
-                &mut materials,
-                &mut commands,
-            ) {
-                Ok(_) => {}
-                Err(_) => log::warn!("failed spawning level asteroid"),
-            };
+            None => {
+                commands
+                    .entity(entity)
+                    .insert(Timer::new(Duration::from_secs_f32(delay.0), true));
+            }
         }
 
-        level_asteroids.0 -= asteroids_to_spawn;
-        if level_asteroids.0 == 0 {
-            log::info!("all asteroids spawned for level");
-            commands.entity(entity).despawn();
+        let mut rng = rand::thread_rng();
+        let asteroid_max_size = rng.gen_range(ASTEROID_MIN_SIZE..ASTEROID_MAX_SIZE);
+
+        let asteroid_position = loop {
+            let position = {
+                let (w, h) = (window_bounds.width() / 2.0, window_bounds.height() / 2.0);
+                Vec2::new(rng.gen_range(-w..w), rng.gen_range(-h..h))
+            };
+            if player_query.iter().all(|player| {
+                position
+                    .extend(player.translation.z)
+                    .distance(player.translation)
+                    > ASTEROIDS_PLAYER_SPAWN_DISTANCE
+            }) {
+                break position;
+            }
         }
+        .extend(rng.gen_range(ASTEROID_Z_MIN..ASTEROID_Z_MAX));
+
+        let asteroid_velocity = {
+            let random_direction = rng.gen_range(0.0..(2. * PI));
+            let random_speed = rng.gen_range(ASTEROID_MIN_SPEED..ASTEROID_MAX_SPEED);
+            Quat::from_rotation_z(random_direction).mul_vec3(Vec3::Y) * random_speed
+        };
+
+        log::debug!("spawning level asteroid");
+        match spawn_asteroid(
+            asteroid_max_size,
+            asteroid_position.truncate(),
+            asteroid_velocity.truncate(),
+            &window_bounds,
+            &mut materials,
+            &mut commands,
+        ) {
+            Ok(_) => {}
+            Err(_) => log::warn!("failed spawning level asteroid"),
+        };
     }
 }
 
@@ -244,7 +248,7 @@ fn spawn_asteroid(
 
             log::info!(?asteroid_size, asteroid=?asteroid_id, "asteroid spawned");
 
-            spawn_shadows_for_display_wrap(
+            spawn_display_shadows(
                 asteroid_id,
                 asteroid_position,
                 asteroid_size,

@@ -74,7 +74,7 @@ fn shot_hit_asteroid(
                     spent_bullets.push(bullet_entity);
 
                     spawn_split_asteroids(
-                        &asteroid_bounds.size(),
+                        asteroid_bounds.size(),
                         &asteroid_tf.translation,
                         &player_tf.translation,
                         &window_bounds,

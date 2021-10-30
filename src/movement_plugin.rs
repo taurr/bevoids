@@ -125,7 +125,7 @@ fn linear_movement(
 
         // set new bounds
         // TODO: should probably follow rotation as that changes bounds
-        bounds.set_center(&transform.translation.truncate());
+        bounds.set_center(transform.translation.truncate());
     }
 }
 
@@ -157,7 +157,7 @@ fn move_shadow(
 
             // set new bounds
             // TODO: should probably follow rotation as that changes bounds
-            shadow_bounds.set_center(&shadow_tf.translation.truncate());
+            shadow_bounds.set_center(shadow_tf.translation.truncate());
 
             // detect visibility
             if shadow_bounds.as_aabb().intersects(&window_bounds.as_aabb()) {
@@ -189,9 +189,9 @@ fn spawn_shadow(
             transform: Transform {
                 translation: position,
                 scale: Vec2::splat(controller_scale).extend(1.),
-                ..Default::default()
+                ..Transform::default()
             },
-            ..Default::default()
+            ..SpriteBundle::default()
         })
         .insert(Bounds::from_pos_and_size(
             position.truncate(),

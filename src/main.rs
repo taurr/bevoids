@@ -104,7 +104,7 @@ fn main() {
         .insert_resource(WindowDescriptor {
             width: constants::WIN_WIDTH,
             height: constants::WIN_HEIGHT,
-            ..Default::default()
+            ..WindowDescriptor::default()
         })
         .run();
 }
@@ -165,8 +165,7 @@ fn collect_textures(
                     state.set(GameState::InGame).unwrap();
                 }
             }
-            AssetEvent::Modified { handle: _ } => {}
-            AssetEvent::Removed { handle: _ } => {}
+            AssetEvent::Modified { handle: _ } | AssetEvent::Removed { handle: _ } => {}
         }
     }
 }
@@ -181,7 +180,7 @@ impl Textures {
                 .map(|n| asset_server.attempt_relative(assets_path, &format!("asteroid_{}.png", n)))
                 .filter_map(|x| x)
                 .collect(),
-            sizes: Default::default(),
+            sizes: HashMap::default(),
         }
     }
 
@@ -287,7 +286,7 @@ impl Bounds {
         self.aabb.extents().y
     }
 
-    pub fn set_center(&mut self, position: &Vec2) {
+    pub fn set_center(&mut self, position: Vec2) {
         self.aabb = AABB::from_half_extents(
             Point::from([position.x, position.y]),
             self.aabb.half_extents(),

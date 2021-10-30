@@ -17,7 +17,9 @@ fn find_asset(base_path: &Option<String>, asset: &str) -> Result<PathBuf, PathBu
     );
 
     base_path.push(asset);
-    if !base_path.exists() {
+    if base_path.exists() {
+        Ok(base_path)
+    } else {
         let mut buf = base_path.parent().unwrap().to_owned();
         buf.push("assets");
         buf.push(asset);
@@ -26,8 +28,6 @@ fn find_asset(base_path: &Option<String>, asset: &str) -> Result<PathBuf, PathBu
         } else {
             Err(base_path)
         }
-    } else {
-        Ok(base_path)
     }
 }
 

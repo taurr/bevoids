@@ -84,7 +84,7 @@ fn player_spawn(
                 rotation: random_rotation,
                 scale: Vec2::splat(player_scale).extend(1.),
             },
-            ..Default::default()
+            ..SpriteBundle::default()
         })
         .insert(Player)
         .insert(player_bounds)
@@ -181,7 +181,7 @@ fn player_controls(
                 &textures,
                 &mut material_assets,
                 &player_transform,
-                &player_velocity,
+                *player_velocity,
                 &player_orientation,
             );
         }
@@ -193,7 +193,7 @@ fn spawn_bullet(
     textures: &Textures,
     material_assets: &mut Assets<ColorMaterial>,
     player_transform: &Transform,
-    player_velocity: &Velocity,
+    player_velocity: Velocity,
     player_orientation: &Orientation,
 ) {
     let bullet_texture_size = textures.get_size(&textures.shot).unwrap();
@@ -222,7 +222,7 @@ fn spawn_bullet(
                 rotation: Quat::from_rotation_z(PI / 2.).mul_quat(player_orientation.0),
                 scale: Vec2::splat(bullet_scale).extend(1.),
             },
-            ..Default::default()
+            ..SpriteBundle::default()
         })
         .insert(Bullet)
         .insert(Bounds::from_pos_and_size(
@@ -257,10 +257,10 @@ fn spawn_flame(
             transform: Transform {
                 translation: Vec3::new(0., FLAME_RELATIVE_Y, FLAME_RELATIVE_Z)
                     / player_transform.scale,
-                rotation: Default::default(),
+                rotation: Quat::default(),
                 scale: Vec2::splat(scale / player_transform.scale.x).extend(1.),
             },
-            ..Default::default()
+            ..SpriteBundle::default()
         })
         .insert(Flame)
         .id();

@@ -22,7 +22,7 @@ pub struct Asteroid;
 pub struct AsteroidsInGame(u8);
 
 pub(crate) fn spawn_split_asteroids(
-    asteroid_size: &Vec2,
+    asteroid_size: Vec2,
     asteroid_position: &Vec3,
     player_position: &Vec3,
     winow_bounds: &Bounds,
@@ -52,8 +52,8 @@ pub(crate) fn spawn_split_asteroids(
     }) {
         match spawn_asteroid(
             max_size,
-            &asteroid_position.truncate(),
-            &velocity.truncate(),
+            asteroid_position.truncate(),
+            velocity.truncate(),
             winow_bounds,
             materials,
             commands,
@@ -143,10 +143,10 @@ fn asteroid_spawner(
     if let Ok((entity, mut level_asteroids, timer)) = query.get_single_mut() {
         let asteroids_to_spawn = timer
             .and_then(|mut timer| {
-                if !timer.tick(time.delta()).finished() {
-                    Some(Err(()))
-                } else {
+                if timer.tick(time.delta()).finished() {
                     Some(Ok(1))
+                } else {
+                    Some(Err(()))
                 }
             })
             .unwrap_or_else(|| {
@@ -192,8 +192,8 @@ fn asteroid_spawner(
             log::debug!("spawning level asteroid");
             match spawn_asteroid(
                 asteroid_max_size,
-                &asteroid_position.truncate(),
-                &asteroid_velocity.truncate(),
+                asteroid_position.truncate(),
+                asteroid_velocity.truncate(),
                 &window_bounds,
                 &mut materials,
                 &mut commands,
@@ -213,8 +213,8 @@ fn asteroid_spawner(
 
 fn spawn_asteroid(
     max_size: f32,
-    position: &Vec2,
-    velocity: &Vec2,
+    position: Vec2,
+    velocity: Vec2,
     window_bounds: &Bounds,
     materials: &mut AsteroidMaterials,
     commands: &mut Commands,
@@ -231,14 +231,14 @@ fn spawn_asteroid(
                     transform: Transform {
                         translation: asteroid_position,
                         scale: Vec2::splat(asteroid_scale).extend(1.),
-                        ..Default::default()
+                        ..Transform::default()
                     },
-                    ..Default::default()
+                    ..SpriteBundle::default()
                 })
                 .insert(Asteroid)
-                .insert(Bounds::from_pos_and_size(*position, asteroid_size))
+                .insert(Bounds::from_pos_and_size(position, asteroid_size))
                 .insert(ShadowController)
-                .insert(Velocity::from(*velocity))
+                .insert(Velocity::from(velocity))
                 .insert(InsideWindow)
                 .id();
 

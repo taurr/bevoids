@@ -230,7 +230,7 @@ fn spawn_flame(
     player_transform: &Transform,
 ) -> Entity {
     let texture = textures.flame.clone();
-    let flame_width = textures.get_size(&texture).unwrap().x;
+    let flame_width = textures.get_size(&texture).expect("no size for flame texture").x;
     let scale = FLAME_WIDTH / flame_width;
     let flame = commands
         .spawn_bundle(SpriteBundle {

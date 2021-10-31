@@ -19,7 +19,7 @@ pub enum LoadRelativeError {
 }
 
 pub trait LoadRelative {
-    fn load_relative<A: AsRef<str>, P: AssetPath, T: Asset>(
+    fn load_relative<T: Asset, A: AsRef<str>, P: AssetPath>(
         &self,
         path: &A,
         asset_path: &P,
@@ -40,7 +40,7 @@ impl<T: AsRef<str>> AssetPath for T {
 }
 
 impl<S: Deref<Target = AssetServer>> LoadRelative for S {
-    fn load_relative<A: AsRef<str>, P: AssetPath, T: Asset>(
+    fn load_relative<T: Asset, A: AsRef<str>, P: AssetPath>(
         &self,
         path: &A,
         asset_path: &P,

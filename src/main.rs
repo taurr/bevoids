@@ -10,11 +10,7 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use textures::TextureLoaderPlugin;
 
-use crate::{
-    assets::LoadRelative, asteroid_plugin::AsteroidPlugin, bounds::Bounds,
-    fade_despawn_plugin::FadeDespawnPlugin, hit_test::HitTestPlugin,
-    movement_plugin::MovementPlugin, player_plugin::PlayerPlugin,
-};
+use crate::{assets::LoadRelative, asteroid_plugin::AsteroidPlugin, bounds::Bounds, constants::{AUDIO_EXPLOSION_ASTEROID, AUDIO_EXPLOSION_SHIP, AUDIO_LASER, AUDIO_THRUSTER}, fade_despawn_plugin::FadeDespawnPlugin, hit_test::HitTestPlugin, movement_plugin::MovementPlugin, player_plugin::PlayerPlugin};
 
 mod assets;
 mod asteroid_plugin;
@@ -43,12 +39,16 @@ impl AssetPath for Args {
             .map(|assets| {
                 let mut p = PathBuf::from(assets);
                 p.push(path.as_ref());
+                let assets = p.display().to_string();
+                log::info!(?assets);
                 p
             })
             .unwrap_or_else(|| {
-                let mut p = PathBuf::from(std::env::current_dir().expect("no current dir")); //from("assets");
+                let mut p = PathBuf::from(std::env::current_dir().expect("no current dir"));
                 p.push("assets");
                 p.push(path.as_ref());
+                let assets = p.display().to_string();
+                log::info!(?assets);
                 p
             })
     }
@@ -103,9 +103,10 @@ fn initialize(
     args: Res<Args>,
 ) {
     log::info!("initializing game");
-    let _assets = asset_server
-        .load_relative_folder(&"sounds", &*args)
-        .expect("missing sounds");
+    let _ = asset_server.load_relative::<AudioSource,_,_>(&AUDIO_LASER, &*args);
+    let _ = asset_server.load_relative::<AudioSource,_,_>(&AUDIO_THRUSTER, &*args);
+    let _ = asset_server.load_relative::<AudioSource,_,_>(&AUDIO_EXPLOSION_SHIP, &*args);
+    let _ = asset_server.load_relative::<AudioSource,_,_>(&AUDIO_EXPLOSION_ASTEROID, &*args);
 
     let window = windows.get_primary_mut().unwrap();
     window.set_resizable(false);

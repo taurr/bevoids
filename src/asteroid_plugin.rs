@@ -120,8 +120,12 @@ fn asteroid_level_init(
     old_asteroids: Query<Entity, With<Asteroid>>,
     old_spawner: Query<Entity, With<AsteroidsSpawner>>,
 ) {
-    old_asteroids.iter().for_each(|e| commands.entity(e).despawn_recursive());
-    old_spawner.iter().for_each(|e| commands.entity(e).despawn_recursive());
+    old_asteroids
+        .iter()
+        .for_each(|e| commands.entity(e).despawn_recursive());
+    old_spawner
+        .iter()
+        .for_each(|e| commands.entity(e).despawn_recursive());
 
     commands
         .spawn()

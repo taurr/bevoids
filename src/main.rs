@@ -58,11 +58,9 @@ fn main() {
         .add_plugin(MovementPlugin)
         .add_plugin(FadePlugin)
         .add_plugin(HitTestPlugin)
-
         .add_system_set(
             SystemSet::on_update(GameState::GameOver).with_system(restart_on_enter.system()),
         )
-
         //
         // resources
         .insert_resource(Args::from_args())
@@ -101,10 +99,7 @@ fn despawn(mut commands: Commands, query: Query<Entity, With<Despawn>>) {
     }
 }
 
-fn restart_on_enter(
-    kb: Res<Input<KeyCode>>,
-    mut state: ResMut<State<GameState>>,
-) {
+fn restart_on_enter(kb: Res<Input<KeyCode>>, mut state: ResMut<State<GameState>>) {
     if kb.pressed(KeyCode::Return) {
         state.set(GameState::InGame).unwrap();
     }

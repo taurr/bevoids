@@ -1,6 +1,7 @@
 #![allow(clippy::complexity)]
 use assets::AssetPath;
 use bevy::{log, prelude::*, sprite::SpriteSettings};
+use bevy_kira_audio::*;
 use derive_more::Display;
 use gameover_plugin::GameoverPlugin;
 use scoreboard::ScoreBoardPlugin;
@@ -8,9 +9,12 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use textures::TextureLoaderPlugin;
 
+// TODO: spawn asteroid as soon as there are no asteroids in area
+
 use crate::{
-    asteroid_plugin::AsteroidPlugin, bounds::Bounds, fade_despawn_plugin::FadeDespawnPlugin,
-    hit_test::HitTestPlugin, movement_plugin::MovementPlugin, player_plugin::PlayerPlugin,
+    assets::LoadRelative, asteroid_plugin::AsteroidPlugin, bounds::Bounds,
+    fade_despawn_plugin::FadeDespawnPlugin, hit_test::HitTestPlugin,
+    movement_plugin::MovementPlugin, player_plugin::PlayerPlugin,
 };
 
 mod assets;
@@ -41,7 +45,12 @@ impl AssetPath for Args {
                 p.push(path.as_ref());
                 p
             })
-            .unwrap_or_else(|| PathBuf::from(path.as_ref()))
+            .unwrap_or_else(|| {
+                let mut p = PathBuf::from(std::env::current_dir().expect("no current dir")); //from("assets");
+                p.push("assets");
+                p.push(path.as_ref());
+                p
+            })
     }
 }
 
@@ -58,6 +67,7 @@ fn main() {
         .add_state(GameState::Initialize)
         .add_startup_system_to_stage(StartupStage::PreStartup, initialize.system())
         .add_plugins(DefaultPlugins)
+        .add_plugin(AudioPlugin)
         // .add_plugin(bevy::diagnostic::LogDiagnosticsPlugin::default())
         // .add_plugin(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default())
         //
@@ -85,8 +95,17 @@ fn main() {
         .run();
 }
 
-fn initialize(mut commands: Commands, mut windows: ResMut<Windows>) {
+fn initialize(
+    mut commands: Commands,
+    mut windows: ResMut<Windows>,
+    asset_server: Res<AssetServer>,
+    args: Res<Args>,
+) {
     log::info!("initializing game");
+    asset_server
+        .load_relative_folder(&"sounds", &*args)
+        .expect("missing sounds");
+
     let window = windows.get_primary_mut().unwrap();
     window.set_resizable(false);
     window.set_vsync(true);

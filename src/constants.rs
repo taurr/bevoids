@@ -65,3 +65,16 @@ pub(crate) const PLAYER_START_SPEED: f32 = 200.;
 pub(crate) const PLAYER_MAX_SPEED: f32 = 800.;
 
 pub(crate) const PLAYER_FADEOUT_SECONDS: f32 = 0.5;
+
+pub(crate) const AUDIO_LASER: &str = "sounds/laser.wav";
+pub(crate) const AUDIO_CHANNEL_LASER: &str = "laser";
+pub(crate) const AUDIO_LASER_VOLUME: f32 = 1.0;
+pub(crate) const AUDIO_THRUSTER: &str = "sounds/thruster.wav";
+pub(crate) const AUDIO_CHANNEL_THRUSTER: &str = "thruster";
+pub(crate) const AUDIO_THRUSTER_VOLUME: f32 = 0.5;
+pub(crate) const AUDIO_EXPLOSION_SHIP: &str = "sounds/ship_explode.wav";
+pub(crate) const AUDIO_CHANNEL_EXPLOSION_SHIP: &str = "ship";
+pub(crate) const AUDIO_EXPLOSION_SHIP_VOLUME: f32 = 1.0;
+pub(crate) const AUDIO_EXPLOSION_ASTEROID: &str = "sounds/asteroid_explode.wav";
+pub(crate) const AUDIO_CHANNEL_EXPLOSION_ASTEROID: &str = "asteroid";
+pub(crate) const AUDIO_EXPLOSION_ASTEROID_VOLUME: f32 = 1.0;

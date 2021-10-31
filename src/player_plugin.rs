@@ -1,14 +1,16 @@
 use bevy::{ecs::system::EntityCommands, log, math::vec3, prelude::*};
+use bevy_kira_audio::{Audio, AudioChannel};
 use derive_more::{Deref, DerefMut, From, Into};
 use rand::Rng;
 use std::{f32::consts::PI, time::Duration};
 
 use crate::{
+    assets::LoadRelative,
     constants::*,
     fade_despawn_plugin::{DelayedFadeDespawn, Despawn, FadeDespawn},
     movement_plugin::{spawn_display_shadows, InsideWindow, ShadowController, Velocity},
     textures::Textures,
-    Bounds, GameState,
+    Args, Bounds, GameState,
 };
 
 pub(crate) struct PlayerPlugin;
@@ -44,6 +46,7 @@ impl Plugin for PlayerPlugin {
         app.add_system_set(
             SystemSet::on_enter(GameState::InGame).with_system(player_spawn.system()),
         );
+        app.add_system_set(SystemSet::on_exit(GameState::InGame).with_system(exit_ingame.system()));
         app.add_system_set(
             SystemSet::on_update(GameState::InGame).with_system(player_controls.system()),
         );
@@ -106,6 +109,10 @@ fn player_spawn(
     log::info!(player=?player_id, "player spawned");
 }
 
+fn exit_ingame(audio: Res<Audio>) {
+    audio.stop_channel(&AudioChannel::new(AUDIO_CHANNEL_THRUSTER.into()));
+}
+
 fn player_controls(
     mut commands: Commands,
     kb: Res<Input<KeyCode>>,
@@ -117,6 +124,9 @@ fn player_controls(
     textures: Res<Textures>,
     mut material_assets: ResMut<Assets<ColorMaterial>>,
     time: Res<Time>,
+    args: Res<Args>,
+    asset_server: Res<AssetServer>,
+    audio: Res<Audio>,
 ) {
     for (player, mut player_velocity, mut player_orientation, mut player_transform) in
         player_query.iter_mut()
@@ -145,6 +155,14 @@ fn player_controls(
             **player_velocity = velocity.into();
             if kb.just_pressed(KeyCode::Up) {
                 log::trace!("accellerate on");
+                let audio_channel = AudioChannel::new(AUDIO_CHANNEL_THRUSTER.into());
+                audio.set_volume_in_channel(AUDIO_THRUSTER_VOLUME, &audio_channel);
+                audio.play_looped_in_channel(
+                    asset_server
+                        .load_relative(&AUDIO_THRUSTER, &*args)
+                        .expect("missing laser sound"),
+                    &audio_channel,
+                );
                 let flame = spawn_flame(
                     &mut commands,
                     &textures,
@@ -163,6 +181,7 @@ fn player_controls(
             **player_velocity = velocity.into();
             if kb.just_released(KeyCode::Up) {
                 log::trace!("accellerate off");
+                audio.stop_channel(&AudioChannel::new(AUDIO_CHANNEL_THRUSTER.into()));
                 for flame in flame_query.iter() {
                     commands.entity(flame).despawn();
                 }
@@ -172,6 +191,14 @@ fn player_controls(
         // fire
         if kb.just_pressed(KeyCode::Space) {
             log::debug!("fire!");
+            let audio_channel = AudioChannel::new(AUDIO_CHANNEL_LASER.into());
+            audio.play_in_channel(
+                asset_server
+                    .load_relative(&AUDIO_LASER, &*args)
+                    .expect("missing laser sound"),
+                &audio_channel,
+            );
+            audio.set_volume_in_channel(AUDIO_LASER_VOLUME, &audio_channel);
             spawn_bullet(
                 &mut commands,
                 &textures,

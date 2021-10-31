@@ -78,18 +78,18 @@ impl Textures {
     pub fn from_args(asset_server: &AssetServer, args: &Args) -> Self {
         Self {
             spaceship: asset_server
-                .load_relative(&"spaceship.png", args)
+                .load_relative(&"gfx/spaceship.png", args)
                 .expect("missing texture"),
             flame: asset_server
-                .load_relative(&"flame.png", args)
+                .load_relative(&"gfx/flame.png", args)
                 .expect("missing texture"),
             shot: asset_server
-                .load_relative(&"laser.png", args)
+                .load_relative(&"gfx/laser.png", args)
                 .expect("missing texture"),
             asteroids: (1..20)
                 .filter_map(|n| {
                     asset_server
-                        .load_relative(&format!("asteroid_{}.png", n), args)
+                        .load_relative(&format!("gfx/asteroid_{}.png", n), args)
                         .ok()
                 })
                 .collect(),

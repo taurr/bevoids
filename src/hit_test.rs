@@ -1,16 +1,8 @@
 use bevy::{log, prelude::*};
+use bevy_kira_audio::{Audio, AudioChannel};
 use parry2d::bounding_volume::BoundingVolume;
 
-use crate::{
-    asteroid_plugin::{despawn_asteroid, spawn_split_asteroids, Asteroid},
-    constants::{ASTEROID_MAX_SCORE, ASTEROID_MAX_SIZE, ASTEROID_MIN_SIZE},
-    fade_despawn_plugin::{Despawn, FadeDespawn},
-    movement_plugin::{InsideWindow, ShadowController, ShadowOf},
-    player_plugin::{bullet_spent, kill_player, Bullet, Player},
-    scoreboard::ScoreBoard,
-    textures::AsteroidMaterials,
-    Bounds, GameState,
-};
+use crate::{Args, Bounds, GameState, assets::LoadRelative, asteroid_plugin::{despawn_asteroid, spawn_split_asteroids, Asteroid}, constants::{ASTEROID_MAX_SCORE, ASTEROID_MAX_SIZE, ASTEROID_MIN_SIZE, AUDIO_CHANNEL_EXPLOSION_ASTEROID, AUDIO_CHANNEL_EXPLOSION_SHIP, AUDIO_EXPLOSION_ASTEROID, AUDIO_EXPLOSION_ASTEROID_VOLUME, AUDIO_EXPLOSION_SHIP, AUDIO_EXPLOSION_SHIP_VOLUME}, fade_despawn_plugin::{Despawn, FadeDespawn}, movement_plugin::{InsideWindow, ShadowController, ShadowOf}, player_plugin::{bullet_spent, kill_player, Bullet, Player}, scoreboard::ScoreBoard, textures::AsteroidMaterials};
 
 pub(crate) struct HitTestPlugin;
 
@@ -53,6 +45,9 @@ fn shot_hit_asteroid(
     mut scores_query: Query<&mut ScoreBoard>,
     mut commands: Commands,
     mut materials: ResMut<AsteroidMaterials>,
+    asset_server: Res<AssetServer>,
+    audio: Res<Audio>,
+    args: Res<Args>,
 ) {
     let mut spent_bullets = vec![];
     let mut asteroids_hit = vec![];
@@ -94,6 +89,15 @@ fn shot_hit_asteroid(
                         &window_bounds,
                         &mut materials,
                         &mut commands,
+                    );
+
+                    let audio_channel = AudioChannel::new(AUDIO_CHANNEL_EXPLOSION_ASTEROID.into());
+                    audio.set_volume_in_channel(AUDIO_EXPLOSION_ASTEROID_VOLUME, &audio_channel);
+                    audio.play_in_channel(
+                        asset_server
+                            .load_relative(&AUDIO_EXPLOSION_ASTEROID, &*args)
+                            .expect("missing laser sound"),
+                        &audio_channel,
                     );
 
                     continue 'bullet;
@@ -159,6 +163,9 @@ fn asteroid_hit_player(
     >,
     mut state: ResMut<State<GameState>>,
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    audio: Res<Audio>,
+    args: Res<Args>,
 ) {
     let mut players_hit = vec![];
     let mut asteroids_hit = vec![];
@@ -198,6 +205,15 @@ fn asteroid_hit_player(
                     );
                     asteroids_hit.push(asteroid_ctrl);
                     players_hit.push(player_ctrl);
+
+                    let audio_channel = AudioChannel::new(AUDIO_CHANNEL_EXPLOSION_SHIP.into());
+                    audio.set_volume_in_channel(AUDIO_EXPLOSION_SHIP_VOLUME, &audio_channel);
+                    audio.play_in_channel(
+                        asset_server
+                            .load_relative(&AUDIO_EXPLOSION_SHIP, &*args)
+                            .expect("missing laser sound"),
+                        &audio_channel,
+                    );
 
                     state.set(GameState::GameOver).unwrap();
 

@@ -6,7 +6,7 @@ pub(crate) const WIN_HEIGHT: f32 = 800.;
 
 pub(crate) const DIFFICULTY_RAISER_TIMESTEP: f64 = 20.;
 pub(crate) const DIFFICULTY_RAISER_SPAWN_DELAY_MULTIPLIER: f32 = 0.95;
-pub(crate) const ASTEROID_START_SPAWN_DELAY: f32 = 5.;
+pub(crate) const ASTEROID_START_SPAWN_DELAY: f32 = 15.;
 
 pub(crate) const ASTEROID_MAX_SCORE: f32 = 100.;
 

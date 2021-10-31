@@ -1,7 +1,9 @@
-use bevy::prelude::*;
+use std::path::PathBuf;
+
+use bevy::{prelude::*, reflect::List};
 use derive_more::{AsMut, AsRef, Display};
 
-use crate::GameState;
+use crate::{Args, GameState};
 
 pub(crate) struct ScoreBoardPlugin;
 
@@ -33,7 +35,14 @@ impl Plugin for ScoreBoardPlugin {
     }
 }
 
-fn init_scoreboard(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn init_scoreboard(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>) {
+    let font = "fonts/FiraSans-Bold.ttf";
+    let font = args.assets.as_ref().map(|assets| {
+        let mut p = PathBuf::from(assets);
+        p.push(font);
+        p.display().to_string()
+    }).unwrap_or_else(|| font.to_string());
+
     let board = ScoreBoard {
         score: 0,
         alignment: TextAlignment {
@@ -41,7 +50,7 @@ fn init_scoreboard(mut commands: Commands, asset_server: Res<AssetServer>) {
             horizontal: HorizontalAlign::Center,
         },
         style: TextStyle {
-            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+            font: asset_server.load(font.as_str()),
             font_size: 48.0,
             color: Color::DARK_GRAY,
         },

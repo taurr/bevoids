@@ -7,7 +7,7 @@ use bevy::{
 use rand::Rng;
 use thiserror::Error;
 
-use crate::{asset_helper::RelativeAssetLoader, constants, Args, GameState};
+use crate::{assets::LoadRelative, constants, Args, GameState};
 
 pub(crate) struct TextureLoaderPlugin;
 
@@ -41,7 +41,7 @@ impl Plugin for TextureLoaderPlugin {
 
 fn texture_initialize(args: Res<Args>, mut commands: Commands, asset_server: Res<AssetServer>) {
     log::debug!("loading textures");
-    commands.insert_resource(Textures::from_path(&asset_server, &args.assets));
+    commands.insert_resource(Textures::from_args(&asset_server, &args));
 }
 
 fn collect_textures(
@@ -75,14 +75,23 @@ fn collect_textures(
 }
 
 impl Textures {
-    pub fn from_path(asset_server: &AssetServer, assets_path: &Option<String>) -> Self {
+    pub fn from_args(asset_server: &AssetServer, args: &Args) -> Self {
         Self {
-            spaceship: asset_server.load_relative(assets_path, "spaceship.png"),
-            flame: asset_server.load_relative(assets_path, "flame.png"),
-            shot: asset_server.load_relative(assets_path, "laser.png"),
+            spaceship: asset_server
+                .load_relative(&"spaceship.png", args)
+                .expect("missing texture"),
+            flame: asset_server
+                .load_relative(&"flame.png", args)
+                .expect("missing texture"),
+            shot: asset_server
+                .load_relative(&"laser.png", args)
+                .expect("missing texture"),
             asteroids: (1..20)
-                .map(|n| asset_server.attempt_relative(assets_path, &format!("asteroid_{}.png", n)))
-                .filter_map(|x| x)
+                .filter_map(|n| {
+                    asset_server
+                        .load_relative(&format!("asteroid_{}.png", n), args)
+                        .ok()
+                })
                 .collect(),
             sizes: HashMap::default(),
         }

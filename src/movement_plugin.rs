@@ -2,7 +2,7 @@ use bevy::{ecs::system::EntityCommands, log, prelude::*};
 use derive_more::{Add, AddAssign, Deref, DerefMut, From, Into, Sub, SubAssign};
 use parry2d::bounding_volume::BoundingVolume;
 
-use crate::{Bounds, GameState};
+use crate::Bounds;
 
 pub(crate) struct MovementPlugin;
 
@@ -45,59 +45,28 @@ pub(crate) fn spawn_display_shadows(
     window_bounds: &Bounds,
     commands: &mut Commands,
 ) {
-    for x in [-window_bounds.width(), window_bounds.width()] {
-        for y in [-window_bounds.height(), window_bounds.height()] {
-            let child = spawn_shadow(
-                controller,
-                controller_position,
-                controller_size,
-                controller_scale,
-                &controller_material,
-                Vec2::new(x, y),
-                component_inserter,
-                commands,
-            );
-            log::trace!(shadow=?child, ctrl=?controller, "shadow spawned");
+    for x in [-window_bounds.width(), 0.0, window_bounds.width()] {
+        for y in [-window_bounds.height(), 0.0, window_bounds.height()] {
+            if (0., 0.) != (x, y) {
+                let child = spawn_shadow(
+                    controller,
+                    controller_position,
+                    controller_size,
+                    controller_scale,
+                    &controller_material,
+                    Vec2::new(x, y),
+                    component_inserter,
+                    commands,
+                );
+                log::trace!(shadow=?child, ctrl=?controller, "shadow spawned");
+            }
         }
-    }
-    for x in [-window_bounds.width(), window_bounds.width()] {
-        let child = spawn_shadow(
-            controller,
-            controller_position,
-            controller_size,
-            controller_scale,
-            &controller_material,
-            Vec2::new(x, 0.),
-            component_inserter,
-            commands,
-        );
-        log::trace!(shadow=?child, ctrl=?controller, "shadow spawned");
-    }
-    for y in [-window_bounds.height(), window_bounds.height()] {
-        let child = spawn_shadow(
-            controller,
-            controller_position,
-            controller_size,
-            controller_scale,
-            &controller_material,
-            Vec2::new(0., y),
-            component_inserter,
-            commands,
-        );
-        log::trace!(shadow=?child, ctrl=?controller, "shadow spawned");
     }
 }
 
 impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_update(GameState::InGame)
-                .with_system(linear_movement.system().chain(move_shadow.system())),
-        );
-        app.add_system_set(
-            SystemSet::on_update(GameState::GameOver)
-                .with_system(linear_movement.system().chain(move_shadow.system())),
-        );
+        app.add_system(linear_movement.system().chain(move_shadow.system()));
     }
 }
 
@@ -112,24 +81,19 @@ fn linear_movement(
         *pos += (Vec2::from(*velocity) * time.delta_seconds()).extend(0.);
 
         // keep inside window bounds
-        let (w, h) = {
-            let hext = window_bounds.as_aabb().half_extents();
-            (hext.x, hext.y)
-        };
-        if pos.x > w {
-            pos.x -= w * 2.;
-        } else if pos.x < -w {
-            pos.x += w * 2.;
+        let window_half_bounds = window_bounds.as_aabb().half_extents();
+        if pos.x > window_half_bounds.x {
+            pos.x -= window_half_bounds.x * 2.;
+        } else if pos.x < -window_half_bounds.x {
+            pos.x += window_half_bounds.x * 2.;
         }
-        if pos.y > h {
-            pos.y -= h * 2.;
-        } else if pos.y < -h {
-            pos.y += h * 2.;
+        if pos.y > window_half_bounds.y {
+            pos.y -= window_half_bounds.y * 2.;
+        } else if pos.y < -window_half_bounds.y {
+            pos.y += window_half_bounds.y * 2.;
         }
 
-        // set new bounds
-        // TODO: should probably follow rotation as that changes bounds
-        bounds.set_center(transform.translation.truncate());
+        bounds.set_center(pos.truncate());
     }
 }
 

@@ -1,14 +1,14 @@
-use bevy::{core::FixedTimestep, ecs::system::EntityCommands, log, math::vec3, prelude::*};
+use bevy::{ecs::system::EntityCommands, log, math::vec3, prelude::*};
 use derive_more::{Deref, DerefMut, From, Into};
 use rand::Rng;
 use std::{f32::consts::PI, time::Duration};
 
 use crate::{
     constants::*,
-    fade_plugin::{DelayedFadeout, Fadeout},
+    fade_despawn_plugin::{DelayedFadeDespawn, Despawn, FadeDespawn},
     movement_plugin::{spawn_display_shadows, InsideWindow, ShadowController, Velocity},
     textures::Textures,
-    Bounds, Despawn, GameState,
+    Bounds, GameState,
 };
 
 pub(crate) struct PlayerPlugin;
@@ -22,7 +22,6 @@ pub(crate) struct Flame;
 #[derive(Component, Debug)]
 pub(crate) struct Bullet;
 
-// TODO: not needed - part of Transform
 #[derive(Component, Debug, Default, From, Into, Copy, Clone, Deref, DerefMut)]
 pub(crate) struct Orientation(Quat);
 
@@ -32,7 +31,7 @@ pub(crate) fn kill_player(commands: &mut Commands, player: Entity) {
         .entity(player)
         .remove::<Player>()
         .remove::<Velocity>()
-        .insert(Fadeout::from_secs_f32(PLAYER_FADEOUT_SECONDS));
+        .insert(FadeDespawn::from_secs_f32(PLAYER_FADEOUT_SECONDS));
 }
 
 pub(crate) fn bullet_spent(commands: &mut Commands, bullet: Entity) {
@@ -47,10 +46,6 @@ impl Plugin for PlayerPlugin {
         );
         app.add_system_set(
             SystemSet::on_update(GameState::InGame).with_system(player_controls.system()),
-        );
-        app.add_system_set(
-            SystemSet::on_update(GameState::InGame)
-                .with_run_criteria(FixedTimestep::step(1.0 as f64)),
         );
     }
 }
@@ -69,13 +64,13 @@ fn player_spawn(
         rng.gen_range(-window_bounds.height() / 2.0..window_bounds.height() / 2.0),
     );
     let player_position_vec3 = player_position_vec2.extend(PLAYER_Z);
-    let random_rotation = Quat::from_rotation_z(rng.gen_range(0.0..(2. * PI)));
+
     let texture_size = textures.get_size(&textures.spaceship).unwrap();
-    let player_scale = PLAYER_MAX_SIZE / texture_size.max_element();
-    let player_velocity = random_rotation.mul_vec3(Vec3::Y).truncate() * PLAYER_START_SPEED;
     let player_material = material_assets.add(textures.spaceship.clone().into());
+    let player_scale = PLAYER_MAX_SIZE / texture_size.max_element();
     let player_size = texture_size * player_scale;
-    let player_bounds = Bounds::from_pos_and_size(player_position_vec2, player_size);
+    let random_rotation = Quat::from_rotation_z(rng.gen_range(0.0..(2. * PI)));
+    let player_velocity = random_rotation.mul_vec3(Vec3::Y).truncate() * PLAYER_START_SPEED;
 
     let player_id: Entity = commands
         .spawn_bundle(SpriteBundle {
@@ -88,7 +83,7 @@ fn player_spawn(
             ..SpriteBundle::default()
         })
         .insert(Player)
-        .insert(player_bounds)
+        .insert(Bounds::from_pos_and_size(player_position_vec2, player_size))
         .insert(Velocity::from(player_velocity))
         .insert(Orientation(random_rotation))
         .insert(ShadowController)
@@ -230,7 +225,7 @@ fn spawn_bullet(
             bullet_position.truncate(),
             bullet_texture_size * bullet_scale,
         ))
-        .insert(DelayedFadeout::new(
+        .insert(DelayedFadeDespawn::new(
             Duration::from_secs_f32(BULLET_LIFETIME_SECONDS),
             Duration::from_secs_f32(BULLET_FADEOUT_SECONDS),
         ))
@@ -250,7 +245,6 @@ fn spawn_flame(
     let scale = FLAME_WIDTH / flame_width;
     let flame = commands
         .spawn_bundle(SpriteBundle {
-            // TODO: ColorMaterial should not be created each time we show the flame
             material: material_assets.add(ColorMaterial::modulated_texture(
                 texture,
                 Color::WHITE.clone(),

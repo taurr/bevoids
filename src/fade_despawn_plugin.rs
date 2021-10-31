@@ -1,23 +1,24 @@
 use bevy::{log, prelude::*};
 use std::time::Duration;
 
-use crate::{Despawn, GameState};
+pub struct FadeDespawnPlugin;
 
-pub(crate) struct FadePlugin;
+#[derive(Component, Debug)]
+pub struct Despawn;
 
-#[derive(Debug, Default, Component)]
-pub(crate) struct Fadeout {
+#[derive(Component, Debug)]
+pub struct FadeDespawn {
     speed: f32,
     value: f32,
 }
 
-#[derive(Debug, Default, Component)]
-pub(crate) struct DelayedFadeout {
+#[derive(Component, Debug)]
+pub struct DelayedFadeDespawn {
     timer: Timer,
     speed: Duration,
 }
 
-impl Fadeout {
+impl FadeDespawn {
     #[allow(dead_code)]
     pub fn new(duration: Duration) -> Self {
         Self {
@@ -35,7 +36,7 @@ impl Fadeout {
     }
 }
 
-impl DelayedFadeout {
+impl DelayedFadeDespawn {
     pub fn new(delay: Duration, fade: Duration) -> Self {
         Self {
             timer: Timer::new(delay, false),
@@ -44,39 +45,39 @@ impl DelayedFadeout {
     }
 }
 
-impl Plugin for FadePlugin {
+impl Plugin for FadeDespawnPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_update(GameState::InGame)
-                .with_system(delayed_fadeout.system())
-                .with_system(fadeout.system()),
-        );
-        app.add_system_set(
-            SystemSet::on_update(GameState::GameOver)
-                .with_system(delayed_fadeout.system())
-                .with_system(fadeout.system()),
-        );
+        app.add_system_to_stage(CoreStage::PostUpdate, despawn.system())
+            .add_system(delayed_fade_despawn.system())
+            .add_system(fade_despawn.system());
     }
 }
 
-fn delayed_fadeout(
+fn despawn(mut commands: Commands, query: Query<Entity, With<Despawn>>) {
+    for entity in query.iter() {
+        log::debug!(?entity, "despawning");
+        commands.entity(entity).despawn_recursive();
+    }
+}
+
+fn delayed_fade_despawn(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut DelayedFadeout), With<Handle<ColorMaterial>>>,
+    mut query: Query<(Entity, &mut DelayedFadeDespawn), With<Handle<ColorMaterial>>>,
     time: Res<Time>,
 ) {
     for (entity, mut expiry) in query.iter_mut() {
         if expiry.timer.tick(time.delta()).finished() {
             commands
                 .entity(entity)
-                .remove::<DelayedFadeout>()
-                .insert(Fadeout::new(expiry.speed));
+                .remove::<DelayedFadeDespawn>()
+                .insert(FadeDespawn::new(expiry.speed));
         }
     }
 }
 
-fn fadeout(
+fn fade_despawn(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut Fadeout, &Handle<ColorMaterial>)>,
+    mut query: Query<(Entity, &mut FadeDespawn, &Handle<ColorMaterial>)>,
     mut color_material_assets: ResMut<Assets<ColorMaterial>>,
     time: Res<Time>,
 ) {
@@ -90,7 +91,10 @@ fn fadeout(
 
         if fadeout.value <= 0. {
             log::trace!(?entity, "faded");
-            commands.entity(entity).remove::<Fadeout>().insert(Despawn);
+            commands
+                .entity(entity)
+                .remove::<FadeDespawn>()
+                .insert(Despawn);
         }
         if let Some(material) = color_material_assets.get_mut(material_handle) {
             material.color.set_a(fadeout.value);

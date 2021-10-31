@@ -4,20 +4,17 @@ use std::{f32::consts::PI, time::Duration};
 
 use crate::{
     constants::*,
-    fade_plugin::Fadeout,
+    fade_despawn_plugin::{Despawn, FadeDespawn},
     movement_plugin::{spawn_display_shadows, InsideWindow, ShadowController, ShadowOf, Velocity},
     player_plugin::Player,
     textures::AsteroidMaterials,
-    Bounds, Despawn, GameState,
+    Bounds, GameState,
 };
 
 pub struct AsteroidPlugin;
 
 #[derive(Component, Debug)]
 pub struct Asteroid;
-
-#[derive(Component, Debug)]
-struct AsteroidSpawnDelay(f32);
 
 pub(crate) fn spawn_split_asteroids(
     asteroid_size: Vec2,
@@ -67,7 +64,7 @@ pub(crate) fn despawn_asteroid(
     asteroid_ctrl: Entity,
     shadows_query: &Query<
         (Entity, &ShadowOf),
-        (With<Asteroid>, Without<Fadeout>, Without<Despawn>),
+        (With<Asteroid>, Without<FadeDespawn>, Without<Despawn>),
     >,
 ) {
     commands
@@ -91,13 +88,12 @@ pub(crate) fn despawn_asteroid(
 impl Plugin for AsteroidPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
-            SystemSet::on_enter(GameState::InGame).with_system(asteroid_level_init.system()),
+            SystemSet::on_enter(GameState::InGame).with_system(asteroid_enter_ingame.system()),
         );
         app.add_system_set(
-            SystemSet::on_update(GameState::InGame)
-                .with_run_criteria(FixedTimestep::step(DIFFICULTY_RAISER_TIMESTEP))
-                .with_system(difficulty_raiser.system()),
+            SystemSet::on_exit(GameState::InGame).with_system(asteroid_exit_ingame.system()),
         );
+
         app.add_system_set(
             SystemSet::on_update(GameState::InGame)
                 .with_system(asteroid_spawner.system())
@@ -106,8 +102,16 @@ impl Plugin for AsteroidPlugin {
         app.add_system_set(
             SystemSet::on_update(GameState::GameOver).with_system(asteroid_despawner.system()),
         );
+        app.add_system_set(
+            SystemSet::on_update(GameState::InGame)
+                .with_run_criteria(FixedTimestep::step(DIFFICULTY_RAISER_TIMESTEP))
+                .with_system(difficulty_raiser.system()),
+        );
     }
 }
+
+#[derive(Component, Debug)]
+struct AsteroidSpawnDelay(f32);
 
 #[derive(Component, Debug)]
 struct FreeMaterialAndFadeout;
@@ -115,22 +119,32 @@ struct FreeMaterialAndFadeout;
 #[derive(Component, Debug)]
 struct AsteroidsSpawner;
 
-fn asteroid_level_init(
+fn asteroid_enter_ingame(
     mut commands: Commands,
-    old_asteroids: Query<Entity, With<Asteroid>>,
-    old_spawner: Query<Entity, With<AsteroidsSpawner>>,
+    old_asteroids_query: Query<Entity, With<Asteroid>>,
 ) {
-    old_asteroids
-        .iter()
-        .for_each(|e| commands.entity(e).despawn_recursive());
-    old_spawner
+    // instantly clear old asteroid entities
+    old_asteroids_query
         .iter()
         .for_each(|e| commands.entity(e).despawn_recursive());
 
+    // start spawning new asteroid entities
     commands
         .spawn()
         .insert(AsteroidsSpawner)
         .insert(AsteroidSpawnDelay(ASTEROID_START_SPAWN_DELAY));
+}
+
+fn asteroid_exit_ingame(
+    mut commands: Commands,
+    spawner_query: Query<Entity, With<AsteroidsSpawner>>,
+) {
+    // remove the asteroid spawner entity
+    // though the system doesn't run outside 'InGame', the entity would still exist,
+    // causing multiple spawners when retrying the game...
+    spawner_query
+        .iter()
+        .for_each(|e| commands.entity(e).despawn_recursive());
 }
 
 fn difficulty_raiser(
@@ -159,7 +173,7 @@ fn asteroid_despawner(
         commands
             .entity(asteroid)
             .remove_bundle::<(Asteroid, Velocity, FreeMaterialAndFadeout)>()
-            .insert(Fadeout::from_secs_f32(ASTEROID_FADEOUT_SECONDS));
+            .insert(FadeDespawn::from_secs_f32(ASTEROID_FADEOUT_SECONDS));
     }
 }
 
@@ -172,17 +186,14 @@ fn asteroid_spawner(
     time: Res<Time>,
 ) {
     if let Ok((entity, delay, timer)) = query.get_single_mut() {
-        match timer {
-            Some(mut timer) => {
-                if !timer.tick(time.delta()).finished() {
-                    return;
-                }
+        if let Some(mut timer) = timer {
+            if !timer.tick(time.delta()).finished() {
+                return;
             }
-            None => {
-                commands
-                    .entity(entity)
-                    .insert(Timer::new(Duration::from_secs_f32(delay.0), true));
-            }
+        } else {
+            commands
+                .entity(entity)
+                .insert(Timer::new(Duration::from_secs_f32(delay.0), true));
         }
 
         let mut rng = rand::thread_rng();

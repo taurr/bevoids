@@ -4,12 +4,12 @@ use parry2d::bounding_volume::BoundingVolume;
 use crate::{
     asteroid_plugin::{despawn_asteroid, spawn_split_asteroids, Asteroid},
     constants::{ASTEROID_MAX_SCORE, ASTEROID_MAX_SIZE, ASTEROID_MIN_SIZE},
-    fade_plugin::Fadeout,
+    fade_despawn_plugin::{Despawn, FadeDespawn},
     movement_plugin::{InsideWindow, ShadowController, ShadowOf},
     player_plugin::{bullet_spent, kill_player, Bullet, Player},
     scoreboard::ScoreBoard,
     textures::AsteroidMaterials,
-    Bounds, Despawn, GameState,
+    Bounds, GameState,
 };
 
 pub(crate) struct HitTestPlugin;
@@ -31,7 +31,7 @@ fn shot_hit_asteroid(
         (Entity, &Transform, &Bounds, Option<&ShadowOf>),
         (
             With<Asteroid>,
-            Without<Fadeout>,
+            Without<FadeDespawn>,
             Without<Despawn>,
             With<InsideWindow>,
         ),
@@ -41,11 +41,14 @@ fn shot_hit_asteroid(
         (
             With<Asteroid>,
             With<ShadowController>,
-            Without<Fadeout>,
+            Without<FadeDespawn>,
             Without<Despawn>,
         ),
     >,
-    shadows_query: Query<(Entity, &ShadowOf), (With<Asteroid>, Without<Fadeout>, Without<Despawn>)>,
+    shadows_query: Query<
+        (Entity, &ShadowOf),
+        (With<Asteroid>, Without<FadeDespawn>, Without<Despawn>),
+    >,
     window_bounds: Res<Bounds>,
     mut scores_query: Query<&mut ScoreBoard>,
     mut commands: Commands,
@@ -118,7 +121,7 @@ fn asteroid_hit_player(
         ),
         (
             With<Player>,
-            Without<Fadeout>,
+            Without<FadeDespawn>,
             Without<Despawn>,
             With<InsideWindow>,
         ),
@@ -127,7 +130,7 @@ fn asteroid_hit_player(
         (Entity, &Bounds, Option<&ShadowOf>),
         (
             With<Asteroid>,
-            Without<Fadeout>,
+            Without<FadeDespawn>,
             Without<Despawn>,
             With<InsideWindow>,
         ),
@@ -137,7 +140,7 @@ fn asteroid_hit_player(
         (
             With<Player>,
             With<ShadowController>,
-            Without<Fadeout>,
+            Without<FadeDespawn>,
             Without<Despawn>,
         ),
     >,
@@ -146,11 +149,14 @@ fn asteroid_hit_player(
         (
             With<Asteroid>,
             With<ShadowController>,
-            Without<Fadeout>,
+            Without<FadeDespawn>,
             Without<Despawn>,
         ),
     >,
-    shadows_query: Query<(Entity, &ShadowOf), (With<Asteroid>, Without<Fadeout>, Without<Despawn>)>,
+    shadows_query: Query<
+        (Entity, &ShadowOf),
+        (With<Asteroid>, Without<FadeDespawn>, Without<Despawn>),
+    >,
     mut state: ResMut<State<GameState>>,
     mut commands: Commands,
 ) {

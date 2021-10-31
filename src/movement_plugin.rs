@@ -21,7 +21,7 @@ pub(crate) struct MovementPlugin;
     From,
     Into,
 )]
-pub(crate) struct Velocity(Vec2);
+pub(crate) struct Velocity(pub Vec2);
 
 #[derive(Component, Debug)]
 pub(crate) struct ShadowController;
@@ -124,7 +124,6 @@ fn move_shadow(
             shadow_tf.rotation = controller_tf.rotation;
 
             // set new bounds
-            // TODO: should probably follow rotation as that changes bounds
             shadow_bounds.set_center(shadow_tf.translation.truncate());
 
             // detect visibility

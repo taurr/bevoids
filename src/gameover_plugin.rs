@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_kira_audio::Audio;
 use derive_more::Display;
 
 use crate::{
@@ -12,32 +11,35 @@ pub(crate) struct GameoverPlugin;
 
 #[derive(Component, Debug, Display)]
 #[display(fmt = "Game Over")]
-struct GameOver;
+struct GameOverText;
 
 #[derive(Component, Debug, Display)]
 #[display(fmt = "Press return to try again")]
-struct PressReturn;
+struct PressReturnText;
 
 impl Plugin for GameoverPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
-            SystemSet::on_enter(GameState::GameOver).with_system(init_gameover.system()),
-        )
-        .add_system_set(
+            SystemSet::on_enter(GameState::GameOver).with_system(init_gameover_texts.system()),
+        );
+
+        app.add_system_set(
             SystemSet::on_update(GameState::GameOver).with_system(restart_on_enter.system()),
-        )
-        .add_system_set(
-            SystemSet::on_exit(GameState::GameOver).with_system(exit_gameover.system()),
+        );
+
+        app.add_system_set(
+            SystemSet::on_exit(GameState::GameOver)
+                .with_system(remove_texts_on_exit_gameover.system()),
         );
     }
 }
 
-fn init_gameover(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>) {
+fn init_gameover_texts(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>) {
     let font = asset_server
         .load_relative(&"fonts/FiraSans-Bold.ttf", &*args)
         .expect("missing font");
 
-    let gameover = GameOver;
+    let gameover = GameOverText;
     let gameover_textattr = TextAttr {
         alignment: TextAlignment {
             vertical: VerticalAlign::Center,
@@ -61,7 +63,7 @@ fn init_gameover(mut commands: Commands, asset_server: Res<AssetServer>, args: R
         .insert(gameover)
         .insert(gameover_textattr);
 
-    let pressreturn = PressReturn;
+    let pressreturn = PressReturnText;
     let pressreturn_textattr = TextAttr {
         alignment: TextAlignment {
             vertical: VerticalAlign::Center,
@@ -86,10 +88,10 @@ fn init_gameover(mut commands: Commands, asset_server: Res<AssetServer>, args: R
         .insert(pressreturn_textattr);
 }
 
-fn exit_gameover(
+fn remove_texts_on_exit_gameover(
     mut commands: Commands,
-    gameover_query: Query<Entity, With<GameOver>>,
-    pressreturn_query: Query<Entity, With<PressReturn>>,
+    gameover_query: Query<Entity, With<GameOverText>>,
+    pressreturn_query: Query<Entity, With<PressReturnText>>,
 ) {
     gameover_query
         .iter()

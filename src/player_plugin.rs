@@ -1,13 +1,14 @@
 use bevy::{ecs::system::EntityCommands, log, math::vec3, prelude::*};
 use bevy_kira_audio::{Audio, AudioChannel};
-use derive_more::{Deref, DerefMut, From, Into};
+use derive_more::{Constructor, Deref, DerefMut, From, Into};
 use rand::Rng;
-use std::{f32::consts::PI, time::Duration};
+use std::f32::consts::PI;
 
 use crate::{
     assets::LoadRelative,
+    bullet_plugin::FireBulletEvent,
     constants::*,
-    fade_despawn_plugin::{DelayedFadeDespawn, Despawn, FadeDespawn},
+    fade_despawn_plugin::FadeDespawn,
     movement_plugin::{spawn_display_shadows, InsideWindow, ShadowController, Velocity},
     textures::Textures,
     Args, Bounds, GameState,
@@ -15,42 +16,67 @@ use crate::{
 
 pub(crate) struct PlayerPlugin;
 
+#[derive(Debug, Clone, Copy)]
+pub struct PlayerDeadEvent;
+
 #[derive(Component, Debug)]
 pub(crate) struct Player;
 
-#[derive(Component, Debug)]
-pub(crate) struct Flame;
+#[derive(Component, Debug, Default, From, Into, Copy, Clone, Deref, DerefMut, Constructor)]
+pub(crate) struct Orientation(pub Quat);
 
 #[derive(Component, Debug)]
-pub(crate) struct Bullet;
-
-#[derive(Component, Debug, Default, From, Into, Copy, Clone, Deref, DerefMut)]
-pub(crate) struct Orientation(Quat);
-
-pub(crate) fn kill_player(commands: &mut Commands, player: Entity) {
-    log::warn!(?player, "player dead");
-    commands
-        .entity(player)
-        .remove::<Player>()
-        .remove::<Velocity>()
-        .insert(FadeDespawn::from_secs_f32(PLAYER_FADEOUT_SECONDS));
-}
-
-pub(crate) fn bullet_spent(commands: &mut Commands, bullet: Entity) {
-    log::debug!(?bullet, "bullet spent");
-    commands.entity(bullet).remove::<Bullet>().insert(Despawn);
-}
+struct Flame;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
+        app.add_event::<PlayerDeadEvent>();
+
         app.add_system_set(
             SystemSet::on_enter(GameState::InGame).with_system(player_spawn.system()),
         );
-        app.add_system_set(SystemSet::on_exit(GameState::InGame).with_system(exit_ingame.system()));
+
         app.add_system_set(
-            SystemSet::on_update(GameState::InGame).with_system(player_controls.system()),
+            SystemSet::on_update(GameState::InGame)
+                .with_system(player_dead.system())
+                .with_system(player_controls.system()),
         );
+
+        app.add_system_set(SystemSet::on_exit(GameState::InGame).with_system(exit_ingame.system()));
     }
+}
+
+fn player_dead(
+    mut events: EventReader<PlayerDeadEvent>,
+    player_query: Query<Entity, With<Player>>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    audio: Res<Audio>,
+    args: Res<Args>,
+    mut state: ResMut<State<GameState>>,
+) {
+    events.iter().for_each(|_| {
+        log::warn!("player dead");
+
+        let audio_channel = AudioChannel::new(AUDIO_CHANNEL_EXPLOSION_SHIP.into());
+        audio.set_volume_in_channel(AUDIO_EXPLOSION_SHIP_VOLUME, &audio_channel);
+        audio.play_in_channel(
+            asset_server
+                .load_relative(&AUDIO_EXPLOSION_SHIP, &*args)
+                .expect("missing laser sound"),
+            &audio_channel,
+        );
+
+        player_query.iter().for_each(|player| {
+            commands
+                .entity(player)
+                .remove::<Player>()
+                .remove::<Velocity>()
+                .insert(FadeDespawn::from_secs_f32(PLAYER_FADEOUT_SECONDS));
+        });
+
+        state.set(GameState::GameOver).unwrap();
+    });
 }
 
 fn player_spawn(
@@ -127,6 +153,7 @@ fn player_controls(
     args: Res<Args>,
     asset_server: Res<AssetServer>,
     audio: Res<Audio>,
+    mut fire_bullet_events: EventWriter<FireBulletEvent>,
 ) {
     for (player, mut player_velocity, mut player_orientation, mut player_transform) in
         player_query.iter_mut()
@@ -191,74 +218,9 @@ fn player_controls(
         // fire
         if kb.just_pressed(KeyCode::Space) {
             log::debug!("fire!");
-            let audio_channel = AudioChannel::new(AUDIO_CHANNEL_LASER.into());
-            audio.play_in_channel(
-                asset_server
-                    .load_relative(&AUDIO_LASER, &*args)
-                    .expect("missing laser sound"),
-                &audio_channel,
-            );
-            audio.set_volume_in_channel(AUDIO_LASER_VOLUME, &audio_channel);
-            spawn_bullet(
-                &mut commands,
-                &textures,
-                &mut material_assets,
-                &player_transform,
-                *player_velocity,
-                &player_orientation,
-            );
+            fire_bullet_events.send(FireBulletEvent);
         }
     }
-}
-
-fn spawn_bullet(
-    commands: &mut Commands,
-    textures: &Textures,
-    material_assets: &mut Assets<ColorMaterial>,
-    player_transform: &Transform,
-    player_velocity: Velocity,
-    player_orientation: &Orientation,
-) {
-    let bullet_texture_size = textures.get_size(&textures.shot).unwrap();
-    let bullet_scale = BULLET_MAX_SIZE / bullet_texture_size.max_element();
-    let bullet_velocity = {
-        let bullet_velocity = player_orientation
-            .mul_vec3(vec3(0., BULLET_SPEED, 0.))
-            .truncate();
-        Velocity::from(
-            bullet_velocity
-                + Vec2::from(*player_velocity).project_onto(Vec2::from(bullet_velocity)),
-        )
-    };
-
-    let bullet_position = player_transform.translation
-        + player_orientation.mul_vec3(Vec3::new(
-            0.,
-            BULLET_PLAYER_RELATIVE_Y,
-            BULLET_PLAYER_RELATIVE_Z,
-        ));
-    let bullet_id = commands
-        .spawn_bundle(SpriteBundle {
-            material: material_assets.add(ColorMaterial::texture(textures.shot.clone())),
-            transform: Transform {
-                translation: bullet_position,
-                rotation: Quat::from_rotation_z(PI / 2.).mul_quat(player_orientation.0),
-                scale: Vec2::splat(bullet_scale).extend(1.),
-            },
-            ..SpriteBundle::default()
-        })
-        .insert(Bullet)
-        .insert(Bounds::from_pos_and_size(
-            bullet_position.truncate(),
-            bullet_texture_size * bullet_scale,
-        ))
-        .insert(DelayedFadeDespawn::new(
-            Duration::from_secs_f32(BULLET_LIFETIME_SECONDS),
-            Duration::from_secs_f32(BULLET_FADEOUT_SECONDS),
-        ))
-        .insert(bullet_velocity)
-        .id();
-    log::debug!(buller=?bullet_id, "spawned bullet");
 }
 
 fn spawn_flame(

@@ -2,14 +2,13 @@
 use assets::AssetPath;
 use bevy::{log, prelude::*, sprite::SpriteSettings};
 use bevy_kira_audio::*;
+use bullet_plugin::BulletPlugin;
 use derive_more::Display;
 use gameover_plugin::GameoverPlugin;
 use scoreboard::ScoreBoardPlugin;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use textures::TextureLoaderPlugin;
-
-// TODO: spawn asteroid as soon as there are no asteroids in area
 
 use crate::{
     assets::LoadRelative, asteroid_plugin::AsteroidPlugin, bounds::Bounds,
@@ -20,6 +19,7 @@ use crate::{
 mod assets;
 mod asteroid_plugin;
 mod bounds;
+mod bullet_plugin;
 mod constants;
 mod fade_despawn_plugin;
 mod gameover_plugin;
@@ -76,6 +76,7 @@ fn main() {
         .add_plugin(MovementPlugin)
         .add_plugin(TextureLoaderPlugin)
         .add_plugin(ScoreBoardPlugin)
+        .add_plugin(BulletPlugin)
         .add_plugin(PlayerPlugin)
         .add_plugin(AsteroidPlugin)
         .add_plugin(HitTestPlugin)
@@ -102,7 +103,7 @@ fn initialize(
     args: Res<Args>,
 ) {
     log::info!("initializing game");
-    asset_server
+    let _assets = asset_server
         .load_relative_folder(&"sounds", &*args)
         .expect("missing sounds");
 

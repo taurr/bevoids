@@ -47,15 +47,18 @@ impl DelayedFadeDespawn {
 
 impl Plugin for FadeDespawnPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_to_stage(CoreStage::PostUpdate, despawn.system())
-            .add_system(delayed_fade_despawn.system())
-            .add_system(fade_despawn.system());
+        app.add_system_to_stage(
+            CoreStage::PostUpdate,
+            despawn.system().label("system_despawn"),
+        )
+        .add_system(delayed_fade_despawn.system().before("system_despawn"))
+        .add_system(fade_despawn.system().before("system_despawn"));
     }
 }
 
 fn despawn(mut commands: Commands, query: Query<Entity, With<Despawn>>) {
     for entity in query.iter() {
-        log::debug!(?entity, "despawning");
+        log::trace!(?entity, "despawning");
         commands.entity(entity).despawn_recursive();
     }
 }

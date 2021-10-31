@@ -6,24 +6,24 @@ use std::f32::consts::PI;
 
 use crate::{
     assets::LoadRelative,
-    bullet_plugin::FireBulletEvent,
     constants::*,
-    fade_despawn_plugin::FadeDespawn,
-    movement_plugin::{spawn_display_shadows, InsideWindow, ShadowController, Velocity},
-    textures::Textures,
+    plugins::{
+        spawn_display_shadows, FadeDespawn, FireBulletEvent, InsideWindow, ShadowController,
+        Textures, Velocity,
+    },
     Args, Bounds, GameState,
 };
 
-pub(crate) struct PlayerPlugin;
+pub struct PlayerPlugin;
 
 #[derive(Debug, Clone, Copy)]
 pub struct PlayerDeadEvent;
 
 #[derive(Component, Debug)]
-pub(crate) struct Player;
+pub struct Player;
 
 #[derive(Component, Debug, Default, From, Into, Copy, Clone, Deref, DerefMut, Constructor)]
-pub(crate) struct Orientation(pub Quat);
+pub struct Orientation(pub Quat);
 
 #[derive(Component, Debug)]
 struct Flame;
@@ -230,7 +230,10 @@ fn spawn_flame(
     player_transform: &Transform,
 ) -> Entity {
     let texture = textures.flame.clone();
-    let flame_width = textures.get_size(&texture).expect("no size for flame texture").x;
+    let flame_width = textures
+        .get_size(&texture)
+        .expect("no size for flame texture")
+        .x;
     let scale = FLAME_WIDTH / flame_width;
     let flame = commands
         .spawn_bundle(SpriteBundle {

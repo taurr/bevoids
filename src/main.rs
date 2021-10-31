@@ -2,29 +2,25 @@
 use assets::AssetPath;
 use bevy::{log, prelude::*, sprite::SpriteSettings};
 use bevy_kira_audio::*;
-use bullet_plugin::BulletPlugin;
 use derive_more::Display;
-use gameover_plugin::GameoverPlugin;
-use scoreboard::ScoreBoardPlugin;
 use std::path::PathBuf;
 use structopt::StructOpt;
-use textures::TextureLoaderPlugin;
 
-use crate::{assets::LoadRelative, asteroid_plugin::AsteroidPlugin, bounds::Bounds, constants::{AUDIO_EXPLOSION_ASTEROID, AUDIO_EXPLOSION_SHIP, AUDIO_LASER, AUDIO_THRUSTER}, fade_despawn_plugin::FadeDespawnPlugin, hit_test::HitTestPlugin, movement_plugin::MovementPlugin, player_plugin::PlayerPlugin};
+use crate::{
+    assets::LoadRelative,
+    bounds::Bounds,
+    constants::{AUDIO_EXPLOSION_ASTEROID, AUDIO_EXPLOSION_SHIP, AUDIO_LASER, AUDIO_THRUSTER},
+    plugins::{
+        AsteroidPlugin, BulletPlugin, FadeDespawnPlugin, GameOverPlugin, HitTestPlugin,
+        MovementPlugin, PlayerPlugin, ScoreBoardPlugin, TextureLoaderPlugin,
+    },
+};
 
 mod assets;
-mod asteroid_plugin;
 mod bounds;
-mod bullet_plugin;
 mod constants;
-mod fade_despawn_plugin;
-mod gameover_plugin;
-mod hit_test;
-mod movement_plugin;
-mod player_plugin;
-mod scoreboard;
+mod plugins;
 mod text;
-mod textures;
 
 #[derive(Debug, StructOpt)]
 pub(crate) struct Args {
@@ -80,7 +76,7 @@ fn main() {
         .add_plugin(PlayerPlugin)
         .add_plugin(AsteroidPlugin)
         .add_plugin(HitTestPlugin)
-        .add_plugin(GameoverPlugin)
+        .add_plugin(GameOverPlugin)
         //
         // resources
         .insert_resource(Args::from_args())
@@ -103,10 +99,10 @@ fn initialize(
     args: Res<Args>,
 ) {
     log::info!("initializing game");
-    let _ = asset_server.load_relative::<AudioSource,_,_>(&AUDIO_LASER, &*args);
-    let _ = asset_server.load_relative::<AudioSource,_,_>(&AUDIO_THRUSTER, &*args);
-    let _ = asset_server.load_relative::<AudioSource,_,_>(&AUDIO_EXPLOSION_SHIP, &*args);
-    let _ = asset_server.load_relative::<AudioSource,_,_>(&AUDIO_EXPLOSION_ASTEROID, &*args);
+    let _ = asset_server.load_relative::<AudioSource, _, _>(&AUDIO_LASER, &*args);
+    let _ = asset_server.load_relative::<AudioSource, _, _>(&AUDIO_THRUSTER, &*args);
+    let _ = asset_server.load_relative::<AudioSource, _, _>(&AUDIO_EXPLOSION_SHIP, &*args);
+    let _ = asset_server.load_relative::<AudioSource, _, _>(&AUDIO_EXPLOSION_ASTEROID, &*args);
 
     let window = windows.get_primary_mut().unwrap();
     window.set_resizable(false);

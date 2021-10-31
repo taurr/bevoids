@@ -2,15 +2,14 @@ use bevy::prelude::*;
 use parry2d::bounding_volume::BoundingVolume;
 
 use crate::{
-    asteroid_plugin::{Asteroid, AsteroidShotEvent, RemoveAsteroidEvent},
-    bullet_plugin::{Bullet, BulletSpentEvent},
-    fade_despawn_plugin::Despawn,
-    movement_plugin::InsideWindow,
-    player_plugin::{Player, PlayerDeadEvent},
+    plugins::{
+        Asteroid, AsteroidShotEvent, Bullet, BulletSpentEvent, Despawn, InsideWindow, Player,
+        PlayerDeadEvent, RemoveAsteroidEvent,
+    },
     Bounds, GameState,
 };
 
-pub(crate) struct HitTestPlugin;
+pub struct HitTestPlugin;
 
 impl Plugin for HitTestPlugin {
     fn build(&self, app: &mut App) {

@@ -9,9 +9,9 @@ use thiserror::Error;
 
 use crate::{assets::LoadRelative, constants, Args, GameState};
 
-pub(crate) struct TextureLoaderPlugin;
+pub struct TextureLoaderPlugin;
 
-pub(crate) struct Textures {
+pub struct Textures {
     pub spaceship: Handle<Texture>,
     pub flame: Handle<Texture>,
     pub shot: Handle<Texture>,
@@ -20,12 +20,12 @@ pub(crate) struct Textures {
 }
 
 #[derive(Debug, Error, Copy, Clone)]
-pub(crate) enum AsteroidMaterialError {
+pub enum AsteroidMaterialError {
     #[error("no asteroid materials available")]
     NoMaterialsAvailable,
 }
 
-pub(crate) struct AsteroidMaterials {
+pub struct AsteroidMaterials {
     sizes_by_material: HashMap<Handle<ColorMaterial>, Vec2>,
     materials: Vec<Handle<ColorMaterial>>,
 }
@@ -75,7 +75,7 @@ fn collect_textures(
 }
 
 impl Textures {
-    pub fn from_args(asset_server: &AssetServer, args: &Args) -> Self {
+    pub(crate) fn from_args(asset_server: &AssetServer, args: &Args) -> Self {
         Self {
             spaceship: asset_server
                 .load_relative(&"gfx/spaceship.png", args)

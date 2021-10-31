@@ -6,14 +6,13 @@ use std::{f32::consts::PI, time::Duration};
 use crate::{
     assets::LoadRelative,
     constants::*,
-    fade_despawn_plugin::{DelayedFadeDespawn, Despawn},
-    movement_plugin::{ShadowController, Velocity},
-    player_plugin::{Orientation, Player},
-    textures::Textures,
+    plugins::{
+        DelayedFadeDespawn, Despawn, Orientation, Player, ShadowController, Textures, Velocity,
+    },
     Args, Bounds, GameState,
 };
 
-pub(crate) struct BulletPlugin;
+pub struct BulletPlugin;
 
 #[derive(Debug, Clone, Copy)]
 pub struct FireBulletEvent;
@@ -22,7 +21,7 @@ pub struct FireBulletEvent;
 pub struct BulletSpentEvent(Entity);
 
 #[derive(Component, Debug)]
-pub(crate) struct Bullet;
+pub struct Bullet;
 
 impl Plugin for BulletPlugin {
     fn build(&self, app: &mut App) {

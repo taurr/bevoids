@@ -7,7 +7,7 @@ use crate::{
     Args, GameState,
 };
 
-pub(crate) struct GameoverPlugin;
+pub struct GameOverPlugin;
 
 #[derive(Component, Debug, Display)]
 #[display(fmt = "Game Over")]
@@ -17,7 +17,7 @@ struct GameOverText;
 #[display(fmt = "Press return to try again")]
 struct PressReturnText;
 
-impl Plugin for GameoverPlugin {
+impl Plugin for GameOverPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::on_enter(GameState::GameOver).with_system(init_gameover_texts.system()),

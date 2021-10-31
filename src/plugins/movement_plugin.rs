@@ -4,7 +4,7 @@ use parry2d::bounding_volume::BoundingVolume;
 
 use crate::Bounds;
 
-pub(crate) struct MovementPlugin;
+pub struct MovementPlugin;
 
 #[derive(
     Component,
@@ -21,21 +21,21 @@ pub(crate) struct MovementPlugin;
     From,
     Into,
 )]
-pub(crate) struct Velocity(pub Vec2);
+pub struct Velocity(pub Vec2);
 
 #[derive(Component, Debug)]
-pub(crate) struct ShadowController;
+pub struct ShadowController;
 
 #[derive(Component, Debug, From, Into)]
-pub(crate) struct ShadowOf {
+pub struct ShadowOf {
     pub controller: Entity,
     pub displacement: Vec2,
 }
 
 #[derive(Component, Debug)]
-pub(crate) struct InsideWindow;
+pub struct InsideWindow;
 
-pub(crate) fn spawn_display_shadows(
+pub fn spawn_display_shadows(
     controller: Entity,
     controller_position: Vec3,
     controller_size: Vec2,

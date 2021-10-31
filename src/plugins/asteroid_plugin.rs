@@ -7,11 +7,10 @@ use std::{f32::consts::PI, time::Duration};
 use crate::{
     assets::LoadRelative,
     constants::*,
-    fade_despawn_plugin::FadeDespawn,
-    movement_plugin::{spawn_display_shadows, InsideWindow, ShadowController, ShadowOf, Velocity},
-    player_plugin::Player,
-    scoreboard::ScoreBoard,
-    textures::AsteroidMaterials,
+    plugins::{
+        spawn_display_shadows, AsteroidMaterials, FadeDespawn, InsideWindow, Player, ScoreBoard,
+        ShadowController, ShadowOf, Velocity,
+    },
     Args, Bounds, GameState,
 };
 

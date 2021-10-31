@@ -7,11 +7,11 @@ use crate::{
     Args, GameState,
 };
 
-pub(crate) struct ScoreBoardPlugin;
+pub struct ScoreBoardPlugin;
 
 #[derive(Component, Debug, Clone, AsRef, AsMut, Display)]
 #[display(fmt = "Score: {}", score)]
-pub(crate) struct ScoreBoard {
+pub struct ScoreBoard {
     #[as_ref]
     score: u32,
 }

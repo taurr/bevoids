@@ -8,7 +8,7 @@ use parry2d::{
 };
 
 #[derive(Debug, Component, Copy, Clone, AsRef)]
-pub(crate) struct Bounds {
+pub struct Bounds {
     #[as_ref]
     aabb: AABB,
     #[as_ref]

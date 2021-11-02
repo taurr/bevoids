@@ -102,6 +102,9 @@ fn fade_despawn(
 
         if fadeout.value <= 0. {
             log::trace!(?entity, "faded");
+            if let Some(material) = color_material_assets.get_mut(material_handle) {
+                material.color.set_a(1.);
+            }
             commands
                 .entity(entity)
                 .remove::<FadeDespawn>()

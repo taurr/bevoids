@@ -1,4 +1,4 @@
-use bevy::{log, prelude::*};
+use bevy::{ecs::system::EntityCommands, log, prelude::*};
 use std::time::Duration;
 
 pub struct FadeDespawnPlugin;
@@ -12,10 +12,11 @@ pub struct FadeDespawn {
     value: f32,
 }
 
-#[derive(Component, Debug)]
+#[derive(Component)]
 pub struct DelayedFadeDespawn {
     timer: Timer,
     speed: Duration,
+    func: Option<Box<dyn FnOnce(&mut EntityCommands) + Send + Sync>>,
 }
 
 impl FadeDespawn {
@@ -41,7 +42,15 @@ impl DelayedFadeDespawn {
         Self {
             timer: Timer::new(delay, false),
             speed: fade,
+            func: None,
         }
+    }
+    pub fn before_fading<F>(mut self, func: F) -> Self
+    where
+        F: FnOnce(&mut EntityCommands) + Send + Sync + 'static,
+    {
+        self.func = Some(Box::new(func));
+        self
     }
 }
 
@@ -70,8 +79,11 @@ fn delayed_fade_despawn(
 ) {
     for (entity, mut expiry) in query.iter_mut() {
         if expiry.timer.tick(time.delta()).finished() {
-            commands
-                .entity(entity)
+            let mut entity_commands = commands.entity(entity);
+            if let Some(func) = expiry.func.take() {
+                func(&mut entity_commands);
+            }
+            entity_commands
                 .remove::<DelayedFadeDespawn>()
                 .insert(FadeDespawn::new(expiry.speed));
         }
@@ -85,12 +97,8 @@ fn fade_despawn(
     time: Res<Time>,
 ) {
     for (entity, mut fadeout, material_handle) in query.iter_mut() {
-        fadeout.value = if fadeout.speed > 0. {
-            fadeout.value - (1.0 / fadeout.speed) * time.delta_seconds()
-        } else {
-            0.
-        }
-        .clamp(0.0, 1.0);
+        fadeout.value =
+            (fadeout.value - (1.0 / fadeout.speed) * time.delta_seconds()).clamp(0., 1.);
 
         if fadeout.value <= 0. {
             log::trace!(?entity, "faded");
@@ -98,8 +106,7 @@ fn fade_despawn(
                 .entity(entity)
                 .remove::<FadeDespawn>()
                 .insert(Despawn);
-        }
-        if let Some(material) = color_material_assets.get_mut(material_handle) {
+        } else if let Some(material) = color_material_assets.get_mut(material_handle) {
             material.color.set_a(fadeout.value);
         }
     }

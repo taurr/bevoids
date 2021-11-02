@@ -38,7 +38,8 @@ impl Plugin for PlayerPlugin {
 
         app.add_system_set(
             SystemSet::on_update(GameState::InGame)
-                .with_system(player_dead.system())
+                .with_system(player_dead_gameover.system())
+                .with_system(player_dead_sound.system())
                 .with_system(player_controls.system()),
         );
 
@@ -46,27 +47,14 @@ impl Plugin for PlayerPlugin {
     }
 }
 
-fn player_dead(
+fn player_dead_gameover(
     mut events: EventReader<PlayerDeadEvent>,
     player_query: Query<Entity, With<Player>>,
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    audio: Res<Audio>,
-    args: Res<Args>,
     mut state: ResMut<State<GameState>>,
 ) {
-    events.iter().for_each(|_| {
+    for _ in events.iter() {
         log::warn!("player dead");
-
-        let audio_channel = AudioChannel::new(AUDIO_CHANNEL_EXPLOSION_SHIP.into());
-        audio.set_volume_in_channel(AUDIO_EXPLOSION_SHIP_VOLUME, &audio_channel);
-        audio.play_in_channel(
-            asset_server
-                .load_relative(&AUDIO_EXPLOSION_SHIP, &*args)
-                .expect("missing laser sound"),
-            &audio_channel,
-        );
-
         player_query.iter().for_each(|player| {
             commands
                 .entity(player)
@@ -76,7 +64,25 @@ fn player_dead(
         });
 
         state.set(GameState::GameOver).unwrap();
-    });
+    }
+}
+
+fn player_dead_sound(
+    mut events: EventReader<PlayerDeadEvent>,
+    asset_server: Res<AssetServer>,
+    audio: Res<Audio>,
+    args: Res<Args>,
+) {
+    for _ in events.iter() {
+        let audio_channel = AudioChannel::new(AUDIO_CHANNEL_EXPLOSION_SHIP.into());
+        audio.set_volume_in_channel(AUDIO_EXPLOSION_SHIP_VOLUME, &audio_channel);
+        audio.play_in_channel(
+            asset_server
+                .load_relative(&AUDIO_EXPLOSION_SHIP, &*args)
+                .expect("missing laser sound"),
+            &audio_channel,
+        );
+    }
 }
 
 fn player_spawn(
@@ -85,7 +91,6 @@ fn player_spawn(
     textures: Res<Textures>,
     mut material_assets: ResMut<Assets<ColorMaterial>>,
 ) {
-    log::debug!("spawning player");
     let mut rng = rand::thread_rng();
 
     let player_position_vec2 = Vec2::new(
@@ -140,7 +145,7 @@ fn exit_ingame(audio: Res<Audio>) {
 }
 
 fn player_controls(
-    mut commands: Commands,
+    commands: Commands,
     kb: Res<Input<KeyCode>>,
     mut player_query: Query<
         (Entity, &mut Velocity, &mut Orientation, &mut Transform),
@@ -153,74 +158,111 @@ fn player_controls(
     args: Res<Args>,
     asset_server: Res<AssetServer>,
     audio: Res<Audio>,
-    mut fire_bullet_events: EventWriter<FireBulletEvent>,
+    fire_bullet_events: EventWriter<FireBulletEvent>,
 ) {
-    for (player, mut player_velocity, mut player_orientation, mut player_transform) in
-        player_query.iter_mut()
-    {
-        // orientation
-        if kb.pressed(KeyCode::Left) {
-            player_orientation.0 = player_orientation.0.mul_quat(Quat::from_rotation_z(
-                PLAYER_TURN_SPEED * time.delta_seconds(),
-            ));
-        } else if kb.pressed(KeyCode::Right) {
-            player_orientation.0 = player_orientation.0.mul_quat(Quat::from_rotation_z(
-                -PLAYER_TURN_SPEED * time.delta_seconds(),
-            ));
-        }
-        player_transform.rotation = player_orientation.0;
+    let (player, mut player_velocity, mut player_orientation, mut player_transform) =
+        player_query.get_single_mut().expect("no player to control");
 
-        if kb.pressed(KeyCode::Up) {
-            // accelleration
-            let delta_v = player_orientation
-                .0
-                .mul_vec3(vec3(0., PLAYER_ACCELLERATION, 0.))
-                .truncate()
-                * time.delta_seconds();
-            let velocity =
-                (Vec2::from(*player_velocity) + delta_v).clamp_length(0., PLAYER_MAX_SPEED);
-            **player_velocity = velocity.into();
-            if kb.just_pressed(KeyCode::Up) {
-                log::trace!("accellerate on");
-                let audio_channel = AudioChannel::new(AUDIO_CHANNEL_THRUSTER.into());
-                audio.set_volume_in_channel(AUDIO_THRUSTER_VOLUME, &audio_channel);
-                audio.play_looped_in_channel(
-                    asset_server
-                        .load_relative(&AUDIO_THRUSTER, &*args)
-                        .expect("missing laser sound"),
-                    &audio_channel,
-                );
-                let flame = spawn_flame(
-                    &mut commands,
-                    &textures,
-                    &mut material_assets,
-                    &player_transform,
-                );
-                commands.entity(player).push_children(&[flame]);
-            }
-        } else {
-            // decellerate
-            let delta_v = Vec2::from(*player_velocity).normalize()
-                * PLAYER_DECCELLERATION
-                * time.delta_seconds();
-            let velocity =
-                (Vec2::from(*player_velocity) - delta_v).clamp_length(0., PLAYER_MAX_SPEED);
-            **player_velocity = velocity.into();
-            if kb.just_released(KeyCode::Up) {
-                log::trace!("accellerate off");
-                audio.stop_channel(&AudioChannel::new(AUDIO_CHANNEL_THRUSTER.into()));
-                for flame in flame_query.iter() {
-                    commands.entity(flame).despawn();
-                }
-            }
-        }
+    fire_laser(&kb, fire_bullet_events);
+    turn_player(&kb, &mut player_orientation, &time, &mut player_transform);
+    accelleration(
+        &kb,
+        &player_orientation,
+        &time,
+        &mut player_velocity,
+        &audio,
+        &asset_server,
+        &args,
+        commands,
+        &textures,
+        &mut material_assets,
+        player_transform,
+        player,
+        flame_query,
+    );
+}
 
-        // fire
-        if kb.just_pressed(KeyCode::Space) {
-            log::debug!("fire!");
-            fire_bullet_events.send(FireBulletEvent);
+fn accelleration(
+    kb: &Input<KeyCode>,
+    player_orientation: &Orientation,
+    time: &Time,
+    player_velocity: &mut Velocity,
+    audio: &Audio,
+    asset_server: &AssetServer,
+    args: &Args,
+    mut commands: Commands,
+    textures: &Textures,
+    mut material_assets: &mut Assets<ColorMaterial>,
+    player_transform: Mut<Transform>,
+    player: Entity,
+    flame_query: Query<Entity, With<Flame>>,
+) {
+    if kb.pressed(KeyCode::Up) {
+        // accelleration
+        let delta_v = player_orientation
+            .0
+            .mul_vec3(vec3(0., PLAYER_ACCELLERATION, 0.))
+            .truncate()
+            * time.delta_seconds();
+        let velocity = (Vec2::from(*player_velocity) + delta_v).clamp_length(0., PLAYER_MAX_SPEED);
+        **player_velocity = velocity.into();
+        if kb.just_pressed(KeyCode::Up) {
+            log::trace!("accellerate on");
+            let audio_channel = AudioChannel::new(AUDIO_CHANNEL_THRUSTER.into());
+            audio.set_volume_in_channel(AUDIO_THRUSTER_VOLUME, &audio_channel);
+            audio.play_looped_in_channel(
+                asset_server
+                    .load_relative(&AUDIO_THRUSTER, &*args)
+                    .expect("missing laser sound"),
+                &audio_channel,
+            );
+            let flame = spawn_flame(
+                &mut commands,
+                textures,
+                &mut material_assets,
+                &player_transform,
+            );
+            commands.entity(player).push_children(&[flame]);
+        }
+    } else {
+        // decellerate
+        let delta_v =
+            Vec2::from(*player_velocity).normalize() * PLAYER_DECCELLERATION * time.delta_seconds();
+        let velocity = (Vec2::from(*player_velocity) - delta_v).clamp_length(0., PLAYER_MAX_SPEED);
+        **player_velocity = velocity.into();
+        if kb.just_released(KeyCode::Up) {
+            log::trace!("accellerate off");
+            audio.stop_channel(&AudioChannel::new(AUDIO_CHANNEL_THRUSTER.into()));
+            for flame in flame_query.iter() {
+                commands.entity(flame).despawn();
+            }
         }
     }
+}
+
+fn fire_laser(kb: &Input<KeyCode>, mut fire_bullet_events: EventWriter<FireBulletEvent>) {
+    if kb.just_pressed(KeyCode::Space) {
+        log::debug!("fire!");
+        fire_bullet_events.send(FireBulletEvent);
+    }
+}
+
+fn turn_player(
+    kb: &Input<KeyCode>,
+    player_orientation: &mut Orientation,
+    time: &Time,
+    player_transform: &mut Transform,
+) {
+    if kb.pressed(KeyCode::Left) {
+        player_orientation.0 = player_orientation.0.mul_quat(Quat::from_rotation_z(
+            PLAYER_TURN_SPEED * time.delta_seconds(),
+        ));
+    } else if kb.pressed(KeyCode::Right) {
+        player_orientation.0 = player_orientation.0.mul_quat(Quat::from_rotation_z(
+            -PLAYER_TURN_SPEED * time.delta_seconds(),
+        ));
+    }
+    player_transform.rotation = player_orientation.0;
 }
 
 fn spawn_flame(

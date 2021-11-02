@@ -3,7 +3,7 @@ use parry2d::bounding_volume::BoundingVolume;
 
 use crate::{
     plugins::{
-        Asteroid, AsteroidShotEvent, Bullet, BulletSpentEvent, Despawn, InsideWindow, Player,
+        Asteroid, AsteroidShotEvent, Bullet, BulletSpentEvent, InsideWindow, Player,
         PlayerDeadEvent, RemoveAsteroidEvent,
     },
     Bounds, GameState,
@@ -22,7 +22,7 @@ impl Plugin for HitTestPlugin {
 }
 
 fn shot_hit_asteroid(
-    bullet_query: Query<(Entity, &Bounds), (With<Bullet>, Without<Despawn>)>,
+    bullet_query: Query<(Entity, &Bounds), With<Bullet>>,
     asteroids_query: Query<(Entity, &Bounds), (With<Asteroid>, With<InsideWindow>)>,
     mut asteroid_shot_events: EventWriter<AsteroidShotEvent>,
     mut bullet_spent_events: EventWriter<BulletSpentEvent>,

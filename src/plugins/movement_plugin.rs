@@ -100,8 +100,8 @@ fn linear_movement(
 fn move_shadow(
     mut commands: Commands,
     mut shadows: Query<(Entity, &mut Transform, &mut Bounds, &ShadowOf)>,
-    window_bounds: Res<Bounds>,
     controllers: Query<(Entity, &Transform), (With<ShadowController>, Without<ShadowOf>)>,
+    window_bounds: Res<Bounds>,
 ) {
     for (shadow, mut shadow_bounds, mut shadow_tf, displacement, controller_tf) in shadows
         .iter_mut()

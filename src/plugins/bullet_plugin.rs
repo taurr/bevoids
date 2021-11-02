@@ -32,7 +32,7 @@ impl Plugin for BulletPlugin {
             SystemSet::on_update(GameState::InGame)
                 .with_system(play_sound_on_fire.system())
                 .with_system(fire_bullet.system())
-                .with_system(spend_bullet.system().before("system_despawn")),
+                .with_system(spend_bullet.system()),
         );
     }
 }
@@ -42,11 +42,11 @@ fn spend_bullet(
     query: Query<Entity, With<Bullet>>,
     mut commands: Commands,
 ) {
-    events.iter().map(|e| e as &Entity).for_each(|&bullet| {
+    for &bullet in events.iter().map(|e| e as &Entity) {
         if query.iter().any(|b| b == bullet) {
             commands.entity(bullet).remove::<Bullet>().insert(Despawn);
         }
-    })
+    }
 }
 
 fn play_sound_on_fire(
@@ -55,7 +55,7 @@ fn play_sound_on_fire(
     asset_server: Res<AssetServer>,
     audio: Res<Audio>,
 ) {
-    events.iter().for_each(|_| {
+    for _ in events.iter() {
         let audio_channel = AudioChannel::new(AUDIO_CHANNEL_LASER.into());
         audio.play_in_channel(
             asset_server
@@ -64,7 +64,7 @@ fn play_sound_on_fire(
             &audio_channel,
         );
         audio.set_volume_in_channel(AUDIO_LASER_VOLUME, &audio_channel);
-    })
+    }
 }
 
 fn fire_bullet(
@@ -106,7 +106,7 @@ fn fire_bullet(
         Velocity::from(velocity + player_velocity.project_onto(Vec2::from(velocity)))
     };
 
-    events.iter().for_each(|_| {
+    for _ in events.iter() {
         let bullet_id = commands
             .spawn_bundle(SpriteBundle {
                 material: material_assets.add(ColorMaterial::texture(textures.shot.clone())),
@@ -120,11 +120,16 @@ fn fire_bullet(
             .insert(Bullet)
             .insert(velocity)
             .insert(Bounds::from_pos_and_size(position.truncate(), size))
-            .insert(DelayedFadeDespawn::new(
-                Duration::from_secs_f32(BULLET_LIFETIME_SECONDS),
-                Duration::from_secs_f32(BULLET_FADEOUT_SECONDS),
-            ))
+            .insert(
+                DelayedFadeDespawn::new(
+                    Duration::from_secs_f32(BULLET_LIFETIME_SECONDS),
+                    Duration::from_secs_f32(BULLET_FADEOUT_SECONDS),
+                )
+                .before_fading(|cmds| {
+                    cmds.remove::<Bullet>();
+                }),
+            )
             .id();
         log::debug!(buller=?bullet_id, "spawned bullet");
-    })
+    }
 }

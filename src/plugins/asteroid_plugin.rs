@@ -126,7 +126,7 @@ fn remove_asteroid_on_event(
     shadows_query: Query<(Entity, &ShadowOf), With<Asteroid>>,
     mut materials: ResMut<AsteroidMaterials>,
 ) {
-    events.iter().map(|e| e.0).for_each(|asteroid| {
+    for asteroid in events.iter().map(|e| e.0) {
         let ctrl = match asteroids_query.get(asteroid) {
             Ok(&ShadowOf {
                 controller: ctrl, ..
@@ -140,7 +140,7 @@ fn remove_asteroid_on_event(
                 .clone(),
         );
         despawn_asteroid(&mut commands, &asteroid, &shadows_query);
-    });
+    }
 }
 
 fn find_shot_asteroid_controller(
@@ -217,7 +217,7 @@ fn split_and_despawn_shot_asteroids(
     shadows_query: Query<(Entity, &ShadowOf), With<Asteroid>>,
     mut materials: ResMut<AsteroidMaterials>,
 ) {
-    events.iter().map(|ev| ev as &Entity).for_each(|asteroid| {
+    for asteroid in events.iter().map(|ev| ev as &Entity) {
         let (bounds, transform, material) = asteroids_query
             .get(*asteroid)
             .expect("asteroid not present");
@@ -228,10 +228,10 @@ fn split_and_despawn_shot_asteroids(
         let max_size = bounds.size().max_element() * ASTEROID_SPLIT_SIZE_RATIO;
         let position = Some(transform.translation);
 
-        (0..ASTEROID_SPLIT_INTO).for_each(|_| {
+        for _ in 0..ASTEROID_SPLIT_INTO {
             spawn_events.send(SpawnAsteroidEvent::new(max_size, position));
-        });
-    });
+        }
+    }
 }
 
 fn asteroid_enter_ingame(
@@ -277,19 +277,19 @@ fn asteroid_spawner(
     mut spawn_events: EventWriter<SpawnAsteroidEvent>,
     time: Res<Time>,
 ) {
-    if let Ok((entity, delay, timer)) = query.get_single_mut() {
-        if let Some(mut timer) = timer {
+    match query.get_single_mut() {
+        Ok((_, delay, Some(mut timer))) => {
             if timer.tick(time.delta()).finished() {
                 log::debug!("timed asteroid");
                 spawn_events.send(SpawnAsteroidEvent::new(
                     rand::thread_rng().gen_range(ASTEROID_MIN_SIZE..ASTEROID_MAX_SIZE),
                     None,
                 ));
-                commands
-                    .entity(entity)
-                    .insert(Timer::new(Duration::from_secs_f32(delay.0), false));
+                timer.set_duration(Duration::from_secs_f32(delay.0));
+                timer.reset();
             }
-        } else {
+        }
+        Ok((entity, delay, None)) => {
             log::debug!("not timed asteroid");
             spawn_events.send(SpawnAsteroidEvent::new(
                 rand::thread_rng().gen_range(ASTEROID_MIN_SIZE..ASTEROID_MAX_SIZE),
@@ -299,7 +299,8 @@ fn asteroid_spawner(
                 .entity(entity)
                 .insert(Timer::new(Duration::from_secs_f32(delay.0), false));
         }
-    }
+        Err(_) => {}
+    };
 }
 
 fn spawn_asteroid_on_event(
@@ -312,11 +313,7 @@ fn spawn_asteroid_on_event(
 ) {
     let player_tf = player_tf_query.get_single().expect("player not present!");
 
-    for SpawnAsteroidEvent(size, position) in events.iter() {
-        if *size < ASTEROID_MIN_SIZE {
-            continue;
-        }
-
+    for SpawnAsteroidEvent(size, position) in events.iter().filter(|e| e.0 >= ASTEROID_MIN_SIZE) {
         let mut rng = rand::thread_rng();
 
         let position = position.unwrap_or_else(|| {

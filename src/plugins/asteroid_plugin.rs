@@ -393,7 +393,6 @@ fn spawn_asteroid(
 
             spawn_display_shadows(
                 asteroid_id,
-                asteroid_position,
                 asteroid_size,
                 asteroid_scale,
                 material,

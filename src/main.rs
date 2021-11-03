@@ -1,6 +1,6 @@
 #![allow(clippy::complexity)]
 use assets::AssetPath;
-use bevy::{log, prelude::*, sprite::SpriteSettings};
+use bevy::{app::Events, log, prelude::*, sprite::SpriteSettings, window::WindowResized};
 use bevy_kira_audio::*;
 use derive_more::Display;
 use std::path::PathBuf;
@@ -62,6 +62,7 @@ fn main() {
         // set the starting state & general systems
         .add_state(GameState::Initialize)
         .add_startup_system_to_stage(StartupStage::PreStartup, initialize.system())
+        .add_system(resized.system())
         .add_plugins(DefaultPlugins)
         .add_plugin(AudioPlugin)
         // .add_plugin(bevy::diagnostic::LogDiagnosticsPlugin::default())
@@ -92,6 +93,13 @@ fn main() {
         .run();
 }
 
+fn resized(resize_event: Res<Events<WindowResized>>, mut bounds: ResMut<Bounds>) {
+    let mut reader = resize_event.get_reader();
+    for e in reader.iter(&resize_event) {
+        *bounds = Bounds::from_pos_and_size(Vec2::ZERO, Vec2::new(e.width, e.height));
+    }
+}
+
 fn initialize(
     mut commands: Commands,
     mut windows: ResMut<Windows>,
@@ -105,7 +113,7 @@ fn initialize(
     let _ = asset_server.load_relative::<AudioSource, _, _>(&AUDIO_EXPLOSION_ASTEROID, &*args);
 
     let window = windows.get_primary_mut().unwrap();
-    window.set_resizable(false);
+    window.set_resizable(true);
     window.set_vsync(true);
     window.set_title(module_path!().into());
 

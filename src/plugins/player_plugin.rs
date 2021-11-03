@@ -126,7 +126,6 @@ fn player_spawn(
 
     spawn_display_shadows(
         player_id,
-        player_position_vec3,
         player_size,
         player_scale,
         player_material,

@@ -3,10 +3,10 @@ use std::time::Duration;
 
 pub struct FadeDespawnPlugin;
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
 pub struct Despawn;
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
 pub struct FadeDespawn {
     speed: f32,
     value: f32,
@@ -56,6 +56,9 @@ impl DelayedFadeDespawn {
 
 impl Plugin for FadeDespawnPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<FadeDespawn>();
+        app.register_type::<Despawn>();
+
         app.add_system_to_stage(
             CoreStage::PostUpdate,
             despawn.system().label("system_despawn"),

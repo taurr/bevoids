@@ -28,6 +28,10 @@ pub(crate) struct Args {
     assets: Option<String>,
 }
 
+// TODO: loading state: load all materials + sounds before continuing
+// TODO: use preloaded sounds
+// TODO: menu state: display menu before starting the game
+
 impl AssetPath for Args {
     fn asset_path<T: AsRef<str>>(&self, path: &T) -> PathBuf {
         self.assets
@@ -61,7 +65,7 @@ fn main() {
     App::new()
         // set the starting state & general systems
         .add_state(GameState::Initialize)
-        .add_startup_system_to_stage(StartupStage::PreStartup, initialize.system())
+        .add_startup_system(initialize.system())
         .add_system(resized.system())
         .add_plugins(DefaultPlugins)
         .add_plugin(AudioPlugin)
@@ -83,8 +87,11 @@ fn main() {
         .insert_resource(Args::from_args())
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(WindowDescriptor {
+            vsync: true,
+            resizable: true,
             width: constants::WIN_WIDTH,
             height: constants::WIN_HEIGHT,
+            title: module_path!().into(),
             ..WindowDescriptor::default()
         })
         .insert_resource(SpriteSettings {
@@ -113,10 +120,6 @@ fn initialize(
     let _ = asset_server.load_relative::<AudioSource, _, _>(&AUDIO_EXPLOSION_ASTEROID, &*args);
 
     let window = windows.get_primary_mut().unwrap();
-    window.set_resizable(true);
-    window.set_vsync(true);
-    window.set_title(module_path!().into());
-
     commands.insert_resource(Bounds::from_window(window));
 
     // Spawns the camera

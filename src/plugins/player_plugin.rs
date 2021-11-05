@@ -19,18 +19,24 @@ pub struct PlayerPlugin;
 #[derive(Debug, Clone, Copy)]
 pub struct PlayerDeadEvent;
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
 pub struct Player;
 
-#[derive(Component, Debug, Default, From, Into, Copy, Clone, Deref, DerefMut, Constructor)]
+#[derive(
+    Component, Debug, Default, From, Into, Copy, Clone, Deref, DerefMut, Constructor, Reflect,
+)]
 pub struct Orientation(pub Quat);
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
 struct Flame;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<PlayerDeadEvent>();
+
+        app.register_type::<Player>()
+            .register_type::<Orientation>()
+            .register_type::<Flame>();
 
         app.add_system_set(
             SystemSet::on_enter(GameState::InGame).with_system(player_spawn.system()),

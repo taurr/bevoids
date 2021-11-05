@@ -9,7 +9,7 @@ use crate::{
 
 pub struct ScoreBoardPlugin;
 
-#[derive(Component, Debug, Clone, AsRef, AsMut, Display)]
+#[derive(Component, Debug, Clone, AsRef, AsMut, Display, Reflect)]
 #[display(fmt = "Score: {}", score)]
 pub struct ScoreBoard {
     #[as_ref]
@@ -18,6 +18,8 @@ pub struct ScoreBoard {
 
 impl Plugin for ScoreBoardPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<ScoreBoard>();
+
         app.add_system_set(
             SystemSet::on_enter(GameState::InGame).with_system(enter_ingame_scoreboard.system()),
         );

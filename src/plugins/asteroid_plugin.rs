@@ -1,4 +1,5 @@
-use bevy::{core::FixedTimestep, ecs::system::EntityCommands, log, prelude::*};
+use bevy::utils::AHashExt;
+use bevy::{core::FixedTimestep, ecs::system::EntityCommands, log, prelude::*, utils::HashSet};
 use bevy_kira_audio::{Audio, AudioChannel};
 use derive_more::{Constructor, Deref};
 use rand::Rng;
@@ -22,7 +23,7 @@ pub struct RemoveAsteroidEvent(Entity);
 #[derive(Debug, Clone, Copy, Deref, Constructor)]
 pub struct AsteroidShotEvent(Entity);
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
 pub struct Asteroid;
 
 #[derive(Default)]
@@ -50,54 +51,61 @@ impl Plugin for AsteroidPlugin {
         app.add_event::<SpawnAsteroidEvent>();
         app.add_event::<RemoveAsteroidEvent>();
 
+        app.register_type::<Asteroid>();
+
         app.add_system_set(
             SystemSet::on_enter(GameState::InGame).with_system(asteroid_enter_ingame.system()),
         );
 
         app.add_system_set(
             SystemSet::on_update(GameState::InGame)
+                // criteria actually overrides the on_update, as only 1 run criterion can be set!
                 .with_run_criteria(FixedTimestep::step(DIFFICULTY_RAISER_TIMESTEP))
                 .with_system(difficulty_raiser.system()),
         );
+
         app.add_system_set(
             SystemSet::on_update(GameState::InGame)
-                .with_system(
-                    find_shot_asteroid_controller
-                        .system()
-                        .label("find_asteroid_ctrl"),
-                )
-                .with_system(asteroid_spawner.system().label("asteroid_spawner"))
-                .with_system(
-                    split_and_despawn_shot_asteroids
-                        .system()
-                        .label("split_asteroid")
-                        .after("find_asteroid_ctrl"),
-                )
-                .with_system(remove_asteroid_on_event.system().after("split_asteroid"))
+                .label("asteroid_spawner")
+                .with_system(asteroid_spawner.system()),
+        );
+
+        app.add_system_set(
+            SystemSet::on_update(GameState::InGame)
+                .label("find_asteroid_ctrl")
+                .with_system(find_shot_asteroid_controller.system()),
+        );
+
+        app.add_system_set(
+            SystemSet::on_update(GameState::InGame)
+                .after("asteroid_spawner")
                 .with_system(
                     spawn_asteroid_on_event
                         .system()
-                        .chain(spawn_asteroid_on_empty_field.system())
-                        .after("asteroid_spawner"),
-                )
-                .with_system(
-                    count_shot_asteroids
-                        .system()
-                        .after("find_asteroid_ctrl")
-                        .before("split_asteroid"),
-                )
-                .with_system(
-                    score_on_shot_asteroids
-                        .system()
-                        .after("find_asteroid_ctrl")
-                        .before("split_asteroid"),
-                )
-                .with_system(
-                    sound_on_shot_asteroids
-                        .system()
-                        .after("find_asteroid_ctrl")
-                        .before("split_asteroid"),
+                        .chain(spawn_asteroid_on_empty_field.system()),
                 ),
+        );
+
+        app.add_system_set(
+            SystemSet::on_update(GameState::InGame)
+                .label("split_asteroid")
+                .after("find_asteroid_ctrl")
+                .with_system(split_and_despawn_shot_asteroids.system()),
+        );
+
+        app.add_system_set(
+            SystemSet::on_update(GameState::InGame)
+                .with_system(remove_asteroid_on_event.system())
+                .after("split_asteroid"),
+        );
+
+        app.add_system_set(
+            SystemSet::on_update(GameState::InGame)
+                .after("find_asteroid_ctrl")
+                .before("split_asteroid")
+                .with_system(count_shot_asteroids.system())
+                .with_system(score_on_shot_asteroids.system())
+                .with_system(sound_on_shot_asteroids.system()),
         );
 
         app.add_system_set(
@@ -148,6 +156,8 @@ fn find_shot_asteroid_controller(
     mut ctrl_events: EventWriter<AsteroidControllerShotEvent>,
     asteroids_query: Query<&ShadowOf>,
 ) {
+    let mut set = HashSet::with_capacity(20);
+
     for asteroid in shot_events.iter().map(|e| e.0) {
         let ctrl = match asteroids_query.get(asteroid) {
             Ok(&ShadowOf {
@@ -155,7 +165,11 @@ fn find_shot_asteroid_controller(
             }) => ctrl,
             Err(_) => asteroid,
         };
-        log::info!(?asteroid, asteroid_controller=?ctrl, "asteroid shot");
+        set.insert(ctrl);
+    }
+
+    for ctrl in set {
+        log::info!(asteroid_controller=?ctrl, "asteroid shot");
         ctrl_events.send(AsteroidControllerShotEvent::new(ctrl));
     }
 }

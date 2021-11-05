@@ -21,17 +21,18 @@ pub struct MovementPlugin;
     SubAssign,
     From,
     Into,
+    Reflect,
 )]
 pub struct Velocity(pub Vec2);
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
 pub struct ShadowController;
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
 pub struct NonWrapping;
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, IntoEnumIterator, PartialEq, Copy, Clone)]
+#[derive(Debug, IntoEnumIterator, PartialEq, Copy, Clone, Reflect)]
 enum ShadowPlacement {
     MinW_MaxH,
     MedW_MaxH,
@@ -43,13 +44,13 @@ enum ShadowPlacement {
     MaxW_MinH,
 }
 
-#[derive(Component, Debug, From, Into)]
+#[derive(Component, Debug, From, Into, Reflect)]
 pub struct ShadowOf {
     pub controller: Entity,
     placement: ShadowPlacement,
 }
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
 pub struct InsideWindow;
 
 pub struct EnterWindow(Entity);
@@ -96,6 +97,12 @@ impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<EnterWindow>();
         app.add_event::<ExitWindow>();
+
+        app.register_type::<Velocity>()
+            .register_type::<ShadowController>()
+            .register_type::<ShadowOf>()
+            .register_type::<NonWrapping>()
+            .register_type::<InsideWindow>();
 
         app.add_system(wrapping_linear_movement.system().before("shadow_movement"))
             .add_system(

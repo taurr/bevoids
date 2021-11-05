@@ -20,13 +20,15 @@ pub struct FireBulletEvent;
 #[derive(Debug, Clone, Copy, Deref, Constructor)]
 pub struct BulletSpentEvent(Entity);
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
 pub struct Bullet;
 
 impl Plugin for BulletPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<FireBulletEvent>()
             .add_event::<BulletSpentEvent>();
+
+        app.register_type::<Bullet>();
 
         app.add_system_set(
             SystemSet::on_update(GameState::InGame)

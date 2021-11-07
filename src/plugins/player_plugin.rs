@@ -1,17 +1,15 @@
 use bevy::{ecs::system::EntityCommands, log, math::vec3, prelude::*};
 use bevy_kira_audio::{Audio, AudioChannel};
-use derive_more::{Constructor, Deref, DerefMut, From, Into};
 use rand::Rng;
 use std::f32::consts::PI;
 
 use crate::{
-    assets::LoadRelative,
     constants::*,
     plugins::{
-        spawn_display_shadows, FadeDespawn, FireBulletEvent, InsideWindow, ShadowController,
-        Textures, Velocity,
+        spawn_display_shadows, Despawn, FireLaserEvent, InsideWindow, ShadowController, Velocity,
     },
-    Args, Bounds, GameState,
+    resources::{AudioAssets, Bounds, TextureAssets},
+    Animations, AudioChannels, GameState, GeneralTexture, Sounds, StartSingleAnimation,
 };
 
 pub struct PlayerPlugin;
@@ -22,11 +20,6 @@ pub struct PlayerDeadEvent;
 #[derive(Component, Debug, Reflect)]
 pub struct Player;
 
-#[derive(
-    Component, Debug, Default, From, Into, Copy, Clone, Deref, DerefMut, Constructor, Reflect,
-)]
-pub struct Orientation(pub Quat);
-
 #[derive(Component, Debug, Reflect)]
 struct Flame;
 
@@ -34,9 +27,7 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<PlayerDeadEvent>();
 
-        app.register_type::<Player>()
-            .register_type::<Orientation>()
-            .register_type::<Flame>();
+        app.register_type::<Player>().register_type::<Flame>();
 
         app.add_system_set(
             SystemSet::on_enter(GameState::InGame).with_system(player_spawn.system()),
@@ -55,18 +46,24 @@ impl Plugin for PlayerPlugin {
 
 fn player_dead_gameover(
     mut events: EventReader<PlayerDeadEvent>,
-    player_query: Query<Entity, With<Player>>,
+    mut anim_events: EventWriter<StartSingleAnimation>,
+    player_query: Query<(Entity, &Transform, &Bounds), With<Player>>,
     mut commands: Commands,
     mut state: ResMut<State<GameState>>,
 ) {
     for _ in events.iter() {
         log::warn!("player dead");
-        player_query.iter().for_each(|player| {
+        player_query.iter().for_each(|x| {
+            anim_events.send(StartSingleAnimation {
+                key: Animations::BigExplosion,
+                position: x.1.translation,
+                size: x.2.size().max_element(),
+            });
             commands
-                .entity(player)
+                .entity(x.0)
                 .remove::<Player>()
                 .remove::<Velocity>()
-                .insert(FadeDespawn::from_secs_f32(PLAYER_FADEOUT_SECONDS));
+                .insert(Despawn);
         });
 
         state.set(GameState::GameOver).unwrap();
@@ -75,27 +72,25 @@ fn player_dead_gameover(
 
 fn player_dead_sound(
     mut events: EventReader<PlayerDeadEvent>,
-    asset_server: Res<AssetServer>,
+    channels: Res<AudioChannels>,
+    audio_assets: Res<AudioAssets<Sounds>>,
     audio: Res<Audio>,
-    args: Res<Args>,
 ) {
     for _ in events.iter() {
-        let audio_channel = AudioChannel::new(AUDIO_CHANNEL_EXPLOSION_SHIP.into());
-        audio.set_volume_in_channel(AUDIO_EXPLOSION_SHIP_VOLUME, &audio_channel);
         audio.play_in_channel(
-            asset_server
-                .load_relative(&AUDIO_EXPLOSION_SHIP, &*args)
+            audio_assets
+                .get(Sounds::ShipExplode)
                 .expect("missing laser sound"),
-            &audio_channel,
+            &channels.ship_explode,
         );
     }
 }
 
 fn player_spawn(
     mut commands: Commands,
+    mut color_assets: ResMut<Assets<ColorMaterial>>,
     window_bounds: Res<Bounds>,
-    textures: Res<Textures>,
-    mut material_assets: ResMut<Assets<ColorMaterial>>,
+    textures: Res<TextureAssets<GeneralTexture>>,
 ) {
     let mut rng = rand::thread_rng();
 
@@ -105,10 +100,13 @@ fn player_spawn(
     );
     let player_position_vec3 = player_position_vec2.extend(PLAYER_Z);
 
-    let texture_size = textures.get_size(&textures.spaceship).unwrap();
-    let player_material = material_assets.add(textures.spaceship.clone().into());
-    let player_scale = PLAYER_MAX_SIZE / texture_size.max_element();
-    let player_size = texture_size * player_scale;
+    let spaceship_texture = textures
+        .get(GeneralTexture::Spaceship)
+        .expect("no texture for spaceship");
+    let texture_size = spaceship_texture.size;
+    let player_material = color_assets.add(spaceship_texture.texture.clone().into());
+    let player_scale = PLAYER_MAX_SIZE / texture_size.max_element() as f32;
+    let player_size = Vec2::new(texture_size.x as f32, texture_size.y as f32) * player_scale;
     let random_rotation = Quat::from_rotation_z(rng.gen_range(0.0..(2. * PI)));
     let player_velocity = random_rotation.mul_vec3(Vec3::Y).truncate() * PLAYER_START_SPEED;
 
@@ -125,7 +123,6 @@ fn player_spawn(
         .insert(Player)
         .insert(Bounds::from_pos_and_size(player_position_vec2, player_size))
         .insert(Velocity::from(player_velocity))
-        .insert(Orientation(random_rotation))
         .insert(ShadowController)
         .insert(InsideWindow)
         .id();
@@ -146,41 +143,37 @@ fn player_spawn(
 }
 
 fn exit_ingame(audio: Res<Audio>) {
-    audio.stop_channel(&AudioChannel::new(AUDIO_CHANNEL_THRUSTER.into()));
+    audio.stop_channel(&AudioChannel::new(Sounds::Thruster.to_string()));
 }
 
 fn player_controls(
     commands: Commands,
     kb: Res<Input<KeyCode>>,
-    mut player_query: Query<
-        (Entity, &mut Velocity, &mut Orientation, &mut Transform),
-        With<Player>,
-    >,
+    color_assets: ResMut<Assets<ColorMaterial>>,
+    mut player_query: Query<(Entity, &mut Velocity, &mut Transform), With<Player>>,
     flame_query: Query<Entity, With<Flame>>,
-    textures: Res<Textures>,
-    mut material_assets: ResMut<Assets<ColorMaterial>>,
+    textures: Res<TextureAssets<GeneralTexture>>,
     time: Res<Time>,
-    args: Res<Args>,
-    asset_server: Res<AssetServer>,
     audio: Res<Audio>,
-    fire_bullet_events: EventWriter<FireBulletEvent>,
+    channels: Res<AudioChannels>,
+    audio_assets: Res<AudioAssets<Sounds>>,
+    fire_laser_events: EventWriter<FireLaserEvent>,
 ) {
-    let (player, mut player_velocity, mut player_orientation, mut player_transform) =
+    let (player, mut player_velocity, mut player_transform) =
         player_query.get_single_mut().expect("no player to control");
 
-    fire_laser(&kb, fire_bullet_events);
-    turn_player(&kb, &mut player_orientation, &time, &mut player_transform);
+    fire_laser(&kb, fire_laser_events);
+    turn_player(&kb, &time, &mut player_transform);
     accelleration(
         &kb,
-        &player_orientation,
         &time,
         &mut player_velocity,
         &audio,
-        &asset_server,
-        &args,
+        &channels,
+        color_assets,
+        &audio_assets,
         commands,
         &textures,
-        &mut material_assets,
         player_transform,
         player,
         flame_query,
@@ -189,23 +182,22 @@ fn player_controls(
 
 fn accelleration(
     kb: &Input<KeyCode>,
-    player_orientation: &Orientation,
     time: &Time,
     player_velocity: &mut Velocity,
     audio: &Audio,
-    asset_server: &AssetServer,
-    args: &Args,
+    channels: &AudioChannels,
+    color_assets: ResMut<Assets<ColorMaterial>>,
+    audio_assets: &AudioAssets<Sounds>,
     mut commands: Commands,
-    textures: &Textures,
-    mut material_assets: &mut Assets<ColorMaterial>,
+    textures: &TextureAssets<GeneralTexture>,
     player_transform: Mut<Transform>,
     player: Entity,
     flame_query: Query<Entity, With<Flame>>,
 ) {
     if kb.pressed(KeyCode::Up) {
         // accelleration
-        let delta_v = player_orientation
-            .0
+        let delta_v = player_transform
+            .rotation
             .mul_vec3(vec3(0., PLAYER_ACCELLERATION, 0.))
             .truncate()
             * time.delta_seconds();
@@ -213,20 +205,13 @@ fn accelleration(
         **player_velocity = velocity.into();
         if kb.just_pressed(KeyCode::Up) {
             log::trace!("accellerate on");
-            let audio_channel = AudioChannel::new(AUDIO_CHANNEL_THRUSTER.into());
-            audio.set_volume_in_channel(AUDIO_THRUSTER_VOLUME, &audio_channel);
             audio.play_looped_in_channel(
-                asset_server
-                    .load_relative(&AUDIO_THRUSTER, &*args)
+                audio_assets
+                    .get(Sounds::Thruster)
                     .expect("missing laser sound"),
-                &audio_channel,
+                &channels.thruster,
             );
-            let flame = spawn_flame(
-                &mut commands,
-                textures,
-                &mut material_assets,
-                &player_transform,
-            );
+            let flame = spawn_flame(&mut commands, color_assets, textures, &player_transform);
             commands.entity(player).push_children(&[flame]);
         }
     } else {
@@ -237,7 +222,7 @@ fn accelleration(
         **player_velocity = velocity.into();
         if kb.just_released(KeyCode::Up) {
             log::trace!("accellerate off");
-            audio.stop_channel(&AudioChannel::new(AUDIO_CHANNEL_THRUSTER.into()));
+            audio.stop_channel(&AudioChannel::new(Sounds::Thruster.to_string()));
             for flame in flame_query.iter() {
                 commands.entity(flame).despawn();
             }
@@ -245,49 +230,39 @@ fn accelleration(
     }
 }
 
-fn fire_laser(kb: &Input<KeyCode>, mut fire_bullet_events: EventWriter<FireBulletEvent>) {
+fn fire_laser(kb: &Input<KeyCode>, mut fire_laser_events: EventWriter<FireLaserEvent>) {
     if kb.just_pressed(KeyCode::Space) {
         log::debug!("fire!");
-        fire_bullet_events.send(FireBulletEvent);
+        fire_laser_events.send(FireLaserEvent);
     }
 }
 
-fn turn_player(
-    kb: &Input<KeyCode>,
-    player_orientation: &mut Orientation,
-    time: &Time,
-    player_transform: &mut Transform,
-) {
+fn turn_player(kb: &Input<KeyCode>, time: &Time, player_transform: &mut Transform) {
     if kb.pressed(KeyCode::Left) {
-        player_orientation.0 = player_orientation.0.mul_quat(Quat::from_rotation_z(
+        player_transform.rotation = player_transform.rotation.mul_quat(Quat::from_rotation_z(
             PLAYER_TURN_SPEED * time.delta_seconds(),
         ));
     } else if kb.pressed(KeyCode::Right) {
-        player_orientation.0 = player_orientation.0.mul_quat(Quat::from_rotation_z(
+        player_transform.rotation = player_transform.rotation.mul_quat(Quat::from_rotation_z(
             -PLAYER_TURN_SPEED * time.delta_seconds(),
         ));
     }
-    player_transform.rotation = player_orientation.0;
 }
 
 fn spawn_flame(
     commands: &mut Commands,
-    textures: &Textures,
-    material_assets: &mut Assets<ColorMaterial>,
+    mut color_assets: ResMut<Assets<ColorMaterial>>,
+    textures: &TextureAssets<GeneralTexture>,
     player_transform: &Transform,
 ) -> Entity {
-    let texture = textures.flame.clone();
-    let flame_width = textures
-        .get_size(&texture)
-        .expect("no size for flame texture")
-        .x;
+    let texture = textures
+        .get(GeneralTexture::Flame)
+        .expect("no flame texture");
+    let flame_width = texture.size.x as f32;
     let scale = FLAME_WIDTH / flame_width;
     let flame = commands
         .spawn_bundle(SpriteBundle {
-            material: material_assets.add(ColorMaterial::modulated_texture(
-                texture,
-                Color::WHITE.clone(),
-            )),
+            material: color_assets.add(texture.texture.clone().into()),
             transform: Transform {
                 translation: Vec3::new(0., FLAME_RELATIVE_Y, FLAME_RELATIVE_Z)
                     / player_transform.scale,

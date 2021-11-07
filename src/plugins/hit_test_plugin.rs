@@ -1,10 +1,10 @@
-use bevy::prelude::*;
+use bevy::{log, prelude::*};
 use parry2d::bounding_volume::BoundingVolume;
 
 use crate::{
     plugins::{
-        Asteroid, AsteroidShotEvent, Bullet, BulletSpentEvent, InsideWindow, Player,
-        PlayerDeadEvent, RemoveAsteroidEvent,
+        Asteroid, AsteroidShotEvent, InsideWindow, Laser, LaserSpentEvent, Player, PlayerDeadEvent,
+        RemoveAsteroidEvent,
     },
     Bounds, GameState,
 };
@@ -15,6 +15,7 @@ impl Plugin for HitTestPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::on_update(GameState::InGame)
+                .label("hit-test")
                 .with_system(shot_hit_asteroid.system())
                 .with_system(asteroid_hit_player.system()),
         );
@@ -22,20 +23,21 @@ impl Plugin for HitTestPlugin {
 }
 
 fn shot_hit_asteroid(
-    bullet_query: Query<(Entity, &Bounds), With<Bullet>>,
+    laser_query: Query<(Entity, &Bounds), With<Laser>>,
     asteroids_query: Query<(Entity, &Bounds), (With<Asteroid>, With<InsideWindow>)>,
     mut asteroid_shot_events: EventWriter<AsteroidShotEvent>,
-    mut bullet_spent_events: EventWriter<BulletSpentEvent>,
+    mut laser_spent_events: EventWriter<LaserSpentEvent>,
 ) {
-    'bullet: for (bullet_entity, bullet_bounds) in bullet_query.iter() {
+    'laser: for (laser_entity, laser_bounds) in laser_query.iter() {
         for (asteroid, asteroid_bounds) in asteroids_query.iter() {
-            if bullet_bounds
+            if laser_bounds
                 .as_sphere()
                 .intersects(&asteroid_bounds.as_sphere())
             {
+                log::info!(?asteroid, "laser hit asteroid");
                 asteroid_shot_events.send(AsteroidShotEvent::new(asteroid));
-                bullet_spent_events.send(BulletSpentEvent::new(bullet_entity));
-                continue 'bullet;
+                laser_spent_events.send(LaserSpentEvent::new(laser_entity));
+                continue 'laser;
             }
         }
     }

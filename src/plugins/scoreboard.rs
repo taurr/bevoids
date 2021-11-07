@@ -2,9 +2,8 @@ use bevy::prelude::*;
 use derive_more::{AsMut, AsRef, Display};
 
 use crate::{
-    assets::LoadRelative,
     text::{AsText, TextAttr},
-    Args, GameState,
+    GameState,
 };
 
 pub struct ScoreBoardPlugin;
@@ -36,16 +35,13 @@ impl Plugin for ScoreBoardPlugin {
 fn enter_ingame_scoreboard(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    args: Res<Args>,
     query: Query<Entity, With<ScoreBoard>>,
 ) {
     // remove any old remnants
     query.iter().for_each(|e| commands.entity(e).despawn());
 
     // create a fresh scoreboard
-    let font = asset_server
-        .load_relative(&"fonts/FiraMono-Medium.ttf", &*args)
-        .expect("missing font");
+    let font = asset_server.load("fonts/FiraMono-Medium.ttf");
     let board = ScoreBoard { score: 0 };
     let textattr = TextAttr {
         alignment: TextAlignment {

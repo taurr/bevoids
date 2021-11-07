@@ -1,11 +1,20 @@
 use std::f32::consts::PI;
 
-use bevy::prelude::*;
+use bevy::{app::Events, prelude::*, window::WindowResized};
 use derive_more::AsRef;
 use parry2d::{
     bounding_volume::{BoundingSphere, AABB},
     math::Point,
 };
+
+pub struct BoundsPlugin;
+
+impl Plugin for BoundsPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_startup_system_to_stage(StartupStage::PostStartup, initialize_window_bounds)
+            .add_system(resized.system());
+    }
+}
 
 #[derive(Debug, Component, Copy, Clone, AsRef)]
 pub struct Bounds {
@@ -63,5 +72,17 @@ impl Bounds {
         let ext = aabb.half_extents();
         let radius = f32::cos(PI / 4.0) * (ext.x + ext.y) / 2.;
         BoundingSphere::new(aabb.center(), radius)
+    }
+}
+
+fn initialize_window_bounds(mut commands: Commands, mut windows: ResMut<Windows>) {
+    let window = windows.get_primary_mut().unwrap();
+    commands.insert_resource(Bounds::from_window(window));
+}
+
+fn resized(resize_event: Res<Events<WindowResized>>, mut bounds: ResMut<Bounds>) {
+    let mut reader = resize_event.get_reader();
+    for e in reader.iter(&resize_event) {
+        *bounds = Bounds::from_pos_and_size(Vec2::ZERO, Vec2::new(e.width, e.height));
     }
 }

@@ -2,9 +2,8 @@ use bevy::prelude::*;
 use derive_more::Display;
 
 use crate::{
-    assets::LoadRelative,
     text::{AsText, TextAttr},
-    Args, GameState,
+    GameState,
 };
 
 pub struct GameOverPlugin;
@@ -34,10 +33,8 @@ impl Plugin for GameOverPlugin {
     }
 }
 
-fn init_gameover_texts(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>) {
-    let font = asset_server
-        .load_relative(&"fonts/FiraSans-Bold.ttf", &*args)
-        .expect("missing font");
+fn init_gameover_texts(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
 
     let gameover = GameOverText;
     let gameover_textattr = TextAttr {

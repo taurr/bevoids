@@ -62,9 +62,14 @@ impl Plugin for FadeDespawnPlugin {
         app.add_system_to_stage(
             CoreStage::PostUpdate,
             despawn.system().label("system_despawn"),
-        )
-        .add_system(delayed_fade_despawn.system().before("system_despawn"))
-        .add_system(fade_despawn.system().before("system_despawn"));
+        );
+        app.add_system_set_to_stage(
+            CoreStage::PostUpdate,
+            SystemSet::new()
+                .before("system_despawn")
+                .with_system(delayed_fade_despawn)
+                .with_system(fade_despawn),
+        );
     }
 }
 
@@ -103,7 +108,7 @@ fn fade_despawn(
         fadeout.value =
             (fadeout.value - (1.0 / fadeout.speed) * time.delta_seconds()).clamp(0., 1.);
 
-        if fadeout.value <= 0. {
+        if fadeout.value <= 0.01 {
             log::trace!(?entity, "faded");
             if let Some(material) = color_material_assets.get_mut(material_handle) {
                 material.color.set_a(1.);

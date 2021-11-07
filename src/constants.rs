@@ -16,8 +16,6 @@ pub(crate) const ASTEROID_SPLIT_SIZE_RATIO: f32 = 2. / 3.;
 
 pub(crate) const ASTEROIDS_PLAYER_SPAWN_DISTANCE: f32 = 200.;
 
-pub(crate) const ASTEROIDS_MAX_ACTIVE: usize = 500;
-
 pub(crate) const ASTEROID_Z_MIN: f32 = 100.;
 
 pub(crate) const ASTEROID_Z_MAX: f32 = 200.;
@@ -30,19 +28,17 @@ pub(crate) const ASTEROID_MIN_SPEED: f32 = 25.;
 
 pub(crate) const ASTEROID_MAX_SPEED: f32 = 125.;
 
-pub(crate) const ASTEROID_FADEOUT_SECONDS: f32 = 0.20;
+pub(crate) const LASER_PLAYER_RELATIVE_Z: f32 = -1.;
 
-pub(crate) const BULLET_PLAYER_RELATIVE_Z: f32 = -1.;
+pub(crate) const LASER_PLAYER_RELATIVE_Y: f32 = 20.;
 
-pub(crate) const BULLET_PLAYER_RELATIVE_Y: f32 = 20.;
+pub(crate) const LASER_MAX_SIZE: f32 = 25.;
 
-pub(crate) const BULLET_MAX_SIZE: f32 = 25.;
+pub(crate) const LASER_SPEED: f32 = 500.;
 
-pub(crate) const BULLET_SPEED: f32 = 500.;
+pub(crate) const LASER_LIFETIME_SECONDS: f32 = 1.5;
 
-pub(crate) const BULLET_LIFETIME_SECONDS: f32 = 1.5;
-
-pub(crate) const BULLET_FADEOUT_SECONDS: f32 = 0.25;
+pub(crate) const LASER_FADEOUT_SECONDS: f32 = 0.25;
 
 pub(crate) const FLAME_RELATIVE_Z: f32 = -10.;
 
@@ -64,17 +60,7 @@ pub(crate) const PLAYER_START_SPEED: f32 = 200.;
 
 pub(crate) const PLAYER_MAX_SPEED: f32 = 800.;
 
-pub(crate) const PLAYER_FADEOUT_SECONDS: f32 = 0.5;
-
-pub(crate) const AUDIO_LASER: &str = "sounds/laser.wav";
-pub(crate) const AUDIO_CHANNEL_LASER: &str = "laser";
-pub(crate) const AUDIO_LASER_VOLUME: f32 = 1.0;
-pub(crate) const AUDIO_THRUSTER: &str = "sounds/thruster.wav";
-pub(crate) const AUDIO_CHANNEL_THRUSTER: &str = "thruster";
-pub(crate) const AUDIO_THRUSTER_VOLUME: f32 = 0.5;
-pub(crate) const AUDIO_EXPLOSION_SHIP: &str = "sounds/ship_explode.wav";
-pub(crate) const AUDIO_CHANNEL_EXPLOSION_SHIP: &str = "ship";
+pub(crate) const AUDIO_LASER_VOLUME: f32 = 0.6;
+pub(crate) const AUDIO_THRUSTER_VOLUME: f32 = 0.4;
 pub(crate) const AUDIO_EXPLOSION_SHIP_VOLUME: f32 = 1.0;
-pub(crate) const AUDIO_EXPLOSION_ASTEROID: &str = "sounds/asteroid_explode.wav";
-pub(crate) const AUDIO_CHANNEL_EXPLOSION_ASTEROID: &str = "asteroid";
-pub(crate) const AUDIO_EXPLOSION_ASTEROID_VOLUME: f32 = 1.0;
+pub(crate) const AUDIO_EXPLOSION_ASTEROID_VOLUME: f32 = 0.8;

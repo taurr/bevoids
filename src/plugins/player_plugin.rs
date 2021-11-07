@@ -238,14 +238,21 @@ fn fire_laser(kb: &Input<KeyCode>, mut fire_laser_events: EventWriter<FireLaserE
 }
 
 fn turn_player(kb: &Input<KeyCode>, time: &Time, player_transform: &mut Transform) {
+    let speed = if kb.pressed(KeyCode::RControl) {
+        PLAYER_TURN_SPEED_FAST
+    } else {
+        PLAYER_TURN_SPEED_SLOW
+    };
+    log::info!(speed);
+
     if kb.pressed(KeyCode::Left) {
-        player_transform.rotation = player_transform.rotation.mul_quat(Quat::from_rotation_z(
-            PLAYER_TURN_SPEED * time.delta_seconds(),
-        ));
+        player_transform.rotation = player_transform
+            .rotation
+            .mul_quat(Quat::from_rotation_z(speed * time.delta_seconds()));
     } else if kb.pressed(KeyCode::Right) {
-        player_transform.rotation = player_transform.rotation.mul_quat(Quat::from_rotation_z(
-            -PLAYER_TURN_SPEED * time.delta_seconds(),
-        ));
+        player_transform.rotation = player_transform
+            .rotation
+            .mul_quat(Quat::from_rotation_z(-speed * time.delta_seconds()));
     }
 }
 

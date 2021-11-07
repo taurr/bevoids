@@ -50,7 +50,8 @@ pub(crate) const PLAYER_Z: f32 = 900.;
 
 pub(crate) const PLAYER_MAX_SIZE: f32 = 50.;
 
-pub(crate) const PLAYER_TURN_SPEED: f32 = 1.5 * PI;
+pub(crate) const PLAYER_TURN_SPEED_SLOW: f32 = 0.75 * PI;
+pub(crate) const PLAYER_TURN_SPEED_FAST: f32 = 1.5 * PI;
 
 pub(crate) const PLAYER_ACCELLERATION: f32 = 250.;
 

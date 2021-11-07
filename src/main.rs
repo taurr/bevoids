@@ -34,7 +34,6 @@ struct Args {
     assets: Option<SmolStr>,
 }
 
-// TODO: use modifier to alter turn speed of player
 // TODO: menu state: display menu before starting the game
 
 #[derive(Debug, Display, Copy, Clone, Eq, PartialEq, Hash)]

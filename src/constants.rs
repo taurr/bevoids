@@ -1,11 +1,15 @@
 use std::f32::consts::PI;
 
+pub(crate) const ANIMATION_FPS: f32 = 30.;
+
 pub(crate) const WIN_WIDTH: f32 = 1024.;
 
 pub(crate) const WIN_HEIGHT: f32 = 800.;
 
 pub(crate) const DIFFICULTY_RAISER_TIMESTEP: f64 = 20.;
+
 pub(crate) const DIFFICULTY_RAISER_SPAWN_DELAY_MULTIPLIER: f32 = 0.95;
+
 pub(crate) const ASTEROID_START_SPAWN_DELAY: f32 = 15.;
 
 pub(crate) const ASTEROID_MAX_SCORE: f32 = 100.;
@@ -36,7 +40,7 @@ pub(crate) const LASER_MAX_SIZE: f32 = 25.;
 
 pub(crate) const LASER_SPEED: f32 = 500.;
 
-pub(crate) const LASER_LIFETIME_SECONDS: f32 = 1.5;
+pub(crate) const LASER_LIFETIME_SECONDS: f32 = 1.;
 
 pub(crate) const LASER_FADEOUT_SECONDS: f32 = 0.25;
 
@@ -51,6 +55,7 @@ pub(crate) const PLAYER_Z: f32 = 900.;
 pub(crate) const PLAYER_MAX_SIZE: f32 = 50.;
 
 pub(crate) const PLAYER_TURN_SPEED_SLOW: f32 = 0.75 * PI;
+
 pub(crate) const PLAYER_TURN_SPEED_FAST: f32 = 1.5 * PI;
 
 pub(crate) const PLAYER_ACCELLERATION: f32 = 250.;
@@ -62,6 +67,9 @@ pub(crate) const PLAYER_START_SPEED: f32 = 200.;
 pub(crate) const PLAYER_MAX_SPEED: f32 = 800.;
 
 pub(crate) const AUDIO_LASER_VOLUME: f32 = 0.6;
+
 pub(crate) const AUDIO_THRUSTER_VOLUME: f32 = 0.4;
+
 pub(crate) const AUDIO_EXPLOSION_SHIP_VOLUME: f32 = 1.0;
+
 pub(crate) const AUDIO_EXPLOSION_ASTEROID_VOLUME: f32 = 0.8;

@@ -1,13 +1,13 @@
 use bevy::{log, math::vec3, prelude::*};
-use bevy_kira_audio::Audio;
 use derive_more::{Constructor, Deref};
 use std::{f32::consts::PI, time::Duration};
 
 use crate::{
     constants::*,
+    effects::{PlaySfx, SfxCmdEvent},
     plugins::{DelayedFadeDespawn, Despawn, Player, ShadowController, Velocity},
-    resources::{AudioAssets, Bounds, TextureAssets},
-    AudioChannels, GameState, GeneralTexture, Sounds,
+    resources::{Bounds, TextureAssetMap},
+    GameState, GeneralTexture, SoundEffect,
 };
 
 pub struct LaserPlugin;
@@ -30,9 +30,8 @@ impl Plugin for LaserPlugin {
 
         app.add_system_set(
             SystemSet::on_update(GameState::InGame)
-                .with_system(play_sound_on_fire.system())
-                .with_system(fire_laser.system())
-                .with_system(spend_laser.system()),
+                .with_system(fire_laser)
+                .with_system(spend_laser),
         );
     }
 }
@@ -49,28 +48,14 @@ fn spend_laser(
     }
 }
 
-fn play_sound_on_fire(
-    mut events: EventReader<FireLaserEvent>,
-    channels: Res<AudioChannels>,
-    audio_assets: Res<AudioAssets<Sounds>>,
-    audio: Res<Audio>,
-) {
-    for _ in events.iter() {
-        audio.play_in_channel(
-            audio_assets
-                .get(Sounds::Laser)
-                .expect("missing laser sound"),
-            &channels.laser,
-        );
-    }
-}
-
 fn fire_laser(
     mut commands: Commands,
     mut events: EventReader<FireLaserEvent>,
+    mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
     mut material_assets: ResMut<Assets<ColorMaterial>>,
     player_query: Query<(&Transform, &Velocity), (With<Player>, With<ShadowController>)>,
-    textures: Res<TextureAssets<GeneralTexture>>,
+    textures: Res<TextureAssetMap<GeneralTexture>>,
+    bounds: Res<Bounds>,
 ) {
     for _ in events.iter() {
         let (
@@ -118,16 +103,18 @@ fn fire_laser(
             .insert(Laser)
             .insert(velocity)
             .insert(Bounds::from_pos_and_size(position.truncate(), size))
-            .insert(
-                DelayedFadeDespawn::new(
-                    Duration::from_secs_f32(LASER_LIFETIME_SECONDS),
-                    Duration::from_secs_f32(LASER_FADEOUT_SECONDS),
-                )
-                .before_fading(|cmds| {
-                    cmds.remove::<Laser>();
-                }),
-            )
+            .insert(DelayedFadeDespawn::new(
+                Duration::from_secs_f32(LASER_LIFETIME_SECONDS),
+                Duration::from_secs_f32(LASER_FADEOUT_SECONDS),
+            ))
             .id();
+
+        let panning = (position.x + bounds.width() / 2.) / bounds.width();
+        sfx_event.send(
+            PlaySfx::new(SoundEffect::Laser)
+                .with_panning(panning)
+                .into(),
+        );
         log::debug!(buller=?laser_id, "spawned laser");
     }
 }

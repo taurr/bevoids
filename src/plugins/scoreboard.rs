@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use derive_more::{AsMut, AsRef, Display};
 
 use crate::{
-    text::{AsText, TextAttr},
+    text::{AsTextWithAttr, TextAttr},
     GameState,
 };
 
@@ -20,15 +20,12 @@ impl Plugin for ScoreBoardPlugin {
         app.register_type::<ScoreBoard>();
 
         app.add_system_set(
-            SystemSet::on_enter(GameState::InGame).with_system(enter_ingame_scoreboard.system()),
+            SystemSet::on_enter(GameState::InGame).with_system(enter_ingame_scoreboard),
         );
         app.add_system_set(
-            SystemSet::on_enter(GameState::GameOver)
-                .with_system(enter_gameover_scoreboard.system()),
+            SystemSet::on_enter(GameState::GameOver).with_system(enter_gameover_scoreboard),
         );
-        app.add_system_set(
-            SystemSet::on_update(GameState::InGame).with_system(update_scoreboard.system()),
-        );
+        app.add_system_set(SystemSet::on_update(GameState::InGame).with_system(update_scoreboard));
     }
 }
 
@@ -56,7 +53,7 @@ fn enter_ingame_scoreboard(
     };
     commands
         .spawn_bundle(Text2dBundle {
-            text: board.as_text(&textattr),
+            text: board.as_text_with_attr(textattr.clone()),
             transform: Transform {
                 translation: Vec3::new(0., 0., 0.),
                 ..Transform::default()
@@ -74,7 +71,9 @@ fn enter_gameover_scoreboard(
     for (e, board, mut tf, mut textattr) in query.iter_mut() {
         tf.translation = Vec3::new(0., 0., 800.);
         textattr.style.color = Color::WHITE;
-        commands.entity(e).insert(board.as_text(&textattr));
+        commands
+            .entity(e)
+            .insert(board.as_text_with_attr(textattr.clone()));
     }
 }
 
@@ -83,6 +82,8 @@ fn update_scoreboard(
     query: Query<(Entity, &ScoreBoard, &TextAttr), Changed<ScoreBoard>>,
 ) {
     for (e, board, textattr) in query.iter() {
-        commands.entity(e).insert(board.as_text(textattr));
+        commands
+            .entity(e)
+            .insert(board.as_text_with_attr(textattr.clone()));
     }
 }

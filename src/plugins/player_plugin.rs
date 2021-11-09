@@ -1,15 +1,15 @@
 use bevy::{ecs::system::EntityCommands, log, math::vec3, prelude::*};
-use bevy_kira_audio::{Audio, AudioChannel};
 use rand::Rng;
 use std::f32::consts::PI;
 
 use crate::{
     constants::*,
+    effects::{AnimationEffect, LoopSfx, PlaySfx, SetPanSfx, SfxCmdEvent, StopSfx},
     plugins::{
         spawn_display_shadows, Despawn, FireLaserEvent, InsideWindow, ShadowController, Velocity,
     },
-    resources::{AudioAssets, Bounds, TextureAssets},
-    Animations, AudioChannels, GameState, GeneralTexture, Sounds, StartSingleAnimation,
+    resources::{Bounds, TextureAssetMap},
+    Animation, GameState, GeneralTexture, SoundEffect,
 };
 
 pub struct PlayerPlugin;
@@ -29,60 +29,51 @@ impl Plugin for PlayerPlugin {
 
         app.register_type::<Player>().register_type::<Flame>();
 
-        app.add_system_set(
-            SystemSet::on_enter(GameState::InGame).with_system(player_spawn.system()),
-        );
+        app.add_system_set(SystemSet::on_enter(GameState::InGame).with_system(player_spawn));
 
         app.add_system_set(
             SystemSet::on_update(GameState::InGame)
-                .with_system(player_dead_gameover.system())
-                .with_system(player_dead_sound.system())
-                .with_system(player_controls.system()),
+                .with_system(player_dead_gameover)
+                .with_system(player_controls),
         );
 
-        app.add_system_set(SystemSet::on_exit(GameState::InGame).with_system(exit_ingame.system()));
+        app.add_system_set(SystemSet::on_exit(GameState::InGame).with_system(exit_ingame));
     }
 }
 
 fn player_dead_gameover(
     mut events: EventReader<PlayerDeadEvent>,
-    mut anim_events: EventWriter<StartSingleAnimation>,
-    player_query: Query<(Entity, &Transform, &Bounds), With<Player>>,
+    mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
+    mut anim_effect_event: EventWriter<AnimationEffect<Animation>>,
+    player_query: Query<(Entity, &Transform, &Bounds), (With<Player>, With<ShadowController>)>,
     mut commands: Commands,
     mut state: ResMut<State<GameState>>,
+    win_bounds: Res<Bounds>,
 ) {
     for _ in events.iter() {
-        log::warn!("player dead");
-        player_query.iter().for_each(|x| {
-            anim_events.send(StartSingleAnimation {
-                key: Animations::BigExplosion,
-                position: x.1.translation,
-                size: x.2.size().max_element(),
+        for (player, transform, bounds) in player_query.iter() {
+            let panning = (transform.translation.x + win_bounds.width() / 2.) / win_bounds.width();
+            sfx_event.send(
+                PlaySfx::new(SoundEffect::ShipExplode)
+                    .with_panning(panning)
+                    .into(),
+            );
+
+            anim_effect_event.send(AnimationEffect {
+                key: Animation::BigExplosion,
+                position: transform.translation,
+                size: bounds.size().max_element(),
+                fps: ANIMATION_FPS,
             });
+            log::warn!(?player, "player dead");
             commands
-                .entity(x.0)
+                .entity(player)
                 .remove::<Player>()
                 .remove::<Velocity>()
                 .insert(Despawn);
-        });
+        }
 
         state.set(GameState::GameOver).unwrap();
-    }
-}
-
-fn player_dead_sound(
-    mut events: EventReader<PlayerDeadEvent>,
-    channels: Res<AudioChannels>,
-    audio_assets: Res<AudioAssets<Sounds>>,
-    audio: Res<Audio>,
-) {
-    for _ in events.iter() {
-        audio.play_in_channel(
-            audio_assets
-                .get(Sounds::ShipExplode)
-                .expect("missing laser sound"),
-            &channels.ship_explode,
-        );
     }
 }
 
@@ -90,7 +81,7 @@ fn player_spawn(
     mut commands: Commands,
     mut color_assets: ResMut<Assets<ColorMaterial>>,
     window_bounds: Res<Bounds>,
-    textures: Res<TextureAssets<GeneralTexture>>,
+    texture_asset_map: Res<TextureAssetMap<GeneralTexture>>,
 ) {
     let mut rng = rand::thread_rng();
 
@@ -100,7 +91,7 @@ fn player_spawn(
     );
     let player_position_vec3 = player_position_vec2.extend(PLAYER_Z);
 
-    let spaceship_texture = textures
+    let spaceship_texture = texture_asset_map
         .get(GeneralTexture::Spaceship)
         .expect("no texture for spaceship");
     let texture_size = spaceship_texture.size;
@@ -142,57 +133,54 @@ fn player_spawn(
     log::info!(player=?player_id, "player spawned");
 }
 
-fn exit_ingame(audio: Res<Audio>) {
-    audio.stop_channel(&AudioChannel::new(Sounds::Thruster.to_string()));
+fn exit_ingame(mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>) {
+    sfx_event.send(StopSfx::new(SoundEffect::Thruster).into());
 }
 
 fn player_controls(
     commands: Commands,
     kb: Res<Input<KeyCode>>,
-    color_assets: ResMut<Assets<ColorMaterial>>,
+    sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
+    fire_laser_event: EventWriter<FireLaserEvent>,
     mut player_query: Query<(Entity, &mut Velocity, &mut Transform), With<Player>>,
     flame_query: Query<Entity, With<Flame>>,
-    textures: Res<TextureAssets<GeneralTexture>>,
+    mut color_assets: ResMut<Assets<ColorMaterial>>,
+    texture_asset_map: Res<TextureAssetMap<GeneralTexture>>,
     time: Res<Time>,
-    audio: Res<Audio>,
-    channels: Res<AudioChannels>,
-    audio_assets: Res<AudioAssets<Sounds>>,
-    fire_laser_events: EventWriter<FireLaserEvent>,
+    bounds: Res<Bounds>,
 ) {
     let (player, mut player_velocity, mut player_transform) =
         player_query.get_single_mut().expect("no player to control");
 
-    fire_laser(&kb, fire_laser_events);
+    fire_laser(&kb, fire_laser_event);
     turn_player(&kb, &time, &mut player_transform);
     accelleration(
         &kb,
-        &time,
-        &mut player_velocity,
-        &audio,
-        &channels,
-        color_assets,
-        &audio_assets,
-        commands,
-        &textures,
-        player_transform,
         player,
+        &mut player_velocity,
+        &player_transform,
+        sfx_event,
+        &time,
+        commands,
         flame_query,
+        &mut color_assets,
+        &texture_asset_map,
+        &bounds,
     );
 }
 
 fn accelleration(
     kb: &Input<KeyCode>,
-    time: &Time,
-    player_velocity: &mut Velocity,
-    audio: &Audio,
-    channels: &AudioChannels,
-    color_assets: ResMut<Assets<ColorMaterial>>,
-    audio_assets: &AudioAssets<Sounds>,
-    mut commands: Commands,
-    textures: &TextureAssets<GeneralTexture>,
-    player_transform: Mut<Transform>,
     player: Entity,
+    player_velocity: &mut Velocity,
+    player_transform: &Transform,
+    mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
+    time: &Time,
+    mut commands: Commands,
     flame_query: Query<Entity, With<Flame>>,
+    color_assets: &mut Assets<ColorMaterial>,
+    texture_asset_map: &TextureAssetMap<GeneralTexture>,
+    bounds: &Bounds,
 ) {
     if kb.pressed(KeyCode::Up) {
         // accelleration
@@ -203,16 +191,23 @@ fn accelleration(
             * time.delta_seconds();
         let velocity = (Vec2::from(*player_velocity) + delta_v).clamp_length(0., PLAYER_MAX_SPEED);
         **player_velocity = velocity.into();
+        let panning = (player_transform.translation.x + bounds.width() / 2.) / bounds.width();
         if kb.just_pressed(KeyCode::Up) {
             log::trace!("accellerate on");
-            audio.play_looped_in_channel(
-                audio_assets
-                    .get(Sounds::Thruster)
-                    .expect("missing laser sound"),
-                &channels.thruster,
+            sfx_event.send(
+                LoopSfx::new(SoundEffect::Thruster)
+                    .with_panning(panning)
+                    .into(),
             );
-            let flame = spawn_flame(&mut commands, color_assets, textures, &player_transform);
+            let flame = spawn_flame(
+                &mut commands,
+                color_assets,
+                texture_asset_map,
+                player_transform,
+            );
             commands.entity(player).push_children(&[flame]);
+        } else {
+            sfx_event.send(SetPanSfx::new(SoundEffect::Thruster, panning).into());
         }
     } else {
         // decellerate
@@ -222,7 +217,7 @@ fn accelleration(
         **player_velocity = velocity.into();
         if kb.just_released(KeyCode::Up) {
             log::trace!("accellerate off");
-            audio.stop_channel(&AudioChannel::new(Sounds::Thruster.to_string()));
+            sfx_event.send(StopSfx::new(SoundEffect::Thruster).into());
             for flame in flame_query.iter() {
                 commands.entity(flame).despawn();
             }
@@ -243,7 +238,6 @@ fn turn_player(kb: &Input<KeyCode>, time: &Time, player_transform: &mut Transfor
     } else {
         PLAYER_TURN_SPEED_SLOW
     };
-    log::info!(speed);
 
     if kb.pressed(KeyCode::Left) {
         player_transform.rotation = player_transform
@@ -258,8 +252,8 @@ fn turn_player(kb: &Input<KeyCode>, time: &Time, player_transform: &mut Transfor
 
 fn spawn_flame(
     commands: &mut Commands,
-    mut color_assets: ResMut<Assets<ColorMaterial>>,
-    textures: &TextureAssets<GeneralTexture>,
+    color_assets: &mut Assets<ColorMaterial>,
+    textures: &TextureAssetMap<GeneralTexture>,
     player_transform: &Transform,
 ) -> Entity {
     let texture = textures

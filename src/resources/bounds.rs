@@ -12,7 +12,7 @@ pub struct BoundsPlugin;
 impl Plugin for BoundsPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system_to_stage(StartupStage::PostStartup, initialize_window_bounds)
-            .add_system(resized.system());
+            .add_system(resized);
     }
 }
 

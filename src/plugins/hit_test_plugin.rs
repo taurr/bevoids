@@ -16,8 +16,8 @@ impl Plugin for HitTestPlugin {
         app.add_system_set(
             SystemSet::on_update(GameState::InGame)
                 .label("hit-test")
-                .with_system(shot_hit_asteroid.system())
-                .with_system(asteroid_hit_player.system()),
+                .with_system(shot_hit_asteroid)
+                .with_system(asteroid_hit_player),
         );
     }
 }

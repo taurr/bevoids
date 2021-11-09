@@ -38,6 +38,7 @@ impl FadeDespawn {
 }
 
 impl DelayedFadeDespawn {
+    #[allow(dead_code)]
     pub fn new(delay: Duration, fade: Duration) -> Self {
         Self {
             timer: Timer::new(delay, false),
@@ -45,6 +46,8 @@ impl DelayedFadeDespawn {
             func: None,
         }
     }
+
+    #[allow(dead_code)]
     pub fn before_fading<F>(mut self, func: F) -> Self
     where
         F: FnOnce(&mut EntityCommands) + Send + Sync + 'static,

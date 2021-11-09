@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use derive_more::Display;
 
 use crate::{
-    text::{AsText, TextAttr},
+    text::{AsTextWithAttr, TextAttr},
     GameState,
 };
 
@@ -19,16 +19,13 @@ struct PressReturnText;
 impl Plugin for GameOverPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
-            SystemSet::on_enter(GameState::GameOver).with_system(init_gameover_texts.system()),
+            SystemSet::on_enter(GameState::GameOver).with_system(init_gameover_texts),
         );
 
-        app.add_system_set(
-            SystemSet::on_update(GameState::GameOver).with_system(restart_on_enter.system()),
-        );
+        app.add_system_set(SystemSet::on_update(GameState::GameOver).with_system(restart_on_enter));
 
         app.add_system_set(
-            SystemSet::on_exit(GameState::GameOver)
-                .with_system(remove_texts_on_exit_gameover.system()),
+            SystemSet::on_exit(GameState::GameOver).with_system(remove_texts_on_exit_gameover),
         );
     }
 }
@@ -50,15 +47,14 @@ fn init_gameover_texts(mut commands: Commands, asset_server: Res<AssetServer>) {
     };
     commands
         .spawn_bundle(Text2dBundle {
-            text: gameover.as_text(&gameover_textattr),
+            text: gameover.as_text_with_attr(gameover_textattr),
             transform: Transform {
                 translation: Vec3::new(0., 75., 900.),
                 ..Transform::default()
             },
             ..Default::default()
         })
-        .insert(gameover)
-        .insert(gameover_textattr);
+        .insert(gameover);
 
     let pressreturn = PressReturnText;
     let pressreturn_textattr = TextAttr {
@@ -74,15 +70,14 @@ fn init_gameover_texts(mut commands: Commands, asset_server: Res<AssetServer>) {
     };
     commands
         .spawn_bundle(Text2dBundle {
-            text: pressreturn.as_text(&pressreturn_textattr),
+            text: pressreturn.as_text_with_attr(pressreturn_textattr),
             transform: Transform {
                 translation: Vec3::new(0., -75., 900.),
                 ..Transform::default()
             },
             ..Default::default()
         })
-        .insert(pressreturn)
-        .insert(pressreturn_textattr);
+        .insert(pressreturn);
 }
 
 fn remove_texts_on_exit_gameover(

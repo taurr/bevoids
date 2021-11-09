@@ -5,100 +5,103 @@ use std::path::PathBuf;
 pub type Size = UVec2;
 
 #[derive(Debug)]
-pub struct TextureAtlasAssetsPlugin<KEY> {
-    _marker: std::marker::PhantomData<KEY>,
+pub struct AtlasAssetMapPlugin<KEY>(std::marker::PhantomData<KEY>);
+
+/// Resource for keeping track of a number of textures.
+#[derive(Debug)]
+pub struct AtlasAssetMap<KEY>(Vec<AtlasMapEntry<KEY>>);
+
+/// Information on a tracked texture. Can be retrieved through the [AtlasAssetMap] resource,
+/// or received as an event.
+#[derive(Debug, Clone)]
+pub struct AtlasAssetInfo<KEY> {
+    pub key: KEY,
+    pub atlas: Handle<TextureAtlas>,
+    pub texture: Handle<Texture>,
+    pub tile_size: Vec2,
+    pub definition: AtlasDefinition,
+}
+
+/// Insert as a resource to make the [AtlasAssetMapPlugin] load/create textures and collect sizes during startup.
+#[derive(Debug, Clone)]
+pub struct TextureAtlasPaths<KEY> {
+    keys_and_paths: Vec<(KEY, SmolStr, AtlasDefinition)>,
+    base_path: Option<SmolStr>,
 }
 
 #[derive(Debug, Clone)]
-pub enum AtlasDef {
+pub enum AtlasDefinition {
     Grid { columns: usize, rows: usize },
 }
 
-/// Insert as a resource to make the [TextureAssetsPlugin] load textures and collect sizes during startup.
 #[derive(Debug, Clone)]
-pub struct TextureAtlasPaths<KEY> {
-    base_path: Option<SmolStr>,
-    keys_and_paths: Vec<(KEY, SmolStr, AtlasDef)>,
-}
-
-#[derive(Debug, Clone)]
-enum TextureAtlasInfo<KEY> {
+enum AtlasMapEntry<KEY> {
     Loading {
         key: KEY,
         texture: Handle<Texture>,
-        columns_rows: AtlasDef,
+        definition: AtlasDefinition,
     },
-    Loaded(TextureAtlasAssetInfo<KEY>),
+    Loaded(AtlasAssetInfo<KEY>),
 }
 
-/// Resouce for keeping track of a number of textures.
-#[derive(Debug, Clone)]
-pub struct TextureAtlasAssets<KEY>(Vec<TextureAtlasInfo<KEY>>);
-
-/// Information on a tracked texture. Can be retrieved through the [TextureAssets] resource,
-/// or received as an event.
-#[derive(Debug, Clone)]
-pub struct TextureAtlasAssetInfo<KEY> {
-    pub key: KEY,
-    pub size: Vec2,
-    pub texture: Handle<Texture>,
-    pub atlas: Handle<TextureAtlas>,
-    pub columns_rows: AtlasDef,
-}
-
-impl<KEY> Default for TextureAtlasAssetsPlugin<KEY> {
-    fn default() -> Self {
-        Self {
-            _marker: Default::default(),
-        }
-    }
-}
-
-impl<KEY> TextureAtlasPaths<KEY> {
-    #[allow(dead_code)]
-    pub fn from_files<TP, T>(paths: T) -> Self
-    where
-        TP: Into<SmolStr>,
-        T: IntoIterator<Item = (KEY, TP, AtlasDef)>,
-    {
-        Self {
-            base_path: None,
-            keys_and_paths: paths
-                .into_iter()
-                .map(|(key, value, columns_rows)| (key, value.into(), columns_rows))
-                .collect(),
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn from_path_and_files<P, TP, T>(base_path: Option<P>, paths: T) -> Self
-    where
-        P: Into<SmolStr>,
-        TP: Into<SmolStr>,
-        T: IntoIterator<Item = (KEY, TP, AtlasDef)>,
-    {
-        Self {
-            base_path: base_path.map(|p| p.into()),
-            keys_and_paths: paths
-                .into_iter()
-                .map(|(key, value, columns_rows)| (key, value.into(), columns_rows))
-                .collect(),
-        }
-    }
-}
-
-impl<KEY> Default for TextureAtlasAssets<KEY> {
+impl<KEY> Default for AtlasAssetMapPlugin<KEY> {
     fn default() -> Self {
         Self(Default::default())
     }
 }
 
-impl<KEY> TextureAtlasAssets<KEY>
+impl<KEY> Plugin for AtlasAssetMapPlugin<KEY>
 where
-    KEY: Copy + Eq + Sync + Send,
+    KEY: 'static + core::fmt::Debug + Clone + Eq + Sync + Send,
+{
+    #[allow(dead_code)]
+    fn build(&self, app: &mut App) {
+        app.add_event::<AtlasAssetInfo<KEY>>()
+            .add_startup_system(load_texture_atlas_assets::<KEY>)
+            .add_system(monitor_texture_atlas_assets::<KEY>);
+    }
+}
+
+impl<KEY> TextureAtlasPaths<KEY> {
+    #[allow(dead_code)]
+    pub fn from_files<T, TP>(paths: T) -> Self
+    where
+        T: IntoIterator<Item = (KEY, TP, AtlasDefinition)>,
+        TP: Into<SmolStr>,
+    {
+        Self {
+            keys_and_paths: paths
+                .into_iter()
+                .map(|(key, value, columns_rows)| (key, value.into(), columns_rows))
+                .collect(),
+            base_path: None,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn with_base_path<P>(mut self, base_path: Option<P>) -> Self
+    where
+        P: Into<SmolStr>,
+    {
+        if let Some(base_path) = base_path {
+            self.base_path = Some(base_path.into());
+        }
+        self
+    }
+}
+
+impl<KEY> Default for AtlasAssetMap<KEY> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+impl<KEY> AtlasAssetMap<KEY>
+where
+    KEY: Clone + Eq + Sync + Send,
 {
     pub fn with_texture_paths(
-        texture_paths: &mut TextureAtlasPaths<KEY>,
+        texture_paths: &TextureAtlasPaths<KEY>,
         asset_server: &AssetServer,
     ) -> Self {
         Self(
@@ -106,21 +109,21 @@ where
                 .keys_and_paths
                 .iter()
                 .map(|(key, asset_path, columns_rows)| {
-                    if let Some(ref mut asset_base_path) = texture_paths.base_path {
+                    if let Some(ref asset_base_path) = texture_paths.base_path {
                         let mut pathbuf = PathBuf::from(asset_base_path.as_str());
                         pathbuf.push(asset_path.as_str());
                         let handle = asset_server.load(pathbuf.as_path());
-                        TextureAtlasInfo::Loading {
-                            key: *key,
+                        AtlasMapEntry::Loading {
+                            key: key.clone(),
                             texture: handle,
-                            columns_rows: columns_rows.clone(),
+                            definition: columns_rows.clone(),
                         }
                     } else {
                         let handle = asset_server.load(asset_path.as_str());
-                        TextureAtlasInfo::Loading {
-                            key: *key,
+                        AtlasMapEntry::Loading {
+                            key: key.clone(),
                             texture: handle,
-                            columns_rows: columns_rows.clone(),
+                            definition: columns_rows.clone(),
                         }
                     }
                 })
@@ -130,151 +133,163 @@ where
 
     #[allow(dead_code)]
     pub fn ready(&self) -> bool {
-        self.0.iter().all(|info| match info {
-            TextureAtlasInfo::Loading { .. } => false,
-            TextureAtlasInfo::Loaded(..) => true,
+        self.0.iter().all(|entry| match entry {
+            AtlasMapEntry::Loading { .. } => false,
+            AtlasMapEntry::Loaded(..) => true,
         })
     }
 
     #[allow(dead_code)]
-    pub fn get(&self, key: KEY) -> Option<&TextureAtlasAssetInfo<KEY>> {
-        self.0.iter().find_map(|info| match info {
-            TextureAtlasInfo::Loaded(info @ TextureAtlasAssetInfo { key: k, .. }) if *k == key => {
-                Some(info)
-            }
+    pub fn get(&self, key: &KEY) -> Option<&AtlasAssetInfo<KEY>> {
+        self.0.iter().find_map(|entry| match entry {
+            AtlasMapEntry::Loaded(info @ AtlasAssetInfo { key: k, .. }) if *k == *key => Some(info),
             _ => None,
         })
-    }
-}
-
-impl<KEY> Plugin for TextureAtlasAssetsPlugin<KEY>
-where
-    KEY: 'static + core::fmt::Debug + Copy + Eq + Sync + Send,
-{
-    #[allow(dead_code)]
-    fn build(&self, app: &mut App) {
-        app.add_event::<TextureAtlasAssetInfo<KEY>>()
-            .add_startup_system(load_texture_atlas_assets::<KEY>)
-            .add_system(monitor_texture_atlas_assets::<KEY>);
-    }
-}
-
-/// [RunCriteria] detecting when all textures for a key has been loaded.
-#[allow(dead_code)]
-pub fn texture_atlas_are_loaded<KEY: 'static + Copy + Eq + Sync + Send>(
-    assets: Res<TextureAtlasAssets<KEY>>,
-) -> ShouldRun {
-    match assets.ready() {
-        true => ShouldRun::Yes,
-        false => ShouldRun::No,
-    }
-}
-
-/// [RunCriteria] for systems that should run while still loading textures.
-#[allow(dead_code)]
-pub fn texture_atlas_are_loading<KEY: 'static + Copy + Eq + Sync + Send>(
-    assets: Res<TextureAtlasAssets<KEY>>,
-) -> ShouldRun {
-    match assets.ready() {
-        true => ShouldRun::No,
-        false => ShouldRun::Yes,
     }
 }
 
 pub fn load_texture_atlas_assets<KEY>(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    texture_paths: Option<ResMut<TextureAtlasPaths<KEY>>>,
-    texture_assets: Option<Res<TextureAtlasAssets<KEY>>>,
+    texture_paths: Option<Res<TextureAtlasPaths<KEY>>>,
+    atlas_asset_map: Option<Res<AtlasAssetMap<KEY>>>,
 ) where
-    KEY: 'static + Copy + Eq + Sync + Send,
+    KEY: 'static + Clone + Eq + Sync + Send,
 {
-    if let Some(mut texture_paths) = texture_paths {
-        commands.insert_resource(TextureAtlasAssets::with_texture_paths(
-            &mut texture_paths,
+    if let Some(texture_paths) = texture_paths {
+        commands.remove_resource::<AtlasAssetMap<KEY>>();
+        commands.insert_resource(AtlasAssetMap::with_texture_paths(
+            &texture_paths,
             &asset_server,
         ));
-    } else if texture_assets.is_none() {
-        commands.insert_resource(TextureAtlasAssets::<KEY>::default());
+    } else if atlas_asset_map.is_none() {
+        commands.insert_resource(AtlasAssetMap::<KEY>::default());
     }
 }
 
 pub fn monitor_texture_atlas_assets<KEY>(
-    mut texture_event: EventReader<AssetEvent<Texture>>,
-    mut assets: ResMut<TextureAtlasAssets<KEY>>,
-    mut events: EventWriter<TextureAtlasAssetInfo<KEY>>,
-    textures: Res<Assets<Texture>>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut texture_events: EventReader<AssetEvent<Texture>>,
+    mut atlas_info_event: EventWriter<AtlasAssetInfo<KEY>>,
+    mut atlas_asset_map: ResMut<AtlasAssetMap<KEY>>,
+    texture_assets: Res<Assets<Texture>>,
+    mut texture_atlas_assets: ResMut<Assets<TextureAtlas>>,
 ) where
-    KEY: 'static + core::fmt::Debug + Copy + Eq + Sync + Send,
+    KEY: 'static + core::fmt::Debug + Clone + Send + Sync,
 {
-    for ev in texture_event.iter() {
+    for ev in texture_events.iter() {
         match ev {
-            AssetEvent::Created { handle } | AssetEvent::Modified { handle } => {
-                if let Some((key, columns_rows, texture_info)) =
-                    assets.0.iter_mut().find_map(|i| match i {
-                        TextureAtlasInfo::Loading {
-                            key,
-                            columns_rows,
-                            texture: th,
-                        } if *th == *handle => Some((*key, columns_rows.clone(), i)),
-                        TextureAtlasInfo::Loaded(TextureAtlasAssetInfo {
-                            key,
-                            columns_rows,
-                            texture: th,
-                            ..
-                        }) if *th == *handle => Some((*key, columns_rows.clone(), i)),
-                        _ => None,
-                    })
-                {
-                    if let Some(texture) = textures.get(handle.clone()) {
-                        let texture_size = Size::new(texture.size.width, texture.size.height);
-                        let (texture_atlas, tile_size) = match columns_rows {
-                            AtlasDef::Grid { columns, rows } => {
-                                let tile_size = Vec2::new(
-                                    texture_size.x as f32 / columns as f32,
-                                    texture_size.y as f32 / rows as f32,
-                                );
-                                (
-                                    TextureAtlas::from_grid(
-                                        handle.clone(),
-                                        tile_size,
-                                        columns,
-                                        rows,
-                                    ),
-                                    tile_size,
-                                )
-                            }
-                        };
-
-                        let texture_atlas_handle = texture_atlases.add(texture_atlas);
-
-                        let texture_asset_info = TextureAtlasAssetInfo {
-                            key,
-                            size: tile_size,
-                            texture: textures.get_handle(handle),
-                            atlas: texture_atlas_handle,
-                            columns_rows,
-                        };
-                        *texture_info = TextureAtlasInfo::Loaded(texture_asset_info.clone());
-                        log::info!(?key, ?texture_size, texture_handle=?texture_asset_info.texture, atlas_handle=?texture_asset_info.atlas, "texture atlas loaded");
-                        events.send(texture_asset_info)
-                    }
-                }
-            }
-            AssetEvent::Removed { handle } => {
-                if let Some(key) = assets.0.iter().find_map(|i| match i {
-                    TextureAtlasInfo::Loading {
-                        key, texture: th, ..
-                    } if *th == *handle => Some(*key),
-                    TextureAtlasInfo::Loaded(TextureAtlasAssetInfo {
-                        key, texture: th, ..
-                    }) if *th == *handle => Some(*key),
-                    _ => None,
-                }) {
-                    log::warn!(?key, ?handle, "texture removed");
-                }
-            }
+            AssetEvent::Created { handle } | AssetEvent::Modified { handle } => update_atlas_map(
+                &mut atlas_asset_map,
+                handle,
+                &texture_assets,
+                &mut texture_atlas_assets,
+                &mut atlas_info_event,
+            ),
+            AssetEvent::Removed { handle } => warn_removed_atlas_texture(&atlas_asset_map, handle),
         }
+    }
+}
+
+fn update_atlas_map<KEY>(
+    atlas_asset_map: &mut AtlasAssetMap<KEY>,
+    texture_handle: &Handle<Texture>,
+    texture_assets: &Assets<Texture>,
+    texture_atlas_assets: &mut Assets<TextureAtlas>,
+    atlas_info_event: &mut EventWriter<AtlasAssetInfo<KEY>>,
+) where
+    KEY: 'static + core::fmt::Debug + Clone + Send + Sync,
+{
+    if let Some((key, definition, texture_info)) =
+        atlas_asset_map.0.iter_mut().find_map(|i| match i {
+            AtlasMapEntry::Loading {
+                key,
+                definition,
+                texture,
+            }
+            | AtlasMapEntry::Loaded(AtlasAssetInfo {
+                key,
+                definition,
+                texture,
+                ..
+            }) if *texture == *texture_handle => Some((key.clone(), definition.clone(), i)),
+            _ => None,
+        })
+    {
+        let texture = texture_assets.get_handle(texture_handle);
+        let texture_size = {
+            let texture = texture_assets
+                .get(texture_handle)
+                .expect("texture not found though just updated");
+            Size::new(texture.size.width, texture.size.height)
+        };
+        let (tile_size, atlas) = match definition {
+            AtlasDefinition::Grid { columns, rows } => {
+                let tile_size = Vec2::new(
+                    texture_size.x as f32 / columns as f32,
+                    texture_size.y as f32 / rows as f32,
+                );
+                (
+                    tile_size,
+                    texture_atlas_assets.add(TextureAtlas::from_grid(
+                        texture_handle.clone(),
+                        tile_size,
+                        columns,
+                        rows,
+                    )),
+                )
+            }
+        };
+
+        log::info!(?key, ?texture_size, ?tile_size, texture_handle=?texture, atlas_handle=?atlas, "texture atlas loaded");
+        let texture_asset_info = AtlasAssetInfo {
+            key,
+            tile_size,
+            texture,
+            atlas,
+            definition,
+        };
+        *texture_info = AtlasMapEntry::Loaded(texture_asset_info.clone());
+        atlas_info_event.send(texture_asset_info)
+    }
+}
+
+fn warn_removed_atlas_texture<KEY>(
+    atlas_asset_map: &AtlasAssetMap<KEY>,
+    texture_handle: &Handle<Texture>,
+) where
+    KEY: 'static + core::fmt::Debug,
+{
+    if let Some(key) = atlas_asset_map.0.iter().find_map(|i| match i {
+        AtlasMapEntry::Loading { key, texture, .. }
+        | AtlasMapEntry::Loaded(AtlasAssetInfo { key, texture, .. })
+            if *texture == *texture_handle =>
+        {
+            Some(key)
+        }
+        _ => None,
+    }) {
+        log::warn!(?key, ?texture_handle, "atlas texture removed");
+    }
+}
+
+/// [RunCriteria] detecting when all atlas textures for a key has been loaded.
+#[allow(dead_code)]
+pub fn atlas_are_loaded<KEY: 'static + Clone + Eq + Send + Sync>(
+    atlas_asset_map: Res<AtlasAssetMap<KEY>>,
+) -> ShouldRun {
+    match atlas_asset_map.ready() {
+        true => ShouldRun::Yes,
+        false => ShouldRun::No,
+    }
+}
+
+/// [RunCriteria] for systems that should run while still loading atlas textures.
+#[allow(dead_code)]
+pub fn atlas_are_loading<KEY: 'static + Clone + Eq + Send + Sync>(
+    atlas_asset_map: Res<AtlasAssetMap<KEY>>,
+) -> ShouldRun {
+    match atlas_asset_map.ready() {
+        true => ShouldRun::No,
+        false => ShouldRun::Yes,
     }
 }

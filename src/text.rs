@@ -6,15 +6,15 @@ pub struct TextAttr {
     pub style: TextStyle,
 }
 
-pub trait AsText {
-    fn as_text(&self, attr: &TextAttr) -> Text;
+pub trait AsTextWithAttr {
+    fn as_text_with_attr(&self, attr: TextAttr) -> Text;
 }
 
-impl<T> AsText for T
+impl<T> AsTextWithAttr for T
 where
     T: ToString,
 {
-    fn as_text(&self, attr: &TextAttr) -> Text {
-        Text::with_section(self.to_string(), attr.style.clone(), attr.alignment.clone())
+    fn as_text_with_attr(&self, attr: TextAttr) -> Text {
+        Text::with_section(self.to_string(), attr.style, attr.alignment)
     }
 }

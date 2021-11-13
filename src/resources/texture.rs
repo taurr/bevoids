@@ -1,5 +1,4 @@
 use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
-use smol_str::SmolStr;
 use std::path::PathBuf;
 
 pub type Size = UVec2;
@@ -24,8 +23,8 @@ pub struct TextureAssetInfo<KEY> {
 /// Insert as a resource to make the [TextureAssetMapPlugin] load textures and collect sizes during startup.
 #[derive(Debug, Clone)]
 pub struct TexturePaths<KEY> {
-    keys_and_paths: Vec<(KEY, SmolStr)>,
-    base_path: Option<SmolStr>,
+    keys_and_paths: Vec<(KEY, String)>,
+    base_path: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -54,7 +53,7 @@ where
 
 impl<KEY> TexturePaths<KEY> {
     #[allow(dead_code)]
-    pub fn from_files<TP: Into<SmolStr>, T: IntoIterator<Item = (KEY, TP)>>(paths: T) -> Self {
+    pub fn from_files<TP: Into<String>, T: IntoIterator<Item = (KEY, TP)>>(paths: T) -> Self {
         Self {
             keys_and_paths: paths
                 .into_iter()
@@ -65,13 +64,11 @@ impl<KEY> TexturePaths<KEY> {
     }
 
     #[allow(dead_code)]
-    pub fn with_base_path<P>(mut self, base_path: Option<P>) -> Self
+    pub fn with_base_path<P>(mut self, base_path: P) -> Self
     where
-        P: Into<SmolStr>,
+        P: Into<String>,
     {
-        if let Some(base_path) = base_path {
-            self.base_path = Some(base_path.into());
-        }
+        self.base_path = Some(base_path.into());
         self
     }
 }
@@ -113,6 +110,11 @@ where
                 })
                 .collect(),
         )
+    }
+
+    #[allow(dead_code)]
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 
     #[allow(dead_code)]

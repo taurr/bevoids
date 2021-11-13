@@ -17,26 +17,26 @@ impl Plugin for BoundsPlugin {
 }
 
 #[derive(Debug, Component, Copy, Clone, AsRef)]
-pub struct Bounds {
+pub struct GfxBounds {
     #[as_ref]
     aabb: AABB,
     #[as_ref]
     sphere: BoundingSphere,
 }
 
-impl Bounds {
-    pub fn from_pos_and_size(position: Vec2, size: Vec2) -> Bounds {
+impl GfxBounds {
+    pub fn from_pos_and_size(position: Vec2, size: Vec2) -> GfxBounds {
         let (w, h) = (size.x / 2., size.y / 2.);
         let aabb = AABB::new(
             Point::from([position.x - w, position.y - h]),
             Point::from([position.x + w, position.y + h]),
         );
-        let sphere = Bounds::create_sphere(&aabb);
+        let sphere = GfxBounds::create_sphere(&aabb);
         Self { aabb, sphere }
     }
 
     pub fn from_window(window: &Window) -> Self {
-        Bounds::from_pos_and_size(Vec2::ZERO, Vec2::from((window.width(), window.height())))
+        GfxBounds::from_pos_and_size(Vec2::ZERO, Vec2::from((window.width(), window.height())))
     }
 
     pub fn size(&self) -> Vec2 {
@@ -57,7 +57,7 @@ impl Bounds {
             Point::from([position.x, position.y]),
             self.aabb.half_extents(),
         );
-        self.sphere = Bounds::create_sphere(&self.aabb);
+        self.sphere = GfxBounds::create_sphere(&self.aabb);
     }
 
     pub fn as_aabb(&self) -> AABB {
@@ -77,12 +77,12 @@ impl Bounds {
 
 fn initialize_window_bounds(mut commands: Commands, mut windows: ResMut<Windows>) {
     let window = windows.get_primary_mut().unwrap();
-    commands.insert_resource(Bounds::from_window(window));
+    commands.insert_resource(GfxBounds::from_window(window));
 }
 
-fn resized(resize_event: Res<Events<WindowResized>>, mut bounds: ResMut<Bounds>) {
+fn resized(resize_event: Res<Events<WindowResized>>, mut bounds: ResMut<GfxBounds>) {
     let mut reader = resize_event.get_reader();
     for e in reader.iter(&resize_event) {
-        *bounds = Bounds::from_pos_and_size(Vec2::ZERO, Vec2::new(e.width, e.height));
+        *bounds = GfxBounds::from_pos_and_size(Vec2::ZERO, Vec2::new(e.width, e.height));
     }
 }

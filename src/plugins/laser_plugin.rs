@@ -3,10 +3,10 @@ use derive_more::{Constructor, Deref};
 use std::{f32::consts::PI, time::Duration};
 
 use crate::{
-    constants::*,
     effects::{PlaySfx, SfxCmdEvent},
     plugins::{DelayedFadeDespawn, Despawn, Player, ShadowController, Velocity},
-    resources::{Bounds, TextureAssetMap},
+    resources::{GfxBounds, TextureAssetMap},
+    settings::Settings,
     GameState, GeneralTexture, SoundEffect,
 };
 
@@ -55,7 +55,8 @@ fn fire_laser(
     mut material_assets: ResMut<Assets<ColorMaterial>>,
     player_query: Query<(&Transform, &Velocity), (With<Player>, With<ShadowController>)>,
     textures: Res<TextureAssetMap<GeneralTexture>>,
-    bounds: Res<Bounds>,
+    bounds: Res<GfxBounds>,
+    settings: Res<Settings>,
 ) {
     for _ in events.iter() {
         let (
@@ -71,22 +72,20 @@ fn fire_laser(
             .get(GeneralTexture::Laser)
             .expect("no texture for laser");
         let (size, scale) = {
-            let scale = LASER_MAX_SIZE / laser_texture.size.max_element() as f32;
+            let scale = settings.laser.size / laser_texture.size.max_element() as f32;
             (
                 Vec2::new(laser_texture.size.x as f32, laser_texture.size.y as f32) * scale,
                 scale,
             )
         };
 
-        let position = position
-            + orientation.mul_vec3(Vec3::new(
-                0.,
-                LASER_PLAYER_RELATIVE_Y,
-                LASER_PLAYER_RELATIVE_Z,
-            ));
+        let position =
+            position + orientation.mul_vec3(Vec3::new(0., settings.player.gun_ypos, -1.));
 
         let velocity = {
-            let velocity = orientation.mul_vec3(vec3(0., LASER_SPEED, 0.)).truncate();
+            let velocity = orientation
+                .mul_vec3(vec3(0., settings.laser.speed, 0.))
+                .truncate();
             Velocity::from(velocity + player_velocity.project_onto(Vec2::from(velocity)))
         };
 
@@ -102,10 +101,10 @@ fn fire_laser(
             })
             .insert(Laser)
             .insert(velocity)
-            .insert(Bounds::from_pos_and_size(position.truncate(), size))
+            .insert(GfxBounds::from_pos_and_size(position.truncate(), size))
             .insert(DelayedFadeDespawn::new(
-                Duration::from_secs_f32(LASER_LIFETIME_SECONDS),
-                Duration::from_secs_f32(LASER_FADEOUT_SECONDS),
+                Duration::from_millis(settings.laser.lifetime_miliseconds),
+                Duration::from_millis(settings.laser.fadeout_miliseconds),
             ))
             .id();
 
@@ -115,6 +114,6 @@ fn fire_laser(
                 .with_panning(panning)
                 .into(),
         );
-        log::debug!(buller=?laser_id, "spawned laser");
+        log::trace!(buller=?laser_id, "spawned laser");
     }
 }

@@ -1,6 +1,5 @@
 use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
 use bevy_kira_audio::AudioSource;
-use smol_str::SmolStr;
 use std::path::PathBuf;
 
 /// Bevy plugin for loading a number of audio files.
@@ -13,8 +12,8 @@ pub struct AudioAssetMap<KEY>(Vec<AudioMapEntry<KEY>>);
 /// Insert as a resource to make the [AudioAssetMapPlugin] load audio files during startup.
 #[derive(Debug, Clone)]
 pub struct AudioPaths<KEY> {
-    keys_and_paths: Vec<(KEY, SmolStr)>,
-    base_path: Option<SmolStr>,
+    keys_and_paths: Vec<(KEY, String)>,
+    base_path: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -54,7 +53,7 @@ impl<KEY> Default for AudioAssetMap<KEY> {
 
 impl<KEY> AudioPaths<KEY> {
     #[allow(dead_code)]
-    pub fn from_files<TP: Into<SmolStr>, T: IntoIterator<Item = (KEY, TP)>>(paths: T) -> Self {
+    pub fn from_files<TP: Into<String>, T: IntoIterator<Item = (KEY, TP)>>(paths: T) -> Self {
         Self {
             base_path: None,
             keys_and_paths: paths
@@ -65,10 +64,8 @@ impl<KEY> AudioPaths<KEY> {
     }
 
     #[allow(dead_code)]
-    pub fn with_base_path<P: Into<SmolStr>>(mut self, base_path: Option<P>) -> Self {
-        if let Some(base_path) = base_path {
-            self.base_path = Some(base_path.into());
-        }
+    pub fn with_base_path<P: Into<String>>(mut self, base_path: P) -> Self {
+        self.base_path = Some(base_path.into());
         self
     }
 }
@@ -99,6 +96,11 @@ where
                 })
                 .collect(),
         )
+    }
+
+    #[allow(dead_code)]
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 
     #[allow(dead_code)]

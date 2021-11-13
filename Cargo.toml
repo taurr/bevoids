@@ -9,11 +9,16 @@ edition = "2021"
 structopt = "0.3"
 bevy_kira_audio = { version = "0.6.0", features = ["mp3", "wav"] }
 parry2d = "0.7"
-smol_str = "0.1"
 rand = "0.8.4"
-thiserror = "1.0"
 derive_more = "0.99"
 enum-iterator = "0.7"
+walkdir = "2.3"
+
+toml = "0.5"
+serde = "1.0"
+serde_derive = "1.0"
+
+thiserror = "1.0"
 itertools = "0.10.1"
 
 [dependencies.bevy]
@@ -27,6 +32,7 @@ features = [
     #"bevy_gilrs",
     #"bevy_gltf",
     "png",
+    "jpeg",
     "x11",
     "wayland",
     #"trace",

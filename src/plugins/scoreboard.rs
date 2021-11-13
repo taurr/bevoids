@@ -2,8 +2,9 @@ use bevy::prelude::*;
 use derive_more::{AsMut, AsRef, Display};
 
 use crate::{
+    resources::{FontAssetMap, GfxBounds},
     text::{AsTextWithAttr, TextAttr},
-    GameState,
+    Fonts, GameState,
 };
 
 pub struct ScoreBoardPlugin;
@@ -31,31 +32,39 @@ impl Plugin for ScoreBoardPlugin {
 
 fn enter_ingame_scoreboard(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     query: Query<Entity, With<ScoreBoard>>,
+    font_asset_map: Res<FontAssetMap<Fonts>>,
+    win_bounds: Res<GfxBounds>,
 ) {
     // remove any old remnants
     query.iter().for_each(|e| commands.entity(e).despawn());
 
     // create a fresh scoreboard
-    let font = asset_server.load("fonts/FiraMono-Medium.ttf");
+    let font = font_asset_map
+        .get(&Fonts::ScoreBoard)
+        .expect("unable to get font for ScoreBoard");
     let board = ScoreBoard { score: 0 };
+    let color = Color::BEIGE;
     let textattr = TextAttr {
         alignment: TextAlignment {
-            vertical: VerticalAlign::Center,
-            horizontal: HorizontalAlign::Center,
+            vertical: VerticalAlign::Top,
+            horizontal: HorizontalAlign::Right,
         },
         style: TextStyle {
             font,
-            font_size: 48.0,
-            color: Color::DARK_GRAY,
+            font_size: 24.0,
+            color,
         },
     };
     commands
         .spawn_bundle(Text2dBundle {
             text: board.as_text_with_attr(textattr.clone()),
             transform: Transform {
-                translation: Vec3::new(0., 0., 0.),
+                translation: Vec3::new(
+                    win_bounds.width() / 2. - 15.,
+                    win_bounds.height() / 2. - 10.,
+                    1.,
+                ),
                 ..Transform::default()
             },
             ..Default::default()
@@ -71,6 +80,11 @@ fn enter_gameover_scoreboard(
     for (e, board, mut tf, mut textattr) in query.iter_mut() {
         tf.translation = Vec3::new(0., 0., 800.);
         textattr.style.color = Color::WHITE;
+        textattr.style.font_size = 48.;
+        textattr.alignment = TextAlignment {
+            horizontal: HorizontalAlign::Center,
+            vertical: VerticalAlign::Center,
+        };
         commands
             .entity(e)
             .insert(board.as_text_with_attr(textattr.clone()));

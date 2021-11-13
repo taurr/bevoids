@@ -1,5 +1,4 @@
 use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
-use smol_str::SmolStr;
 use std::path::PathBuf;
 
 pub type Size = UVec2;
@@ -25,8 +24,8 @@ pub struct AtlasAssetInfo<KEY> {
 /// Insert as a resource to make the [AtlasAssetMapPlugin] load/create textures and collect sizes during startup.
 #[derive(Debug, Clone)]
 pub struct TextureAtlasPaths<KEY> {
-    keys_and_paths: Vec<(KEY, SmolStr, AtlasDefinition)>,
-    base_path: Option<SmolStr>,
+    keys_and_paths: Vec<(KEY, String, AtlasDefinition)>,
+    base_path: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -67,7 +66,7 @@ impl<KEY> TextureAtlasPaths<KEY> {
     pub fn from_files<T, TP>(paths: T) -> Self
     where
         T: IntoIterator<Item = (KEY, TP, AtlasDefinition)>,
-        TP: Into<SmolStr>,
+        TP: Into<String>,
     {
         Self {
             keys_and_paths: paths
@@ -79,13 +78,11 @@ impl<KEY> TextureAtlasPaths<KEY> {
     }
 
     #[allow(dead_code)]
-    pub fn with_base_path<P>(mut self, base_path: Option<P>) -> Self
+    pub fn with_base_path<P>(mut self, base_path: P) -> Self
     where
-        P: Into<SmolStr>,
+        P: Into<String>,
     {
-        if let Some(base_path) = base_path {
-            self.base_path = Some(base_path.into());
-        }
+        self.base_path = Some(base_path.into());
         self
     }
 }
@@ -129,6 +126,11 @@ where
                 })
                 .collect(),
         )
+    }
+
+    #[allow(dead_code)]
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 
     #[allow(dead_code)]

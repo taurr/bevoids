@@ -1,29 +1,23 @@
 #![allow(clippy::complexity)]
 
-// TODO: move all constants to settings file
-// TODO: use structopt to specify settings
 // TODO: menu state: display menu before starting the game
 // TODO: split general functionality into own crate
 // TODO: tests in bevy?
 // TODO: can we get event once a sound stops when not playing in a loop / whenever the loop resets?
 
 use bevy::{log, prelude::*};
-use derive_more::{AsRef, Deref, Display, From, Into};
-use smol_str::SmolStr;
+use derive_more::Display;
 use std::path::PathBuf;
 use structopt::StructOpt;
+use walkdir::WalkDir;
 
-mod constants;
 mod effects;
 mod plugins;
 mod resources;
+mod settings;
 mod text;
 
 use crate::{
-    constants::{
-        AUDIO_EXPLOSION_ASTEROID_VOLUME, AUDIO_EXPLOSION_SHIP_VOLUME, AUDIO_LASER_VOLUME,
-        AUDIO_THRUSTER_VOLUME,
-    },
     effects::{AnimationEffectPlugin, SoundEffectsPlugin},
     plugins::{
         AsteroidPlugin, FadeDespawnPlugin, GameOverPlugin, HitTestPlugin, LaserPlugin,
@@ -31,15 +25,15 @@ use crate::{
     },
     resources::{
         AtlasAssetMap, AtlasAssetMapPlugin, AtlasDefinition, AudioAssetMap, AudioAssetMapPlugin,
-        AudioPaths, Bounds, BoundsPlugin, TextureAssetMap, TextureAssetMapPlugin,
-        TextureAtlasPaths, TexturePaths,
+        AudioPaths, BoundsPlugin, FontAssetMap, FontAssetMapPlugin, FontPaths, GfxBounds,
+        TextureAssetMap, TextureAssetMapPlugin, TextureAtlasPaths, TexturePaths,
     },
 };
 
 #[derive(Debug, StructOpt)]
 struct Args {
     #[structopt(long)]
-    assets: Option<SmolStr>,
+    assets: Option<String>,
 }
 
 #[derive(Debug, Display, Copy, Clone, Eq, PartialEq, Hash)]
@@ -66,32 +60,53 @@ enum GeneralTexture {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-struct AsteroidTexture(u8);
+struct AsteroidTexture(usize);
 
-#[derive(Debug, Copy, Clone, Deref, Into, From, AsRef)]
-struct AsteroidTextureCount(u8);
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+struct BackgroundTexture(usize);
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 enum Animation {
     BigExplosion,
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+enum Fonts {
+    ScoreBoard,
+}
+
 fn main() {
-    let args = Args::from_args();
-    let assets_path = args.assets.clone();
+    let mut args = Args::from_args();
+    let assets_path = args.assets.unwrap_or_else(|| {
+        let mut pb = PathBuf::from(std::env::current_dir().unwrap());
+        pb.push("assets");
+        pb.display().to_string()
+    });
+    args.assets = Some(assets_path.clone());
+
+    let settings = {
+        let mut pb = PathBuf::from(&assets_path);
+        pb.push("settings.toml");
+        std::fs::read_to_string(pb).expect("unable to read settings")
+    };
+    let settings: settings::Settings =
+        toml::from_str(&settings).expect("unable to parse settings file");
+
     let asteroid_textures = asteroid_texture_paths(&assets_path);
+    let background_textures = background_texture_paths(&assets_path);
 
     App::new()
-        .insert_resource(args)
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(WindowDescriptor {
             vsync: true,
-            resizable: true,
-            width: constants::WIN_WIDTH,
-            height: constants::WIN_HEIGHT,
+            resizable: false,
+            width: settings.window.width as f32,
+            height: settings.window.height as f32,
             title: module_path!().into(),
             ..WindowDescriptor::default()
         })
+        .insert_resource(args)
+        .add_plugin(BoundsPlugin)
         //
         // set the starting state & general systems
         .add_plugins(DefaultPlugins)
@@ -99,8 +114,12 @@ fn main() {
         // .add_plugin(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default())
         .add_state(GameState::Initialize)
         .add_startup_system(initialize_game)
-        .add_plugin(BoundsPlugin)
-        //
+        // fonts
+        .add_plugin(FontAssetMapPlugin::<Fonts>::default())
+        .insert_resource(
+            FontPaths::from_files([(Fonts::ScoreBoard, "fonts/FiraMono-Medium.ttf")])
+                .with_base_path(assets_path.clone()),
+        )
         // graphics / sound effects
         .add_plugin(AudioAssetMapPlugin::<SoundEffect>::default())
         .insert_resource(
@@ -117,11 +136,11 @@ fn main() {
             (SoundEffect::Notification, 1.0),
             (
                 SoundEffect::AsteroidExplode,
-                AUDIO_EXPLOSION_ASTEROID_VOLUME,
+                settings.volume.asteroid_explosion,
             ),
-            (SoundEffect::Laser, AUDIO_LASER_VOLUME),
-            (SoundEffect::ShipExplode, AUDIO_EXPLOSION_SHIP_VOLUME),
-            (SoundEffect::Thruster, AUDIO_THRUSTER_VOLUME),
+            (SoundEffect::Laser, settings.volume.laser),
+            (SoundEffect::ShipExplode, settings.volume.ship_explosion),
+            (SoundEffect::Thruster, settings.volume.thruster),
         ]))
         .add_plugin(TextureAssetMapPlugin::<GeneralTexture>::default())
         .insert_resource(
@@ -133,8 +152,9 @@ fn main() {
             .with_base_path(assets_path.clone()),
         )
         .add_plugin(TextureAssetMapPlugin::<AsteroidTexture>::default())
-        .insert_resource(AsteroidTextureCount(asteroid_textures.len() as u8))
         .insert_resource(TexturePaths::from_files(asteroid_textures))
+        .add_plugin(TextureAssetMapPlugin::<BackgroundTexture>::default())
+        .insert_resource(TexturePaths::from_files(background_textures))
         .add_plugin(AnimationEffectPlugin::<Animation>::default())
         .add_plugin(AtlasAssetMapPlugin::<Animation>::default())
         .insert_resource(
@@ -159,30 +179,33 @@ fn main() {
         .add_plugin(AsteroidPlugin)
         .add_plugin(HitTestPlugin)
         .add_plugin(GameOverPlugin)
+        .insert_resource(settings)
         .run();
 }
 
-fn asteroid_texture_paths(assets_path: &Option<SmolStr>) -> Vec<(AsteroidTexture, SmolStr)> {
-    (0u8..10u8)
+fn asteroid_texture_paths(assets_path: &str) -> Vec<(AsteroidTexture, String)> {
+    let mut pb = PathBuf::from(assets_path);
+    pb.push("gfx/asteroids");
+
+    WalkDir::new(pb)
         .into_iter()
-        .map(|i| (i, assets_path))
-        .filter_map(|(i, base_path)| {
-            let mut pb = if let Some(ref base_path) = base_path {
-                PathBuf::from(base_path.as_str())
-            } else {
-                let mut pb =
-                    PathBuf::from(std::env::current_dir().expect("unable to get current_dir"));
-                pb.push("assets");
-                pb
-            };
-            pb.push(format!("gfx/asteroid_{}.png", i));
-            match pb.exists() {
-                true => Some(pb.display().to_string().into()),
-                false => None,
-            }
-        })
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file())
         .enumerate()
-        .map(|(i, path)| (AsteroidTexture(i as u8), path))
+        .map(|(i, e)| (AsteroidTexture(i), e.path().display().to_string()))
+        .collect()
+}
+
+fn background_texture_paths(assets_path: &str) -> Vec<(BackgroundTexture, String)> {
+    let mut pb = PathBuf::from(assets_path);
+    pb.push("gfx/backgrounds");
+
+    WalkDir::new(pb)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file())
+        .enumerate()
+        .map(|(i, e)| (BackgroundTexture(i), e.path().display().to_string()))
         .collect()
 }
 
@@ -197,12 +220,20 @@ fn initialize_game(mut commands: Commands) {
 
 fn wait_for_resources(
     mut state: ResMut<State<GameState>>,
-    t1: Res<TextureAssetMap<GeneralTexture>>,
-    t2: Res<TextureAssetMap<AsteroidTexture>>,
-    t3: Res<AtlasAssetMap<Animation>>,
-    a1: Res<AudioAssetMap<SoundEffect>>,
+    tex1: Res<TextureAssetMap<GeneralTexture>>,
+    tex2: Res<TextureAssetMap<AsteroidTexture>>,
+    tex3: Res<TextureAssetMap<BackgroundTexture>>,
+    anim1: Res<AtlasAssetMap<Animation>>,
+    audio1: Res<AudioAssetMap<SoundEffect>>,
+    fonts: Res<FontAssetMap<Fonts>>,
 ) {
-    if t1.ready() && t2.ready() && t3.ready() && a1.ready() {
+    if tex1.ready()
+        && tex2.ready()
+        && tex3.ready()
+        && anim1.ready()
+        && audio1.ready()
+        && fonts.ready()
+    {
         state
             .set(GameState::InGame)
             .expect("unable to transition into the InGame state");

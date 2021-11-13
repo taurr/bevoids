@@ -3,7 +3,7 @@ use derive_more::{Add, AddAssign, Deref, DerefMut, From, Into, Sub, SubAssign};
 use enum_iterator::IntoEnumIterator;
 use parry2d::bounding_volume::BoundingVolume;
 
-use crate::Bounds;
+use crate::GfxBounds;
 
 pub struct MovementPlugin;
 
@@ -62,7 +62,7 @@ pub fn spawn_display_shadows(
     controller_scale: f32,
     controller_material: Handle<ColorMaterial>,
     component_inserter: &Option<impl Fn(EntityCommands)>,
-    window_bounds: &Bounds,
+    window_bounds: &GfxBounds,
     commands: &mut Commands,
 ) {
     for placement in ShadowPlacement::into_enum_iter() {
@@ -76,7 +76,7 @@ pub fn spawn_display_shadows(
                 },
                 ..SpriteBundle::default()
             })
-            .insert(Bounds::from_pos_and_size(
+            .insert(GfxBounds::from_pos_and_size(
                 window_bounds.size(),
                 controller_size,
             ))
@@ -116,10 +116,10 @@ impl Plugin for MovementPlugin {
 
 fn wrapping_linear_movement(
     mut query: Query<
-        (&mut Transform, &mut Bounds, &Velocity),
+        (&mut Transform, &mut GfxBounds, &Velocity),
         (Without<ShadowOf>, Without<NonWrapping>),
     >,
-    window_bounds: Res<Bounds>,
+    window_bounds: Res<GfxBounds>,
     time: Res<Time>,
 ) {
     let window_half_bounds = window_bounds.as_aabb().half_extents();
@@ -147,12 +147,12 @@ fn wrapping_linear_movement(
 
 fn non_wrapping_linear_movement(
     mut query: Query<
-        (Entity, &mut Transform, &mut Bounds, &Velocity),
+        (Entity, &mut Transform, &mut GfxBounds, &Velocity),
         (Without<ShadowOf>, With<NonWrapping>),
     >,
     mut enter_window: EventWriter<EnterWindow>,
     mut exit_window: EventWriter<ExitWindow>,
-    window_bounds: Res<Bounds>,
+    window_bounds: Res<GfxBounds>,
     time: Res<Time>,
 ) {
     let (ww, wh) = {
@@ -180,9 +180,9 @@ fn non_wrapping_linear_movement(
 
 fn move_shadow(
     mut commands: Commands,
-    mut shadows: Query<(Entity, &mut Transform, &mut Bounds, &ShadowOf)>,
+    mut shadows: Query<(Entity, &mut Transform, &mut GfxBounds, &ShadowOf)>,
     controllers: Query<(Entity, &Transform), (With<ShadowController>, Without<ShadowOf>)>,
-    window_bounds: Res<Bounds>,
+    window_bounds: Res<GfxBounds>,
 ) {
     let [w, h] = window_bounds.size().to_array();
     for (shadow, mut shadow_bounds, mut shadow_tf, placement, controller_tf) in shadows

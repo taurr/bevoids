@@ -6,7 +6,7 @@ use crate::{
         Asteroid, AsteroidShotEvent, InsideWindow, Laser, LaserSpentEvent, Player, PlayerDeadEvent,
         RemoveAsteroidEvent,
     },
-    Bounds, GameState,
+    GameState, GfxBounds,
 };
 
 pub struct HitTestPlugin;
@@ -23,8 +23,8 @@ impl Plugin for HitTestPlugin {
 }
 
 fn shot_hit_asteroid(
-    laser_query: Query<(Entity, &Bounds), With<Laser>>,
-    asteroids_query: Query<(Entity, &Bounds), (With<Asteroid>, With<InsideWindow>)>,
+    laser_query: Query<(Entity, &GfxBounds), With<Laser>>,
+    asteroids_query: Query<(Entity, &GfxBounds), (With<Asteroid>, With<InsideWindow>)>,
     mut asteroid_shot_events: EventWriter<AsteroidShotEvent>,
     mut laser_spent_events: EventWriter<LaserSpentEvent>,
 ) {
@@ -44,8 +44,8 @@ fn shot_hit_asteroid(
 }
 
 fn asteroid_hit_player(
-    player_query: Query<&Bounds, (With<Player>, With<InsideWindow>)>,
-    asteroids_query: Query<(Entity, &Bounds), (With<Asteroid>, With<InsideWindow>)>,
+    player_query: Query<&GfxBounds, (With<Player>, With<InsideWindow>)>,
+    asteroids_query: Query<(Entity, &GfxBounds), (With<Asteroid>, With<InsideWindow>)>,
     mut player_dead_events: EventWriter<PlayerDeadEvent>,
     mut remove_asteroid_events: EventWriter<RemoveAsteroidEvent>,
 ) {

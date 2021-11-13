@@ -1,17 +1,17 @@
-use bevy::{core::FixedTimestep, ecs::system::EntityCommands, log, prelude::*};
-use derive_more::{Constructor, Deref, Display};
+use bevy::{ecs::system::EntityCommands, log, prelude::*};
+use derive_more::{Constructor, Deref};
 use rand::Rng;
 use std::{f32::consts::PI, time::Duration};
 
 use crate::{
-    constants::*,
     effects::{AnimationEffect, PlaySfx, SfxCmdEvent},
     plugins::{
         spawn_display_shadows, Despawn, InsideWindow, Player, ScoreBoard, ShadowController,
         ShadowOf, Velocity,
     },
-    resources::{Bounds, TextureAssetMap},
-    Animation, AsteroidTexture, AsteroidTextureCount, GameState, SoundEffect,
+    resources::{GfxBounds, TextureAssetMap},
+    settings::Settings,
+    Animation, AsteroidTexture, GameState, SoundEffect,
 };
 
 pub struct AsteroidPlugin;
@@ -37,8 +37,8 @@ struct AsteroidControllerShotEvent(Entity);
 #[derive(Debug, Clone, Copy, Constructor)]
 struct SpawnAsteroidEvent(f32, Option<Vec3>);
 
-#[derive(Component, Debug, Display)]
-struct AsteroidSpawnDelay(f32);
+#[derive(Component, Debug)]
+struct AsteroidSpawnDelay(Duration);
 
 #[derive(Component, Debug)]
 struct AsteroidsSpawner;
@@ -54,13 +54,6 @@ impl Plugin for AsteroidPlugin {
 
         app.add_system_set(
             SystemSet::on_enter(GameState::InGame).with_system(asteroid_enter_ingame),
-        );
-
-        app.add_system_set(
-            SystemSet::on_update(GameState::InGame)
-                // criteria actually overrides the on_update, as only 1 run criterion can be set!
-                .with_run_criteria(FixedTimestep::step(DIFFICULTY_RAISER_TIMESTEP))
-                .with_system(difficulty_raiser),
         );
 
         app.add_system_set(
@@ -123,9 +116,10 @@ fn remove_asteroid_on_event(
     mut events: EventReader<RemoveAsteroidEvent>,
     mut anim_events: EventWriter<AnimationEffect<Animation>>,
     mut commands: Commands,
-    transform_query: Query<(&Transform, &Bounds)>,
+    transform_query: Query<(&Transform, &GfxBounds)>,
     asteroids_query: Query<&ShadowOf>,
     shadows_query: Query<(Entity, &ShadowOf), With<Asteroid>>,
+    settings: Res<Settings>,
 ) {
     for asteroid in events.iter().map(|e| e.0) {
         let ctrl = match asteroids_query.get(asteroid) {
@@ -142,6 +136,7 @@ fn remove_asteroid_on_event(
             &transform_query,
             ctrl,
             &shadows_query,
+            &settings,
         );
     }
 }
@@ -152,7 +147,7 @@ fn find_shot_asteroid_controller(
     mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
     asteroids_query: Query<&ShadowOf>,
     transform_query: Query<&Transform>,
-    win_bounds: Res<Bounds>,
+    win_bounds: Res<GfxBounds>,
 ) {
     for asteroid in shot_events.iter().map(|e| e.0) {
         let ctrl = match asteroids_query.get(asteroid) {
@@ -187,14 +182,15 @@ fn count_shot_asteroid_controller(
 fn score_on_shot_asteroid_controller(
     mut events: EventReader<AsteroidControllerShotEvent>,
     mut scores_query: Query<&mut ScoreBoard>,
-    bounds_query: Query<&Bounds>,
+    bounds_query: Query<&GfxBounds>,
+    settings: Res<Settings>,
 ) {
     for asteroid in events.iter().map(|e| e.0) {
         if let Ok(bounds) = bounds_query.get(asteroid) {
             for mut board in scores_query.iter_mut() {
-                let a = (ASTEROID_MAX_SIZE - bounds.size().max_element())
-                    / (ASTEROID_MAX_SIZE - ASTEROID_MIN_SIZE)
-                    * ASTEROID_MAX_SCORE;
+                let a = (settings.asteroid.size_max - bounds.size().max_element())
+                    / (settings.asteroid.size_max - settings.asteroid.size_min)
+                    * settings.general.max_score;
                 let score: &mut u32 = (*board).as_mut();
                 *score += a as u32;
                 log::info!(?asteroid, score, "update score");
@@ -206,41 +202,34 @@ fn score_on_shot_asteroid_controller(
 }
 
 fn split_and_despawn_shot_asteroid_controller(
-    mut commands: Commands,
     mut events: EventReader<AsteroidControllerShotEvent>,
-    mut anim_events: EventWriter<AnimationEffect<Animation>>,
+    mut remove_event: EventWriter<RemoveAsteroidEvent>,
     mut spawn_events: EventWriter<SpawnAsteroidEvent>,
-    transform_query: Query<(&Transform, &Bounds)>,
-    asteroids_query: Query<(&Bounds, &Transform), With<Asteroid>>,
-    shadows_query: Query<(Entity, &ShadowOf), With<Asteroid>>,
+    asteroids_query: Query<(&GfxBounds, &Transform), With<Asteroid>>,
+    settings: Res<Settings>,
 ) {
     for asteroid in events.iter().map(|ev| ev as &Entity) {
         let (bounds, transform) = asteroids_query
             .get(*asteroid)
             .expect("asteroid not present");
 
-        let max_size = bounds.size().max_element() * ASTEROID_SPLIT_SIZE_RATIO;
-        if max_size >= ASTEROID_MIN_SIZE {
+        let max_size = bounds.size().max_element() * settings.asteroid.split_size_factor;
+        if max_size >= settings.asteroid.size_min {
             let position = Some(transform.translation);
             log::info!(?asteroid, "split asteroid");
-            for _ in 0..ASTEROID_SPLIT_INTO {
+            for _ in 0..settings.asteroid.split_number {
                 spawn_events.send(SpawnAsteroidEvent::new(max_size, position));
             }
         }
 
-        despawn_asteroid_in_explosion(
-            &mut commands,
-            &mut anim_events,
-            &transform_query,
-            *asteroid,
-            &shadows_query,
-        );
+        remove_event.send(RemoveAsteroidEvent(*asteroid));
     }
 }
 
 fn asteroid_enter_ingame(
     mut commands: Commands,
     old_asteroids_query: Query<Entity, With<Asteroid>>,
+    settings: Res<Settings>,
 ) {
     // instantly clear old asteroid entities
     old_asteroids_query
@@ -253,7 +242,9 @@ fn asteroid_enter_ingame(
     commands
         .spawn()
         .insert(AsteroidsSpawner)
-        .insert(AsteroidSpawnDelay(ASTEROID_START_SPAWN_DELAY));
+        .insert(AsteroidSpawnDelay(Duration::from_secs_f32(
+            settings.asteroid.spawndelay_initial_seconds,
+        )));
 }
 
 fn asteroid_exit_ingame(
@@ -268,42 +259,42 @@ fn asteroid_exit_ingame(
         .for_each(|e| commands.entity(e).despawn_recursive());
 }
 
-fn difficulty_raiser(mut query: Query<&mut AsteroidSpawnDelay, With<AsteroidsSpawner>>) {
-    for mut delay in query.iter_mut() {
-        let asteroid_spawn_delay =
-            AsteroidSpawnDelay(delay.0 * DIFFICULTY_RAISER_SPAWN_DELAY_MULTIPLIER);
-        log::info!(delay=?asteroid_spawn_delay, "new delay between spawning asteroids");
-        *delay = asteroid_spawn_delay;
-    }
-}
-
 fn asteroid_spawner(
     mut commands: Commands,
-    mut query: Query<(Entity, &AsteroidSpawnDelay, Option<&mut Timer>), With<AsteroidsSpawner>>,
+    mut query: Query<(Entity, &mut AsteroidSpawnDelay, Option<&mut Timer>), With<AsteroidsSpawner>>,
     mut spawn_events: EventWriter<SpawnAsteroidEvent>,
     time: Res<Time>,
+    settings: Res<Settings>,
 ) {
     match query.get_single_mut() {
-        Ok((_, delay, Some(mut timer))) => {
+        Ok((_, mut delay, Some(mut timer))) => {
             if timer.tick(time.delta()).finished() {
                 log::debug!("timed asteroid");
                 spawn_events.send(SpawnAsteroidEvent::new(
-                    rand::thread_rng().gen_range(ASTEROID_MIN_SIZE..ASTEROID_MAX_SIZE),
+                    rand::thread_rng()
+                        .gen_range(settings.asteroid.size_min..settings.asteroid.size_max),
                     None,
                 ));
-                timer.set_duration(Duration::from_secs_f32(delay.0));
+                log::warn!(duration=?delay.0, "time to next planned asteroid");
+                timer.set_duration(delay.0);
                 timer.reset();
+
+                delay.0 = Duration::from_secs_f32(
+                    (delay.0.as_secs_f32() * settings.asteroid.spawndelay_multiplier).clamp(
+                        settings.asteroid.spawndelay_min_seconds,
+                        settings.asteroid.spawndelay_initial_seconds,
+                    ),
+                );
             }
         }
         Ok((entity, delay, None)) => {
             log::debug!("not timed asteroid");
             spawn_events.send(SpawnAsteroidEvent::new(
-                rand::thread_rng().gen_range(ASTEROID_MIN_SIZE..ASTEROID_MAX_SIZE),
+                rand::thread_rng()
+                    .gen_range(settings.asteroid.size_min..settings.asteroid.size_max),
                 None,
             ));
-            commands
-                .entity(entity)
-                .insert(Timer::new(Duration::from_secs_f32(delay.0), false));
+            commands.entity(entity).insert(Timer::new(delay.0, false));
         }
         Err(_) => {}
     };
@@ -315,13 +306,15 @@ fn spawn_asteroid_on_event(
     mut counter: ResMut<AsteroidCounter>,
     mut material_assets: ResMut<Assets<ColorMaterial>>,
     textures: Res<TextureAssetMap<AsteroidTexture>>,
-    texture_count: Res<AsteroidTextureCount>,
     player_tf_query: Query<&Transform, (With<Player>, With<ShadowController>)>,
-    window_bounds: Res<Bounds>,
+    window_bounds: Res<GfxBounds>,
+    settings: Res<Settings>,
 ) {
     let player_tf = player_tf_query.get_single().expect("player not present!");
 
-    for SpawnAsteroidEvent(size, position) in events.iter().filter(|e| e.0 >= ASTEROID_MIN_SIZE) {
+    for SpawnAsteroidEvent(size, position) in
+        events.iter().filter(|e| e.0 >= settings.asteroid.size_min)
+    {
         let mut rng = rand::thread_rng();
 
         let position = position.unwrap_or_else(|| {
@@ -333,27 +326,27 @@ fn spawn_asteroid_on_event(
                 if position
                     .extend(player_tf.translation.z)
                     .distance(player_tf.translation)
-                    > ASTEROIDS_PLAYER_SPAWN_DISTANCE
+                    > settings.asteroid.spawn_player_distance
                 {
                     break position;
                 }
             }
-            .extend(rng.gen_range(ASTEROID_Z_MIN..ASTEROID_Z_MAX))
+            .extend(rng.gen_range(settings.asteroid.zpos_min..settings.asteroid.zpos_max))
         });
 
         let velocity = {
             let random_direction = rng.gen_range(0.0..(2. * PI));
-            let random_speed = rng.gen_range(ASTEROID_MIN_SPEED..ASTEROID_MAX_SPEED);
+            let random_speed =
+                rng.gen_range(settings.asteroid.speed_min..settings.asteroid.speed_max);
             Quat::from_rotation_z(random_direction).mul_vec3(Vec3::Y) * random_speed
         };
 
         spawn_asteroid(
             *size,
-            position.truncate(),
+            position,
             velocity.truncate(),
             &window_bounds,
             &textures,
-            &texture_count,
             &mut commands,
             &mut material_assets,
         );
@@ -366,37 +359,37 @@ fn spawn_asteroid_on_event(
 
 fn spawn_asteroid(
     size: f32,
-    position: Vec2,
+    position: Vec3,
     velocity: Vec2,
-    window_bounds: &Bounds,
+    window_bounds: &GfxBounds,
     textures: &TextureAssetMap<AsteroidTexture>,
-    texture_count: &AsteroidTextureCount,
     commands: &mut Commands,
     material_assets: &mut Assets<ColorMaterial>,
 ) {
     let mut rng = rand::thread_rng();
     let asset_info = textures
-        .get(AsteroidTexture(rng.gen_range(0u8..(*texture_count).into())))
+        .get(AsteroidTexture(rng.gen_range(0..textures.len())))
         .expect("unable to get texture for asteroid");
     let material = material_assets.add(ColorMaterial::texture(asset_info.texture.clone()));
 
-    let mut rng = rand::thread_rng();
     let asteroid_scale = size / asset_info.size.max_element() as f32;
     let asteroid_size =
         Vec2::new(asset_info.size.x as f32, asset_info.size.y as f32) * asteroid_scale;
-    let asteroid_position = position.extend(rng.gen_range(ASTEROID_Z_MIN..ASTEROID_Z_MAX));
     let asteroid_id = commands
         .spawn_bundle(SpriteBundle {
             material: material.clone(),
             transform: Transform {
-                translation: asteroid_position,
+                translation: position,
                 scale: Vec2::splat(asteroid_scale).extend(1.),
                 ..Transform::default()
             },
             ..SpriteBundle::default()
         })
         .insert(Asteroid)
-        .insert(Bounds::from_pos_and_size(position, asteroid_size))
+        .insert(GfxBounds::from_pos_and_size(
+            position.truncate(),
+            asteroid_size,
+        ))
         .insert(ShadowController)
         .insert(Velocity::from(velocity))
         .insert(InsideWindow)
@@ -420,16 +413,17 @@ fn spawn_asteroid(
 fn despawn_asteroid_in_explosion(
     commands: &mut Commands,
     anim_events: &mut EventWriter<AnimationEffect<Animation>>,
-    transform_query: &Query<(&Transform, &Bounds)>,
+    transform_query: &Query<(&Transform, &GfxBounds)>,
     asteroid_ctrl: Entity,
     shadows_query: &Query<(Entity, &ShadowOf), With<Asteroid>>,
+    settings: &Settings,
 ) {
     let (tf, bounds) = transform_query.get(asteroid_ctrl).unwrap();
     anim_events.send(AnimationEffect {
         key: Animation::BigExplosion,
         position: tf.translation,
         size: bounds.size().max_element(),
-        fps: ANIMATION_FPS,
+        fps: settings.general.animation_fps,
     });
 
     // despawn controller

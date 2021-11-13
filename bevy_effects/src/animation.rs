@@ -4,7 +4,7 @@ use bevy_asset_map::AtlasAssetMap;
 pub struct AnimationEffectPlugin<KEY>(core::marker::PhantomData<KEY>);
 
 #[derive(Debug, Clone)]
-pub struct AnimationEffect<KEY> {
+pub struct AnimationEffectEvent<KEY> {
     pub key: KEY,
     pub size: f32,
     pub position: Vec3,
@@ -25,7 +25,7 @@ where
     KEY: 'static + Clone + Eq + Send + Sync,
 {
     fn build(&self, app: &mut App) {
-        app.add_event::<AnimationEffect<KEY>>().add_system_set(
+        app.add_event::<AnimationEffectEvent<KEY>>().add_system_set(
             SystemSet::new()
                 .with_system(start_animation_effect::<KEY>)
                 .with_system(animate_effect::<KEY>),
@@ -38,12 +38,12 @@ struct AnimEffect;
 
 fn start_animation_effect<KEY>(
     mut commands: Commands,
-    mut animation_events: EventReader<AnimationEffect<KEY>>,
+    mut animation_events: EventReader<AnimationEffectEvent<KEY>>,
     atlas_asset_map: Res<AtlasAssetMap<KEY>>,
 ) where
     KEY: 'static + Clone + Eq + Send + Sync,
 {
-    for AnimationEffect {
+    for AnimationEffectEvent {
         key,
         size,
         position,
@@ -56,8 +56,7 @@ fn start_animation_effect<KEY>(
         commands
             .spawn_bundle(SpriteSheetBundle {
                 texture_atlas,
-                transform: Transform::from_translation(*position)
-                    .with_scale(Vec3::splat(scale)),
+                transform: Transform::from_translation(*position).with_scale(Vec3::splat(scale)),
                 ..Default::default()
             })
             .insert(AnimEffect)

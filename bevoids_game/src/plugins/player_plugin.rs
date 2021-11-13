@@ -1,7 +1,7 @@
 use bevy::{ecs::system::EntityCommands, log, math::vec3, prelude::*};
 use bevy_asset_map::{GfxBounds, TextureAssetMap};
 use bevy_effects::{
-    animation::AnimationEffect,
+    animation::AnimationEffectEvent,
     sound::{LoopSfx, PlaySfx, SetPanSfx, SfxCmdEvent, StopSfx},
 };
 use rand::Rng;
@@ -12,7 +12,7 @@ use crate::{
         spawn_display_shadows, Despawn, FireLaserEvent, InsideWindow, ShadowController, Velocity,
     },
     settings::Settings,
-    Animation, BackgroundTexture, GameState, GeneralTexture, SoundEffect,
+    AnimationAtlas, BackgroundTexture, GameState, GeneralTexture, SoundEffect,
 };
 
 pub struct PlayerPlugin;
@@ -47,7 +47,7 @@ impl Plugin for PlayerPlugin {
 fn player_dead_gameover(
     mut events: EventReader<PlayerDeadEvent>,
     mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
-    mut anim_effect_event: EventWriter<AnimationEffect<Animation>>,
+    mut anim_effect_event: EventWriter<AnimationEffectEvent<AnimationAtlas>>,
     player_query: Query<(Entity, &Transform, &GfxBounds), (With<Player>, With<ShadowController>)>,
     mut commands: Commands,
     mut state: ResMut<State<GameState>>,
@@ -63,8 +63,8 @@ fn player_dead_gameover(
                     .into(),
             );
 
-            anim_effect_event.send(AnimationEffect {
-                key: Animation::BigExplosion,
+            anim_effect_event.send(AnimationEffectEvent {
+                key: AnimationAtlas::BigExplosion,
                 position: transform.translation,
                 size: bounds.size().max_element(),
                 fps: settings.general.animation_fps,

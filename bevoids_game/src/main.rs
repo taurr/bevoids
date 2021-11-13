@@ -67,13 +67,14 @@ struct AsteroidTexture(usize);
 struct BackgroundTexture(usize);
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-enum Animation {
+enum AnimationAtlas {
     BigExplosion,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-enum Fonts {
+enum GameFont {
     ScoreBoard,
+    GameOver,
 }
 
 fn main() {
@@ -116,10 +117,13 @@ fn main() {
         .add_state(GameState::Initialize)
         .add_startup_system(initialize_game)
         // fonts
-        .add_plugin(FontAssetMapPlugin::<Fonts>::default())
+        .add_plugin(FontAssetMapPlugin::<GameFont>::default())
         .insert_resource(
-            FontPaths::from_files([(Fonts::ScoreBoard, "fonts/FiraMono-Medium.ttf")])
-                .with_base_path(assets_path.clone()),
+            FontPaths::from_files([
+                (GameFont::ScoreBoard, "fonts/FiraMono-Medium.ttf"),
+                (GameFont::GameOver, "fonts/FiraSans-Bold.ttf"),
+            ])
+            .with_base_path(assets_path.clone()),
         )
         // graphics / sound effects
         .add_plugin(AudioAssetMapPlugin::<SoundEffect>::default())
@@ -156,11 +160,11 @@ fn main() {
         .insert_resource(TexturePaths::from_files(asteroid_textures))
         .add_plugin(TextureAssetMapPlugin::<BackgroundTexture>::default())
         .insert_resource(TexturePaths::from_files(background_textures))
-        .add_plugin(AnimationEffectPlugin::<Animation>::default())
-        .add_plugin(AtlasAssetMapPlugin::<Animation>::default())
+        .add_plugin(AnimationEffectPlugin::<AnimationAtlas>::default())
+        .add_plugin(AtlasAssetMapPlugin::<AnimationAtlas>::default())
         .insert_resource(
             TextureAtlasPaths::from_files([(
-                Animation::BigExplosion,
+                AnimationAtlas::BigExplosion,
                 "gfx/explosion.png",
                 AtlasDefinition::Grid {
                     columns: 9,
@@ -224,9 +228,9 @@ fn wait_for_resources(
     tex1: Res<TextureAssetMap<GeneralTexture>>,
     tex2: Res<TextureAssetMap<AsteroidTexture>>,
     tex3: Res<TextureAssetMap<BackgroundTexture>>,
-    anim1: Res<AtlasAssetMap<Animation>>,
+    anim1: Res<AtlasAssetMap<AnimationAtlas>>,
     audio1: Res<AudioAssetMap<SoundEffect>>,
-    fonts: Res<FontAssetMap<Fonts>>,
+    fonts: Res<FontAssetMap<GameFont>>,
 ) {
     if tex1.ready()
         && tex2.ready()

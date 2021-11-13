@@ -1,7 +1,7 @@
 use bevy::{ecs::system::EntityCommands, log, prelude::*};
 use bevy_asset_map::{GfxBounds, TextureAssetMap};
 use bevy_effects::{
-    animation::AnimationEffect,
+    animation::AnimationEffectEvent,
     sound::{PlaySfx, SfxCmdEvent},
 };
 use derive_more::{Constructor, Deref};
@@ -14,7 +14,7 @@ use crate::{
         ShadowOf, Velocity,
     },
     settings::Settings,
-    Animation, AsteroidTexture, GameState, SoundEffect,
+    AnimationAtlas, AsteroidTexture, GameState, SoundEffect,
 };
 
 pub struct AsteroidPlugin;
@@ -117,7 +117,7 @@ fn spawn_asteroid_on_empty_field(
 
 fn remove_asteroid_on_event(
     mut events: EventReader<RemoveAsteroidEvent>,
-    mut anim_events: EventWriter<AnimationEffect<Animation>>,
+    mut anim_events: EventWriter<AnimationEffectEvent<AnimationAtlas>>,
     mut commands: Commands,
     transform_query: Query<(&Transform, &GfxBounds)>,
     asteroids_query: Query<&ShadowOf>,
@@ -415,15 +415,15 @@ fn spawn_asteroid(
 
 fn despawn_asteroid_in_explosion(
     commands: &mut Commands,
-    anim_events: &mut EventWriter<AnimationEffect<Animation>>,
+    anim_events: &mut EventWriter<AnimationEffectEvent<AnimationAtlas>>,
     transform_query: &Query<(&Transform, &GfxBounds)>,
     asteroid_ctrl: Entity,
     shadows_query: &Query<(Entity, &ShadowOf), With<Asteroid>>,
     settings: &Settings,
 ) {
     let (tf, bounds) = transform_query.get(asteroid_ctrl).unwrap();
-    anim_events.send(AnimationEffect {
-        key: Animation::BigExplosion,
+    anim_events.send(AnimationEffectEvent {
+        key: AnimationAtlas::BigExplosion,
         position: tf.translation,
         size: bounds.size().max_element(),
         fps: settings.general.animation_fps,

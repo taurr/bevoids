@@ -1,9 +1,10 @@
 use bevy::prelude::*;
+use bevy_asset_map::FontAssetMap;
 use derive_more::Display;
 
 use crate::{
     text::{AsTextWithAttr, TextAttr},
-    GameState,
+    GameFont, GameState,
 };
 
 pub struct GameOverPlugin;
@@ -30,8 +31,10 @@ impl Plugin for GameOverPlugin {
     }
 }
 
-fn init_gameover_texts(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+fn init_gameover_texts(mut commands: Commands, font_asset_map: Res<FontAssetMap<GameFont>>) {
+    let font = font_asset_map
+        .get(&GameFont::GameOver)
+        .expect("unable to get font for gmaeover text");
 
     let gameover = GameOverText;
     let gameover_textattr = TextAttr {

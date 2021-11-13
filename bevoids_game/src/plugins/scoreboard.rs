@@ -4,7 +4,7 @@ use derive_more::{AsMut, AsRef, Display};
 
 use crate::{
     text::{AsTextWithAttr, TextAttr},
-    Fonts, GameState,
+    GameFont, GameState,
 };
 
 pub struct ScoreBoardPlugin;
@@ -33,7 +33,7 @@ impl Plugin for ScoreBoardPlugin {
 fn enter_ingame_scoreboard(
     mut commands: Commands,
     query: Query<Entity, With<ScoreBoard>>,
-    font_asset_map: Res<FontAssetMap<Fonts>>,
+    font_asset_map: Res<FontAssetMap<GameFont>>,
     win_bounds: Res<GfxBounds>,
 ) {
     // remove any old remnants
@@ -41,7 +41,7 @@ fn enter_ingame_scoreboard(
 
     // create a fresh scoreboard
     let font = font_asset_map
-        .get(&Fonts::ScoreBoard)
+        .get(&GameFont::ScoreBoard)
         .expect("unable to get font for ScoreBoard");
     let board = ScoreBoard { score: 0 };
     let color = Color::BEIGE;

@@ -3,7 +3,7 @@ use bevy_asset_map::AudioAssetMap;
 use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
 use itertools::*;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct SoundEffectsPlugin<KEY> {
     default_volume: Option<Vec<(KEY, f32)>>,
     default_panning: Option<Vec<(KEY, f32)>>,
@@ -11,7 +11,7 @@ pub struct SoundEffectsPlugin<KEY> {
 
 impl<KEY> Default for SoundEffectsPlugin<KEY>
 where
-    KEY: 'static + core::fmt::Debug + Clone + Send + Sync,
+    KEY: 'static + core::fmt::Debug + Send + Sync,
 {
     fn default() -> Self {
         Self {
@@ -23,7 +23,7 @@ where
 
 impl<KEY> SoundEffectsPlugin<KEY>
 where
-    KEY: 'static + core::fmt::Debug + Clone + Send + Sync,
+    KEY: 'static + core::fmt::Debug + Send + Sync,
 {
     #[allow(dead_code)]
     pub fn new() -> Self {

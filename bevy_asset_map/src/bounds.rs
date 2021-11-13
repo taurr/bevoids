@@ -1,7 +1,6 @@
 use std::f32::consts::PI;
 
 use bevy::{app::Events, prelude::*, window::WindowResized};
-use derive_more::AsRef;
 use parry2d::{
     bounding_volume::{BoundingSphere, AABB},
     math::Point,
@@ -16,11 +15,9 @@ impl Plugin for BoundsPlugin {
     }
 }
 
-#[derive(Debug, Component, Copy, Clone, AsRef)]
+#[derive(Debug, Component, Copy, Clone)]
 pub struct GfxBounds {
-    #[as_ref]
     aabb: AABB,
-    #[as_ref]
     sphere: BoundingSphere,
 }
 

@@ -1,4 +1,5 @@
 use bevy::{log, prelude::*};
+use bevy_asset_map::GfxBounds;
 use parry2d::bounding_volume::BoundingVolume;
 
 use crate::{
@@ -6,7 +7,7 @@ use crate::{
         Asteroid, AsteroidShotEvent, InsideWindow, Laser, LaserSpentEvent, Player, PlayerDeadEvent,
         RemoveAsteroidEvent,
     },
-    GameState, GfxBounds,
+    GameState,
 };
 
 pub struct HitTestPlugin;

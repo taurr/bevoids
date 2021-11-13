@@ -1,15 +1,18 @@
 use bevy::{ecs::system::EntityCommands, log, prelude::*};
+use bevy_asset_map::{GfxBounds, TextureAssetMap};
+use bevy_effects::{
+    animation::AnimationEffect,
+    sound::{PlaySfx, SfxCmdEvent},
+};
 use derive_more::{Constructor, Deref};
 use rand::Rng;
 use std::{f32::consts::PI, time::Duration};
 
 use crate::{
-    effects::{AnimationEffect, PlaySfx, SfxCmdEvent},
     plugins::{
         spawn_display_shadows, Despawn, InsideWindow, Player, ScoreBoard, ShadowController,
         ShadowOf, Velocity,
     },
-    resources::{GfxBounds, TextureAssetMap},
     settings::Settings,
     Animation, AsteroidTexture, GameState, SoundEffect,
 };

@@ -33,7 +33,7 @@ flame_width = 15
 flame_ypos = -30
 
 [laser]
-size = 25
+size = 35
 speed = 500
 lifetime_miliseconds = 800
 fadeout_miliseconds = 250

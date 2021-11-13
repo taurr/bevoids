@@ -1,13 +1,16 @@
 use bevy::{ecs::system::EntityCommands, log, math::vec3, prelude::*};
+use bevy_asset_map::{GfxBounds, TextureAssetMap};
+use bevy_effects::{
+    animation::AnimationEffect,
+    sound::{LoopSfx, PlaySfx, SetPanSfx, SfxCmdEvent, StopSfx},
+};
 use rand::Rng;
 use std::f32::consts::PI;
 
 use crate::{
-    effects::{AnimationEffect, LoopSfx, PlaySfx, SetPanSfx, SfxCmdEvent, StopSfx},
     plugins::{
         spawn_display_shadows, Despawn, FireLaserEvent, InsideWindow, ShadowController, Velocity,
     },
-    resources::{GfxBounds, TextureAssetMap},
     settings::Settings,
     Animation, BackgroundTexture, GameState, GeneralTexture, SoundEffect,
 };

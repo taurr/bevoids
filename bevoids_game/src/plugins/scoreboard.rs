@@ -1,8 +1,8 @@
 use bevy::prelude::*;
+use bevy_asset_map::{FontAssetMap, GfxBounds};
 use derive_more::{AsMut, AsRef, Display};
 
 use crate::{
-    resources::{FontAssetMap, GfxBounds},
     text::{AsTextWithAttr, TextAttr},
     Fonts, GameState,
 };

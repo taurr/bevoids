@@ -1,11 +1,11 @@
 use bevy::{log, math::vec3, prelude::*};
+use bevy_asset_map::{GfxBounds, TextureAssetMap};
+use bevy_effects::sound::{PlaySfx, SfxCmdEvent};
 use derive_more::{Constructor, Deref};
 use std::{f32::consts::PI, time::Duration};
 
 use crate::{
-    effects::{PlaySfx, SfxCmdEvent},
     plugins::{DelayedFadeDespawn, Despawn, Player, ShadowController, Velocity},
-    resources::{GfxBounds, TextureAssetMap},
     settings::Settings,
     GameState, GeneralTexture, SoundEffect,
 };

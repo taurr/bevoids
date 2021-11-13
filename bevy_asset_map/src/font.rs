@@ -97,6 +97,11 @@ where
     }
 
     #[allow(dead_code)]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    #[allow(dead_code)]
     pub fn ready(&self) -> bool {
         self.0.iter().all(|info| match info {
             FontMapEntry::Loading { .. } => false,

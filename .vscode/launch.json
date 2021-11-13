@@ -18,7 +18,7 @@
       "env": {
         "RUST_LOG": "info,bevoids=debug"
       },
-      "args": ["--assets", "${workspaceFolder}/assets"],
+      "args": ["--assets", "${workspaceFolder}/bevoids_game/assets"],
       "cwd": "${workspaceFolder}"
     },
     {
@@ -32,7 +32,7 @@
           "kind": "bin"
         }
       },
-      "args": [],
+      "args": ["--assets", "${workspaceFolder}/bevoids_game/assets"],
       "cwd": "${workspaceFolder}"
     }
   ]

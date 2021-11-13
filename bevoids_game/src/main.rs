@@ -1,33 +1,34 @@
 #![allow(clippy::complexity)]
 
+// TODO: refactor crate into gamestate areas and functionality
 // TODO: menu state: display menu before starting the game
-// TODO: split general functionality into own crate
+// TODO: display high-score
+// TODO: save high-score
+// TODO: sound on highscore
 // TODO: tests in bevy?
-// TODO: can we get event once a sound stops when not playing in a loop / whenever the loop resets?
+// TODO: get keys for loaded assets from AssetMap's
+// TODO: AssetMap.ready() => all_ready, then create .first_ready()
+// TODO: AssetMap events when updating assets
 
 use bevy::{log, prelude::*};
+use bevy_asset_map::{
+    AtlasAssetMap, AtlasAssetMapPlugin, AtlasDefinition, AudioAssetMap, AudioAssetMapPlugin,
+    AudioPaths, BoundsPlugin, FontAssetMap, FontAssetMapPlugin, FontPaths, TextureAssetMap,
+    TextureAssetMapPlugin, TextureAtlasPaths, TexturePaths,
+};
+use bevy_effects::{animation::AnimationEffectPlugin, sound::SoundEffectsPlugin};
 use derive_more::Display;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use walkdir::WalkDir;
 
-mod effects;
 mod plugins;
-mod resources;
 mod settings;
 mod text;
 
-use crate::{
-    effects::{AnimationEffectPlugin, SoundEffectsPlugin},
-    plugins::{
-        AsteroidPlugin, FadeDespawnPlugin, GameOverPlugin, HitTestPlugin, LaserPlugin,
-        MovementPlugin, PlayerPlugin, ScoreBoardPlugin,
-    },
-    resources::{
-        AtlasAssetMap, AtlasAssetMapPlugin, AtlasDefinition, AudioAssetMap, AudioAssetMapPlugin,
-        AudioPaths, BoundsPlugin, FontAssetMap, FontAssetMapPlugin, FontPaths, GfxBounds,
-        TextureAssetMap, TextureAssetMapPlugin, TextureAtlasPaths, TexturePaths,
-    },
+use crate::plugins::{
+    AsteroidPlugin, FadeDespawnPlugin, GameOverPlugin, HitTestPlugin, LaserPlugin, MovementPlugin,
+    PlayerPlugin, ScoreBoardPlugin,
 };
 
 #[derive(Debug, StructOpt)]

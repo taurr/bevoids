@@ -1,9 +1,8 @@
 use bevy::{ecs::system::EntityCommands, log, prelude::*};
+use bevy_asset_map::GfxBounds;
 use derive_more::{Add, AddAssign, Deref, DerefMut, From, Into, Sub, SubAssign};
 use enum_iterator::IntoEnumIterator;
 use parry2d::bounding_volume::BoundingVolume;
-
-use crate::GfxBounds;
 
 pub struct MovementPlugin;
 

@@ -1,34 +1,48 @@
-use bevy::{ecs::system::EntityCommands, log, prelude::*};
-use std::time::Duration;
+use bevy::{
+    ecs::{
+        schedule::{IntoRunCriteria, RunCriteriaDescriptorOrLabel},
+        system::EntityCommands,
+    },
+    log,
+    prelude::*,
+};
+use std::{cell::Cell, sync::Mutex, time::Duration};
 
-/// Stage in which entities are despawned if they have the [Despawn] component.
-/// Also, [FadeDespawn] and [DelayedFadeDespawn] are handled here.
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub struct DespawnStage;
+pub struct DespawnPlugin {
+    run_criteria: Mutex<Cell<Option<RunCriteriaDescriptorOrLabel>>>,
+}
 
-impl StageLabel for DespawnStage {
-    fn dyn_clone(&self) -> Box<dyn StageLabel> {
-        Box::new(*self)
+impl Default for DespawnPlugin {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
-pub struct DespawnPlugin;
+impl DespawnPlugin {
+    pub fn new() -> Self {
+        Self {
+            run_criteria: Mutex::new(Cell::new(None)),
+        }
+    }
+
+    pub fn with_run_criteria<Marker, T: IntoRunCriteria<Marker>>(run_criteria: T) -> Self {
+        Self {
+            run_criteria: Mutex::new(Cell::new(Some(run_criteria.into()))),
+        }
+    }
+}
 
 impl Plugin for DespawnPlugin {
     fn build(&self, app: &mut App) {
-        app.add_stage_after(CoreStage::PostUpdate, DespawnStage, SystemStage::parallel())
-            .add_system_set_to_stage(
-                DespawnStage,
-                SystemSet::new().label("despawn").with_system(despawn),
-            )
-            .add_system_set_to_stage(
-                DespawnStage,
-                SystemSet::new()
-                    .before("despawn")
-                    .with_system(delayed_despawn)
-                    .with_system(delayed_fade_despawn)
-                    .with_system(fade_despawn),
-            );
+        let mut set = SystemSet::new()
+            .with_system(despawn)
+            .with_system(delayed_despawn)
+            .with_system(delayed_fade_despawn)
+            .with_system(fade_despawn);
+        if let Some(r) = self.run_criteria.lock().unwrap().take() {
+            set = set.with_run_criteria(r);
+        }
+        app.add_system_set_to_stage(CoreStage::Last, set);
     }
 }
 

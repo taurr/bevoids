@@ -1,12 +1,13 @@
+use std::marker::PhantomData;
+
 use bevy::prelude::*;
-use bevy_asset_map::AudioAssetMap;
-use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
+use bevy_asset_map::{AudioAssetMap, AudioAssetMapPlugin};
+use bevy_kira_audio::{Audio, AudioChannel};
 use itertools::*;
 
 #[derive(Debug, Clone)]
 pub struct SoundEffectsPlugin<KEY> {
-    default_volume: Option<Vec<(KEY, f32)>>,
-    default_panning: Option<Vec<(KEY, f32)>>,
+    _marker: PhantomData<KEY>,
 }
 
 impl<KEY> Default for SoundEffectsPlugin<KEY>
@@ -15,42 +16,19 @@ where
 {
     fn default() -> Self {
         Self {
-            default_volume: None,
-            default_panning: None,
+            _marker: Default::default(),
         }
     }
 }
 
-impl<KEY> SoundEffectsPlugin<KEY>
+impl<KEY> Plugin for SoundEffectsPlugin<KEY>
 where
-    KEY: 'static + core::fmt::Debug + Send + Sync,
+    KEY: 'static + core::fmt::Debug + Clone + Eq + core::hash::Hash + Send + Sync + ToString,
 {
-    #[allow(dead_code)]
-    pub fn new() -> Self {
-        Self {
-            default_volume: None,
-            default_panning: None,
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn with_volumes<I: IntoIterator<Item = (KEY, f32)>>(mut self, itt: I) -> Self {
-        self.default_volume = Some(
-            itt.into_iter()
-                .map(|(key, x)| (key, x.clamp(0.0, 1.0)))
-                .collect(),
-        );
-        self
-    }
-
-    #[allow(dead_code)]
-    pub fn with_panning<I: IntoIterator<Item = (KEY, f32)>>(mut self, itt: I) -> Self {
-        self.default_panning = Some(
-            itt.into_iter()
-                .map(|(key, x)| (key, x.clamp(0.0, 1.0)))
-                .collect(),
-        );
-        self
+    fn build(&self, app: &mut App) {
+        app.add_plugin(AudioAssetMapPlugin::<KEY>::default())
+            .add_event::<SfxCmdEvent<KEY>>()
+            .add_system_set(SystemSet::new().with_system(play_sound_effect_on_event::<KEY>));
     }
 }
 
@@ -186,36 +164,6 @@ impl<KEY> SetVolSfx<KEY> {
             volume: volume.clamp(0., 1.),
         }
     }
-}
-
-impl<KEY> Plugin for SoundEffectsPlugin<KEY>
-where
-    KEY: 'static + Clone + Eq + core::hash::Hash + Send + Sync + ToString,
-{
-    fn build(&self, app: &mut App) {
-        app.add_plugin(AudioPlugin)
-            .add_event::<SfxCmdEvent<KEY>>()
-            .insert_resource(self.clone())
-            .add_startup_system(sound_effects_startup_system::<KEY>)
-            .add_system_set(SystemSet::new().with_system(play_sound_effect_on_event::<KEY>));
-    }
-}
-
-fn sound_effects_startup_system<KEY>(
-    mut commands: Commands,
-    plugin: Res<SoundEffectsPlugin<KEY>>,
-    audio: Res<Audio>,
-) where
-    KEY: 'static + Clone + Eq + core::hash::Hash + Send + Sync + ToString,
-{
-    commands.remove_resource::<SoundEffectsPlugin<KEY>>();
-
-    set_audio_channel_defaults(
-        plugin.default_volume.as_ref(),
-        plugin.default_panning.as_ref(),
-        &audio,
-        &mut commands,
-    );
 }
 
 pub fn set_audio_channel_defaults<KEY, IV: AsRef<[(KEY, f32)]>, IP: AsRef<[(KEY, f32)]>>(

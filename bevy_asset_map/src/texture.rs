@@ -1,11 +1,36 @@
 use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
-use std::path::PathBuf;
+use std::{marker::PhantomData, path::PathBuf};
 
 pub type Size = UVec2;
 
 /// Resouce for keeping track of a number of textures.
 #[derive(Debug)]
 pub struct TextureAssetMap<KEY>(Vec<TextureMapEntry<KEY>>);
+
+pub struct TextureAssetMapPlugin<KEY> {
+    _marker: PhantomData<KEY>,
+}
+
+impl<KEY> Default for TextureAssetMapPlugin<KEY> {
+    fn default() -> Self {
+        Self {
+            _marker: Default::default(),
+        }
+    }
+}
+
+impl<KEY> Plugin for TextureAssetMapPlugin<KEY>
+where
+    KEY: 'static + core::fmt::Debug + Clone + Eq + Sync + Send,
+{
+    fn build(&self, app: &mut App) {
+        app.add_event::<TextureAssetInfo<KEY>>();
+        app.add_system_set_to_stage(
+            CoreStage::Update,
+            SystemSet::new().with_system(monitor_texture_assets::<KEY>),
+        );
+    }
+}
 
 /// Information on a tracked texture. Can be retrieved through the [TextureAssetMap] resource,
 /// or received as an event.

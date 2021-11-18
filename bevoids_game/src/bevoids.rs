@@ -1,12 +1,11 @@
-use bevy::{log, prelude::*};
+use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
 use bevy_asset_map::{
-    monitor_atlas_assets, monitor_audio_assets, monitor_font_assets, monitor_texture_assets,
-    AtlasAssetInfo, BoundsPlugin, TextureAssetInfo,
+    AtlasAssetMapPlugin, BoundsPlugin, FontAssetMapPlugin, TextureAssetMapPlugin,
 };
 use bevy_effects::{
     animation::AnimationEffectPlugin,
     despawn::DespawnPlugin,
-    sound::{play_sound_effect_on_event, SfxCmdEvent},
+    sound::{PlaySfx, SfxCmdEvent, SoundEffectsPlugin},
 };
 use derive_more::{AsRef, Deref, Display, From, Into};
 
@@ -31,7 +30,9 @@ pub struct AssetPath(String);
 #[derive(Debug, Display, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum GameState {
     Initialize,
-    InGame,
+    StartGame,
+    Playing,
+    Paused,
     GameOver,
 }
 
@@ -52,21 +53,18 @@ impl Plugin for Bevoids {
             .add_event::<FireLaserEvent>()
             .add_event::<AddScoreEvent>();
 
-        // movement
-        app.add_system_set(
-            SystemSet::new()
-                .with_system(wrapping_linear_movement)
-                .with_system(non_wrapping_linear_movement)
-                .with_system(move_shadow),
-        );
-
-        // sound
-        app.add_plugin(bevy_kira_audio::AudioPlugin)
-            .add_plugin(AnimationEffectPlugin::<AnimationAtlas>::new())
-            .add_system(play_sound_effect_on_event::<SoundEffect>);
-
-        // misc needed plugins
-        app.add_plugin(DespawnPlugin).add_plugin(BoundsPlugin);
+        // misc
+        app.add_plugin(DespawnPlugin::with_run_criteria(run_if_not_paused))
+            .add_plugin(AnimationEffectPlugin::<AnimationAtlas>::with_run_criteria(
+                run_if_not_paused,
+            ))
+            .add_plugin(SoundEffectsPlugin::<SoundEffect>::default())
+            .add_plugin(AtlasAssetMapPlugin::<AnimationAtlas>::default())
+            .add_plugin(FontAssetMapPlugin::<GameFont>::default())
+            .add_plugin(TextureAssetMapPlugin::<GeneralTexture>::default())
+            .add_plugin(TextureAssetMapPlugin::<AsteroidTexture>::default())
+            .add_plugin(TextureAssetMapPlugin::<BackgroundTexture>::default())
+            .add_plugin(BoundsPlugin);
 
         // introduce the state to its relevant stages
         let state = GameState::Initialize;
@@ -74,20 +72,22 @@ impl Plugin for Bevoids {
             .add_state_to_stage(CoreStage::Update, state)
             .add_state_to_stage(CoreStage::PostUpdate, state);
 
+        // all states
+        app.add_system_set_to_stage(
+            CoreStage::Update,
+            SystemSet::new().with_system(pause_control),
+        );
+
         setup_initialize(app);
-        setup_ingame(app);
+        setup_startgame(app);
+        setup_playing(app);
+        setup_paused(app);
         setup_gameover(app);
     }
 }
 
 fn setup_initialize(app: &mut App) {
-    log::trace!("systems specific for initialize");
-
-    app.add_event::<AtlasAssetInfo<AnimationAtlas>>()
-        .add_event::<TextureAssetInfo<GeneralTexture>>()
-        .add_event::<TextureAssetInfo<AsteroidTexture>>()
-        .add_event::<TextureAssetInfo<BackgroundTexture>>()
-        .add_event::<SfxCmdEvent<SoundEffect>>();
+    let state = GameState::Initialize;
 
     app.add_startup_system_set(
         SystemSet::new()
@@ -97,60 +97,109 @@ fn setup_initialize(app: &mut App) {
             .with_system(load_background_textures)
             .with_system(load_animations)
             .with_system(load_audio),
-    );
+    )
+    .add_system_set(SystemSet::on_update(state).with_system(wait_for_resources));
+}
+
+fn setup_startgame(app: &mut App) {
+    let state = GameState::StartGame;
 
     app.add_system_set(
-        SystemSet::on_update(GameState::Initialize)
-            .with_system(monitor_font_assets::<GameFont>)
-            .with_system(monitor_texture_assets::<GeneralTexture>)
-            .with_system(monitor_texture_assets::<AsteroidTexture>)
-            .with_system(monitor_texture_assets::<BackgroundTexture>)
-            .with_system(monitor_atlas_assets::<AnimationAtlas>)
-            .with_system(monitor_audio_assets::<SoundEffect>)
-            .with_system(wait_for_resources),
+        SystemSet::on_enter(state)
+            .with_system(spawn_player)
+            .with_system(spawn_asteroid_spawner)
+            .with_system(setup_ingame_scoreboard)
+            .with_system(goto_playing),
     );
 }
 
-fn setup_ingame(app: &mut App) {
-    app.add_system_set(
-        SystemSet::on_enter(GameState::InGame)
-            .with_system(spawn_player)
-            .with_system(spawn_asteroid_spawner)
-            .with_system(setup_ingame_scoreboard),
+fn setup_playing(app: &mut App) {
+    let state = GameState::Playing;
+
+    app.add_system_set_to_stage(
+        CoreStage::PreUpdate,
+        SystemSet::on_update(state)
+            .with_system(wrapping_linear_movement)
+            .with_system(non_wrapping_linear_movement)
+            .with_system(move_shadow),
     )
     .add_system_set_to_stage(
         CoreStage::Update,
-        SystemSet::on_update(GameState::InGame)
+        SystemSet::on_update(state)
             .with_system(player_controls)
             .with_system(asteroid_spawner)
             .with_system(handle_fire_laser)
             .with_system(handle_player_dead)
             .with_system(handle_shot_asteroids)
+            .with_system(update_scoreboard)
             .with_system(hittest_shot_vs_asteroid)
-            .with_system(hittest_player_vs_asteroid)
-            .with_system(update_scoreboard),
+            .with_system(hittest_player_vs_asteroid),
     )
     .add_system_set_to_stage(
         CoreStage::PostUpdate,
-        SystemSet::on_update(GameState::InGame)
+        SystemSet::on_update(state)
             .with_system(handle_spawn_asteroid)
             .with_system(handle_asteroid_explosion),
     )
-    .add_system_set(
-        SystemSet::on_exit(GameState::InGame)
-            .with_system(despawn_asteroid_spawner)
-            .with_system(stop_thruster_sounds),
-    );
+    .add_system_set(SystemSet::on_exit(state).with_system(stop_thruster_sounds));
+}
+
+fn setup_paused(_app: &mut App) {
+    let _state = GameState::Paused;
 }
 
 fn setup_gameover(app: &mut App) {
+    let state = GameState::GameOver;
+
     app.add_system_set(
-        SystemSet::on_enter(GameState::GameOver)
+        SystemSet::on_enter(state)
+            .with_system(despawn_asteroid_spawner)
             .with_system(setup_gameover_scoreboard)
             .with_system(init_gameover_texts),
     )
-    .add_system_set(SystemSet::on_update(GameState::GameOver).with_system(restart_on_enter))
-    .add_system_set(
-        SystemSet::on_exit(GameState::GameOver).with_system(remove_texts_on_exit_gameover),
-    );
+    .add_system_set_to_stage(
+        CoreStage::PreUpdate,
+        SystemSet::on_update(state)
+            .with_system(wrapping_linear_movement)
+            .with_system(non_wrapping_linear_movement)
+            .with_system(move_shadow),
+    )
+    .add_system_set_to_stage(
+        CoreStage::Update,
+        SystemSet::on_update(state).with_system(restart_on_enter),
+    )
+    .add_system_set_to_stage(
+        CoreStage::PostUpdate,
+        SystemSet::on_update(state).with_system(handle_asteroid_explosion),
+    )
+    .add_system_set(SystemSet::on_exit(state).with_system(remove_gameover_texts));
+}
+
+fn goto_playing(
+    mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
+    mut state: ResMut<State<GameState>>,
+) {
+    sfx_event.send(PlaySfx::new(SoundEffect::Notification).into());
+    state.set(GameState::Playing).unwrap();
+}
+
+fn pause_control(kb: Res<Input<KeyCode>>, mut state: ResMut<State<GameState>>) {
+    if kb.just_pressed(KeyCode::Escape) {
+        match state.current() {
+            GameState::Playing => {
+                state.set(GameState::Paused).unwrap();
+            }
+            GameState::Paused => {
+                state.set(GameState::Playing).unwrap();
+            }
+            _ => {}
+        }
+    }
+}
+
+fn run_if_not_paused(mode: Res<State<GameState>>) -> ShouldRun {
+    match mode.current() {
+        GameState::Paused => ShouldRun::No,
+        _ => ShouldRun::Yes,
+    }
 }

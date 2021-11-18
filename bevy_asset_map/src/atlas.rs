@@ -1,7 +1,32 @@
 use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
-use std::path::PathBuf;
+use std::{marker::PhantomData, path::PathBuf};
 
 pub type Size = UVec2;
+
+pub struct AtlasAssetMapPlugin<KEY> {
+    _marker: PhantomData<KEY>,
+}
+
+impl<KEY> Default for AtlasAssetMapPlugin<KEY> {
+    fn default() -> Self {
+        Self {
+            _marker: Default::default(),
+        }
+    }
+}
+
+impl<KEY> Plugin for AtlasAssetMapPlugin<KEY>
+where
+    KEY: 'static + core::fmt::Debug + Clone + Eq + Sync + Send,
+{
+    fn build(&self, app: &mut App) {
+        app.add_event::<AtlasAssetInfo<KEY>>();
+        app.add_system_set_to_stage(
+            CoreStage::Update,
+            SystemSet::new().with_system(monitor_atlas_assets::<KEY>),
+        );
+    }
+}
 
 /// Resource for keeping track of a number of textures.
 #[derive(Debug)]

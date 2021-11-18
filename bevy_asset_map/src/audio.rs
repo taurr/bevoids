@@ -1,9 +1,34 @@
 use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
 use bevy_kira_audio::AudioSource;
-use std::path::PathBuf;
+use std::{marker::PhantomData, path::PathBuf};
 
 #[derive(Debug)]
 pub struct AudioAssetMap<KEY>(Vec<AudioMapEntry<KEY>>);
+
+pub struct AudioAssetMapPlugin<KEY> {
+    _marker: PhantomData<KEY>,
+}
+
+impl<KEY> Default for AudioAssetMapPlugin<KEY> {
+    fn default() -> Self {
+        Self {
+            _marker: Default::default(),
+        }
+    }
+}
+
+impl<KEY> Plugin for AudioAssetMapPlugin<KEY>
+where
+    KEY: 'static + core::fmt::Debug + Clone + Eq + Sync + Send,
+{
+    fn build(&self, app: &mut App) {
+        app.add_plugin(bevy_kira_audio::AudioPlugin)
+            .add_system_set_to_stage(
+                CoreStage::Update,
+                SystemSet::new().with_system(monitor_audio_assets::<KEY>),
+            );
+    }
+}
 
 /// Insert as a resource to make the [AudioAssetMapPlugin] load audio files during startup.
 #[derive(Debug, Clone)]

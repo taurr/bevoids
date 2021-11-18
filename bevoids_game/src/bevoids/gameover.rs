@@ -68,7 +68,7 @@ pub(crate) fn init_gameover_texts(
         .insert(pressreturn);
 }
 
-pub(crate) fn remove_texts_on_exit_gameover(
+pub(crate) fn remove_gameover_texts(
     mut commands: Commands,
     gameover_query: Query<Entity, With<GameOverText>>,
     pressreturn_query: Query<Entity, With<PressReturnText>>,
@@ -83,6 +83,6 @@ pub(crate) fn remove_texts_on_exit_gameover(
 
 pub(crate) fn restart_on_enter(kb: Res<Input<KeyCode>>, mut state: ResMut<State<GameState>>) {
     if kb.pressed(KeyCode::Return) {
-        state.set(GameState::InGame).unwrap();
+        state.set(GameState::StartGame).unwrap();
     }
 }

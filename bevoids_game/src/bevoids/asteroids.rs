@@ -58,7 +58,7 @@ pub(crate) fn spawn_asteroid_spawner(
     old_asteroids_query
         .iter()
         .for_each(|e| commands.entity(e).despawn_recursive());
-    
+
     // clear counter
     commands.insert_resource(AsteroidCounter::default());
 
@@ -303,10 +303,13 @@ pub(crate) fn handle_asteroid_explosion(
     {
         log::warn!(?asteroid, "remove asteroid");
 
+        let mut anim_position = asteroid_tf.translation;
+        anim_position.z -= 1.;
+
         // display explosion
         anim_event.send(AnimationEffectEvent {
             key: AnimationAtlas::BigExplosion,
-            position: asteroid_tf.translation,
+            position: anim_position,
             size: asteroid_bounds.size().max_element(),
             fps: settings.general.animation_fps,
         });

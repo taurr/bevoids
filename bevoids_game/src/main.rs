@@ -1,6 +1,5 @@
 #![allow(clippy::complexity)]
 
-// TODO: pause
 // TODO: menu state: display menu before starting the game
 // TODO: display high-score
 // TODO: save high-score

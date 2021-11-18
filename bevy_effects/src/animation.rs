@@ -1,7 +1,15 @@
-use bevy::prelude::*;
+use std::{cell::Cell, sync::Mutex};
+
+use bevy::{
+    ecs::schedule::{IntoRunCriteria, RunCriteriaDescriptorOrLabel},
+    prelude::*,
+};
 use bevy_asset_map::AtlasAssetMap;
 
-pub struct AnimationEffectPlugin<KEY>(core::marker::PhantomData<KEY>);
+pub struct AnimationEffectPlugin<KEY> {
+    run_criteria: Mutex<Cell<Option<RunCriteriaDescriptorOrLabel>>>,
+    _marker: core::marker::PhantomData<KEY>,
+}
 
 #[derive(Debug, Clone)]
 pub struct AnimationEffectEvent<KEY> {
@@ -16,7 +24,7 @@ where
     KEY: 'static + Clone + Eq + Send + Sync,
 {
     fn default() -> Self {
-        Self(Default::default())
+        Self::new()
     }
 }
 
@@ -26,7 +34,17 @@ where
 {
     #[allow(dead_code)]
     pub fn new() -> Self {
-        Self(Default::default())
+        Self {
+            run_criteria: Mutex::new(Cell::new(None)),
+            _marker: Default::default(),
+        }
+    }
+
+    pub fn with_run_criteria<Marker, T: IntoRunCriteria<Marker>>(run_criteria: T) -> Self {
+        Self {
+            run_criteria: Mutex::new(Cell::new(Some(run_criteria.into()))),
+            _marker: Default::default(),
+        }
     }
 }
 
@@ -35,18 +53,21 @@ where
     KEY: 'static + Clone + Eq + Send + Sync,
 {
     fn build(&self, app: &mut App) {
-        app.add_event::<AnimationEffectEvent<KEY>>().add_system_set(
-            SystemSet::new()
-                .with_system(start_animation_effect::<KEY>)
-                .with_system(update_animate_effect::<KEY>),
-        );
+        app.add_event::<AnimationEffectEvent<KEY>>();
+        let mut set = SystemSet::new()
+            .with_system(start_animation_effect::<KEY>)
+            .with_system(update_animation_effect::<KEY>);
+        if let Some(r) = self.run_criteria.lock().unwrap().take() {
+            set = set.with_run_criteria(r);
+        }
+        app.add_system_set(set);
     }
 }
 
 #[derive(Component, Debug)]
-struct AnimEffect;
+pub struct AnimEffect;
 
-fn start_animation_effect<KEY>(
+pub fn start_animation_effect<KEY>(
     mut commands: Commands,
     mut animation_events: EventReader<AnimationEffectEvent<KEY>>,
     atlas_asset_map: Res<AtlasAssetMap<KEY>>,
@@ -74,7 +95,7 @@ fn start_animation_effect<KEY>(
     }
 }
 
-fn update_animate_effect<KEY>(
+pub fn update_animation_effect<KEY>(
     mut commands: Commands,
     time: Res<Time>,
     atlas_assets: Res<Assets<TextureAtlas>>,

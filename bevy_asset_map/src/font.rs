@@ -1,8 +1,32 @@
 use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
-use std::path::PathBuf;
+use std::{marker::PhantomData, path::PathBuf};
 
 #[derive(Debug)]
 pub struct FontAssetMap<KEY>(Vec<FontMapEntry<KEY>>);
+
+pub struct FontAssetMapPlugin<KEY> {
+    _marker: PhantomData<KEY>,
+}
+
+impl<KEY> Default for FontAssetMapPlugin<KEY> {
+    fn default() -> Self {
+        Self {
+            _marker: Default::default(),
+        }
+    }
+}
+
+impl<KEY> Plugin for FontAssetMapPlugin<KEY>
+where
+    KEY: 'static + core::fmt::Debug + Clone + Eq + Sync + Send,
+{
+    fn build(&self, app: &mut App) {
+        app.add_system_set_to_stage(
+            CoreStage::Update,
+            SystemSet::new().with_system(monitor_font_assets::<KEY>),
+        );
+    }
+}
 
 /// Insert as a resource to make the [FontAssetMapPlugin] load fonts during startup.
 #[derive(Debug, Clone)]

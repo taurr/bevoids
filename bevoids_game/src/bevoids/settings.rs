@@ -18,6 +18,7 @@ pub struct Asteroid {
     pub speed_min: f32,
     pub zpos_min: f32,
     pub zpos_max: f32,
+    pub spawndelay_seconds: f32,
     pub spawndelay_initial_seconds: f32,
     pub spawndelay_min_seconds: f32,
     pub spawndelay_multiplier: f32,

@@ -1,10 +1,6 @@
 use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
 use std::path::PathBuf;
 
-/// Bevy plugin for loading a number of fonts.
-#[derive(Debug)]
-pub struct FontAssetMapPlugin<KEY>(core::marker::PhantomData<KEY>);
-
 #[derive(Debug)]
 pub struct FontAssetMap<KEY>(Vec<FontMapEntry<KEY>>);
 
@@ -19,29 +15,6 @@ pub struct FontPaths<KEY> {
 enum FontMapEntry<KEY> {
     Loading { key: KEY, handle: Handle<Font> },
     Loaded { key: KEY, handle: Handle<Font> },
-}
-
-impl<KEY> Default for FontAssetMapPlugin<KEY> {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
-
-impl<KEY> Plugin for FontAssetMapPlugin<KEY>
-where
-    KEY: 'static + core::fmt::Debug + Copy + Eq + Sync + Send,
-{
-    #[allow(dead_code)]
-    fn build(&self, app: &mut App) {
-        app.add_startup_system(load_font_assets::<KEY>)
-            .add_system(monitor_font_assets::<KEY>);
-    }
-}
-
-impl<KEY> Default for FontAssetMap<KEY> {
-    fn default() -> Self {
-        Self(Default::default())
-    }
 }
 
 impl<KEY> FontPaths<KEY> {
@@ -121,20 +94,12 @@ where
             _ => None,
         })
     }
-}
 
-pub fn load_font_assets<KEY>(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    font_paths: Option<Res<FontPaths<KEY>>>,
-    font_asset_map: Option<Res<FontAssetMap<KEY>>>,
-) where
-    KEY: 'static + Clone + Eq + Send + Sync,
-{
-    if let Some(font_paths) = font_paths {
-        commands.insert_resource(FontAssetMap::with_font_paths(&font_paths, &asset_server));
-    } else if font_asset_map.is_none() {
-        commands.insert_resource(FontAssetMap::<KEY>::default());
+    pub fn iter(&self) -> impl Iterator<Item = (&KEY, &Handle<Font>)> {
+        self.0.iter().filter_map(|e| match e {
+            FontMapEntry::Loaded { key, handle } => Some((key, handle)),
+            _ => None,
+        })
     }
 }
 

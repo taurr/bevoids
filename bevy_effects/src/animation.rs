@@ -20,6 +20,16 @@ where
     }
 }
 
+impl<KEY> AnimationEffectPlugin<KEY>
+where
+    KEY: 'static + Clone + Eq + Send + Sync,
+{
+    #[allow(dead_code)]
+    pub fn new() -> Self {
+        Self(Default::default())
+    }
+}
+
 impl<KEY> Plugin for AnimationEffectPlugin<KEY>
 where
     KEY: 'static + Clone + Eq + Send + Sync,
@@ -28,7 +38,7 @@ where
         app.add_event::<AnimationEffectEvent<KEY>>().add_system_set(
             SystemSet::new()
                 .with_system(start_animation_effect::<KEY>)
-                .with_system(animate_effect::<KEY>),
+                .with_system(update_animate_effect::<KEY>),
         );
     }
 }
@@ -64,7 +74,7 @@ fn start_animation_effect<KEY>(
     }
 }
 
-fn animate_effect<KEY>(
+fn update_animate_effect<KEY>(
     mut commands: Commands,
     time: Res<Time>,
     atlas_assets: Res<Assets<TextureAtlas>>,

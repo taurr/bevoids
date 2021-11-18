@@ -203,25 +203,37 @@ where
 
 fn sound_effects_startup_system<KEY>(
     mut commands: Commands,
-    plugin: ResMut<SoundEffectsPlugin<KEY>>,
+    plugin: Res<SoundEffectsPlugin<KEY>>,
     audio: Res<Audio>,
 ) where
     KEY: 'static + Clone + Eq + core::hash::Hash + Send + Sync + ToString,
 {
     commands.remove_resource::<SoundEffectsPlugin<KEY>>();
 
+    set_audio_channel_defaults(
+        plugin.default_volume.as_ref(),
+        plugin.default_panning.as_ref(),
+        &audio,
+        &mut commands,
+    );
+}
+
+pub fn set_audio_channel_defaults<KEY, IV: AsRef<[(KEY, f32)]>, IP: AsRef<[(KEY, f32)]>>(
+    volume: Option<IV>,
+    panning: Option<IP>,
+    audio: &Audio,
+    commands: &mut Commands,
+) where
+    KEY: 'static + Clone + Eq + core::hash::Hash + Send + Sync + ToString,
+{
     let resource = SoundEffectChannels(
-        plugin
-            .default_volume
+        volume
             .iter()
-            .flatten()
-            .map(|(key, _)| key.clone())
+            .flat_map(|volume| volume.as_ref().iter().map(|(key, _)| key.clone()))
             .chain(
-                plugin
-                    .default_panning
+                panning
                     .iter()
-                    .flatten()
-                    .map(|(key, _)| key.clone()),
+                    .flat_map(|panning| panning.as_ref().iter().map(|(key, _)| key.clone())),
             )
             .unique()
             .map(|key| {
@@ -229,16 +241,14 @@ fn sound_effects_startup_system<KEY>(
                     key.clone(),
                     SoundEffectSetting {
                         channel: AudioChannel::new(key.to_string()),
-                        default_volume: plugin
-                            .default_volume
+                        default_volume: volume
                             .iter()
-                            .flatten()
+                            .flat_map(|v| v.as_ref())
                             .find(|(k, _)| *k == key)
                             .map_or(1.0, |(_, v)| *v),
-                        default_panning: plugin
-                            .default_panning
+                        default_panning: panning
                             .iter()
-                            .flatten()
+                            .flat_map(|p| p.as_ref())
                             .find(|(k, _)| *k == key)
                             .map_or(0.5, |(_, v)| *v),
                     },
@@ -260,9 +270,9 @@ struct SoundEffectSetting {
     default_volume: f32,
 }
 
-struct SoundEffectChannels<KEY>(Vec<(KEY, SoundEffectSetting)>);
+pub struct SoundEffectChannels<KEY>(Vec<(KEY, SoundEffectSetting)>);
 
-fn play_sound_effect_on_event<KEY>(
+pub fn play_sound_effect_on_event<KEY>(
     mut cmd_events: EventReader<SfxCmdEvent<KEY>>,
     mut channels: ResMut<SoundEffectChannels<KEY>>,
     audio_asset_map: Res<AudioAssetMap<KEY>>,

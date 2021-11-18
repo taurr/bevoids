@@ -2,36 +2,21 @@ use bevy::prelude::*;
 use bevy_asset_map::FontAssetMap;
 use derive_more::Display;
 
-use crate::{
-    text::{AsTextWithAttr, TextAttr},
-    GameFont, GameState,
-};
-
-pub struct GameOverPlugin;
+use super::{GameFont, GameState};
+use crate::text::{AsTextWithAttr, TextAttr};
 
 #[derive(Component, Debug, Display)]
 #[display(fmt = "Game Over")]
-struct GameOverText;
+pub(crate) struct GameOverText;
 
 #[derive(Component, Debug, Display)]
 #[display(fmt = "Press return to try again")]
-struct PressReturnText;
+pub(crate) struct PressReturnText;
 
-impl Plugin for GameOverPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_enter(GameState::GameOver).with_system(init_gameover_texts),
-        );
-
-        app.add_system_set(SystemSet::on_update(GameState::GameOver).with_system(restart_on_enter));
-
-        app.add_system_set(
-            SystemSet::on_exit(GameState::GameOver).with_system(remove_texts_on_exit_gameover),
-        );
-    }
-}
-
-fn init_gameover_texts(mut commands: Commands, font_asset_map: Res<FontAssetMap<GameFont>>) {
+pub(crate) fn init_gameover_texts(
+    mut commands: Commands,
+    font_asset_map: Res<FontAssetMap<GameFont>>,
+) {
     let font = font_asset_map
         .get(&GameFont::GameOver)
         .expect("unable to get font for gmaeover text");
@@ -83,7 +68,7 @@ fn init_gameover_texts(mut commands: Commands, font_asset_map: Res<FontAssetMap<
         .insert(pressreturn);
 }
 
-fn remove_texts_on_exit_gameover(
+pub(crate) fn remove_texts_on_exit_gameover(
     mut commands: Commands,
     gameover_query: Query<Entity, With<GameOverText>>,
     pressreturn_query: Query<Entity, With<PressReturnText>>,
@@ -96,7 +81,7 @@ fn remove_texts_on_exit_gameover(
         .for_each(|e| commands.entity(e).despawn());
 }
 
-fn restart_on_enter(kb: Res<Input<KeyCode>>, mut state: ResMut<State<GameState>>) {
+pub(crate) fn restart_on_enter(kb: Res<Input<KeyCode>>, mut state: ResMut<State<GameState>>) {
     if kb.pressed(KeyCode::Return) {
         state.set(GameState::InGame).unwrap();
     }

@@ -2,49 +2,29 @@ use bevy::{ecs::system::EntityCommands, log, math::vec3, prelude::*};
 use bevy_asset_map::{GfxBounds, TextureAssetMap};
 use bevy_effects::{
     animation::AnimationEffectEvent,
+    despawn::Despawn,
     sound::{LoopSfx, PlaySfx, SetPanSfx, SfxCmdEvent, StopSfx},
 };
 use rand::Rng;
 use std::f32::consts::PI;
 
-use crate::{
-    plugins::{
-        spawn_display_shadows, Despawn, FireLaserEvent, InsideWindow, ShadowController, Velocity,
-    },
+use super::{
+    laser::FireLaserEvent,
+    movement::{spawn_display_shadows, InsideWindow, ShadowController, Velocity},
     settings::Settings,
     AnimationAtlas, BackgroundTexture, GameState, GeneralTexture, SoundEffect,
 };
 
-pub struct PlayerPlugin;
-
 #[derive(Debug, Clone, Copy)]
-pub struct PlayerDeadEvent;
+pub(crate) struct PlayerDeadEvent;
 
-#[derive(Component, Debug, Reflect)]
-pub struct Player;
+#[derive(Component, Debug)]
+pub(crate) struct Player;
 
-#[derive(Component, Debug, Reflect)]
-struct Flame;
+#[derive(Component, Debug)]
+pub(crate) struct Flame;
 
-impl Plugin for PlayerPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_event::<PlayerDeadEvent>();
-
-        app.register_type::<Player>().register_type::<Flame>();
-
-        app.add_system_set(SystemSet::on_enter(GameState::InGame).with_system(player_spawn));
-
-        app.add_system_set(
-            SystemSet::on_update(GameState::InGame)
-                .with_system(player_dead_gameover)
-                .with_system(player_controls),
-        );
-
-        app.add_system_set(SystemSet::on_exit(GameState::InGame).with_system(exit_ingame));
-    }
-}
-
-fn player_dead_gameover(
+pub(crate) fn handle_player_dead(
     mut events: EventReader<PlayerDeadEvent>,
     mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
     mut anim_effect_event: EventWriter<AnimationEffectEvent<AnimationAtlas>>,
@@ -81,7 +61,7 @@ fn player_dead_gameover(
     }
 }
 
-fn player_spawn(
+pub(crate) fn spawn_player(
     mut commands: Commands,
     mut color_assets: ResMut<Assets<ColorMaterial>>,
     window_bounds: Res<GfxBounds>,
@@ -163,11 +143,11 @@ fn player_spawn(
     });
 }
 
-fn exit_ingame(mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>) {
+pub(crate) fn stop_thruster_sounds(mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>) {
     sfx_event.send(StopSfx::new(SoundEffect::Thruster).into());
 }
 
-fn player_controls(
+pub(crate) fn player_controls(
     commands: Commands,
     kb: Res<Input<KeyCode>>,
     sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,

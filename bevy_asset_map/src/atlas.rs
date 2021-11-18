@@ -3,9 +3,6 @@ use std::path::PathBuf;
 
 pub type Size = UVec2;
 
-#[derive(Debug)]
-pub struct AtlasAssetMapPlugin<KEY>(std::marker::PhantomData<KEY>);
-
 /// Resource for keeping track of a number of textures.
 #[derive(Debug)]
 pub struct AtlasAssetMap<KEY>(Vec<AtlasMapEntry<KEY>>);
@@ -43,24 +40,6 @@ enum AtlasMapEntry<KEY> {
     Loaded(AtlasAssetInfo<KEY>),
 }
 
-impl<KEY> Default for AtlasAssetMapPlugin<KEY> {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
-
-impl<KEY> Plugin for AtlasAssetMapPlugin<KEY>
-where
-    KEY: 'static + core::fmt::Debug + Clone + Eq + Sync + Send,
-{
-    #[allow(dead_code)]
-    fn build(&self, app: &mut App) {
-        app.add_event::<AtlasAssetInfo<KEY>>()
-            .add_startup_system(load_texture_atlas_assets::<KEY>)
-            .add_system(monitor_texture_atlas_assets::<KEY>);
-    }
-}
-
 impl<KEY> TextureAtlasPaths<KEY> {
     #[allow(dead_code)]
     pub fn from_files<T, TP>(paths: T) -> Self
@@ -84,12 +63,6 @@ impl<KEY> TextureAtlasPaths<KEY> {
     {
         self.base_path = Some(base_path.into());
         self
-    }
-}
-
-impl<KEY> Default for AtlasAssetMap<KEY> {
-    fn default() -> Self {
-        Self(Default::default())
     }
 }
 
@@ -153,28 +126,16 @@ where
             _ => None,
         })
     }
-}
 
-pub fn load_texture_atlas_assets<KEY>(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    texture_paths: Option<Res<TextureAtlasPaths<KEY>>>,
-    atlas_asset_map: Option<Res<AtlasAssetMap<KEY>>>,
-) where
-    KEY: 'static + Clone + Eq + Sync + Send,
-{
-    if let Some(texture_paths) = texture_paths {
-        commands.remove_resource::<AtlasAssetMap<KEY>>();
-        commands.insert_resource(AtlasAssetMap::with_texture_paths(
-            &texture_paths,
-            &asset_server,
-        ));
-    } else if atlas_asset_map.is_none() {
-        commands.insert_resource(AtlasAssetMap::<KEY>::default());
+    pub fn iter(&self) -> impl Iterator<Item = &AtlasAssetInfo<KEY>> {
+        self.0.iter().filter_map(|e| match e {
+            AtlasMapEntry::Loaded(info) => Some(info),
+            _ => None,
+        })
     }
 }
 
-pub fn monitor_texture_atlas_assets<KEY>(
+pub fn monitor_atlas_assets<KEY>(
     mut texture_events: EventReader<AssetEvent<Texture>>,
     mut atlas_info_event: EventWriter<AtlasAssetInfo<KEY>>,
     mut atlas_asset_map: ResMut<AtlasAssetMap<KEY>>,

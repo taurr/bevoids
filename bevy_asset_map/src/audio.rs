@@ -2,10 +2,6 @@ use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
 use bevy_kira_audio::AudioSource;
 use std::path::PathBuf;
 
-/// Bevy plugin for loading a number of audio files.
-#[derive(Debug)]
-pub struct AudioAssetMapPlugin<KEY>(core::marker::PhantomData<KEY>);
-
 #[derive(Debug)]
 pub struct AudioAssetMap<KEY>(Vec<AudioMapEntry<KEY>>);
 
@@ -26,29 +22,6 @@ enum AudioMapEntry<KEY> {
         key: KEY,
         handle: Handle<AudioSource>,
     },
-}
-
-impl<KEY> Default for AudioAssetMapPlugin<KEY> {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
-
-impl<KEY> Plugin for AudioAssetMapPlugin<KEY>
-where
-    KEY: 'static + core::fmt::Debug + Copy + Eq + Sync + Send,
-{
-    #[allow(dead_code)]
-    fn build(&self, app: &mut App) {
-        app.add_startup_system(load_audio_assets::<KEY>)
-            .add_system(monitor_audio_assets::<KEY>);
-    }
-}
-
-impl<KEY> Default for AudioAssetMap<KEY> {
-    fn default() -> Self {
-        Self(Default::default())
-    }
 }
 
 impl<KEY> AudioPaths<KEY> {
@@ -128,20 +101,12 @@ where
             _ => None,
         })
     }
-}
 
-pub fn load_audio_assets<KEY>(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    audio_paths: Option<Res<AudioPaths<KEY>>>,
-    audio_asset_map: Option<Res<AudioAssetMap<KEY>>>,
-) where
-    KEY: 'static + Clone + Eq + Send + Sync,
-{
-    if let Some(audio_paths) = audio_paths {
-        commands.insert_resource(AudioAssetMap::with_audio_paths(&audio_paths, &asset_server));
-    } else if audio_asset_map.is_none() {
-        commands.insert_resource(AudioAssetMap::<KEY>::default());
+    pub fn iter(&self) -> impl Iterator<Item = (&KEY, &Handle<AudioSource>)> {
+        self.0.iter().filter_map(|e| match e {
+            AudioMapEntry::Loaded { key, handle } => Some((key, handle)),
+            _ => None,
+        })
     }
 }
 

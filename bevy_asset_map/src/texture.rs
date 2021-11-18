@@ -3,10 +3,6 @@ use std::path::PathBuf;
 
 pub type Size = UVec2;
 
-/// Bevy plugin for loading a number of textures and keep track of their sizes through the [TextureAssetMap] resource.
-#[derive(Debug)]
-pub struct TextureAssetMapPlugin<KEY>(std::marker::PhantomData<KEY>);
-
 /// Resouce for keeping track of a number of textures.
 #[derive(Debug)]
 pub struct TextureAssetMap<KEY>(Vec<TextureMapEntry<KEY>>);
@@ -33,24 +29,6 @@ enum TextureMapEntry<KEY> {
     Loaded(TextureAssetInfo<KEY>),
 }
 
-impl<KEY> Default for TextureAssetMapPlugin<KEY> {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
-
-impl<KEY> Plugin for TextureAssetMapPlugin<KEY>
-where
-    KEY: 'static + core::fmt::Debug + Clone + Eq + Send + Sync,
-{
-    #[allow(dead_code)]
-    fn build(&self, app: &mut App) {
-        app.add_event::<TextureAssetInfo<KEY>>()
-            .add_startup_system(load_texture_assets::<KEY>)
-            .add_system(monitor_texture_assets::<KEY>);
-    }
-}
-
 impl<KEY> TexturePaths<KEY> {
     #[allow(dead_code)]
     pub fn from_files<TP: Into<String>, T: IntoIterator<Item = (KEY, TP)>>(paths: T) -> Self {
@@ -70,12 +48,6 @@ impl<KEY> TexturePaths<KEY> {
     {
         self.base_path = Some(base_path.into());
         self
-    }
-}
-
-impl<KEY> Default for TextureAssetMap<KEY> {
-    fn default() -> Self {
-        Self(Default::default())
     }
 }
 
@@ -139,23 +111,12 @@ where
             _ => None,
         })
     }
-}
 
-pub fn load_texture_assets<KEY>(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    texture_paths: Option<Res<TexturePaths<KEY>>>,
-    texture_asset_map: Option<Res<TextureAssetMap<KEY>>>,
-) where
-    KEY: 'static + Clone + Eq + Send + Sync,
-{
-    if let Some(texture_paths) = texture_paths {
-        commands.insert_resource(TextureAssetMap::with_texture_paths(
-            &texture_paths,
-            &asset_server,
-        ));
-    } else if texture_asset_map.is_none() {
-        commands.insert_resource(TextureAssetMap::<KEY>::default());
+    pub fn iter(&self) -> impl Iterator<Item = &TextureAssetInfo<KEY>> {
+        self.0.iter().filter_map(|e| match e {
+            TextureMapEntry::Loaded(entry) => Some(entry),
+            _ => None,
+        })
     }
 }
 

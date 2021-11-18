@@ -1,37 +1,20 @@
 use bevy::{ecs::system::EntityCommands, log, prelude::*};
 use bevy_asset_map::GfxBounds;
-use derive_more::{Add, AddAssign, Deref, DerefMut, From, Into, Sub, SubAssign};
+use derive_more::{Add, Deref, DerefMut, From, Into, Sub};
 use enum_iterator::IntoEnumIterator;
 use parry2d::bounding_volume::BoundingVolume;
 
-pub struct MovementPlugin;
-
-#[derive(
-    Component,
-    Default,
-    Debug,
-    Copy,
-    Clone,
-    Deref,
-    DerefMut,
-    Add,
-    Sub,
-    AddAssign,
-    SubAssign,
-    From,
-    Into,
-    Reflect,
-)]
+#[derive(Component, Debug, Copy, Clone, Deref, DerefMut, Add, Sub, From, Into)]
 pub struct Velocity(pub Vec2);
 
-#[derive(Component, Debug, Reflect)]
+#[derive(Component, Debug)]
 pub struct ShadowController;
 
-#[derive(Component, Debug, Reflect)]
+#[derive(Component, Debug)]
 pub struct NonWrapping;
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, IntoEnumIterator, PartialEq, Copy, Clone, Reflect)]
+#[derive(Debug, IntoEnumIterator, PartialEq, Copy, Clone)]
 enum ShadowPlacement {
     MinW_MaxH,
     MedW_MaxH,
@@ -43,17 +26,18 @@ enum ShadowPlacement {
     MaxW_MinH,
 }
 
-#[derive(Component, Debug, From, Into, Reflect)]
+#[derive(Component, Debug, From, Into)]
 pub struct ShadowOf {
     pub controller: Entity,
     placement: ShadowPlacement,
 }
 
-#[derive(Component, Debug, Reflect)]
+#[derive(Component, Debug)]
 pub struct InsideWindow;
 
-pub struct EnterWindow(Entity);
-pub struct ExitWindow(Entity);
+pub struct EnterWindowEvent(Entity);
+
+pub struct ExitWindowEvent(Entity);
 
 pub fn spawn_display_shadows(
     controller: Entity,
@@ -92,28 +76,7 @@ pub fn spawn_display_shadows(
     }
 }
 
-impl Plugin for MovementPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_event::<EnterWindow>();
-        app.add_event::<ExitWindow>();
-
-        app.register_type::<Velocity>()
-            .register_type::<ShadowController>()
-            .register_type::<ShadowOf>()
-            .register_type::<NonWrapping>()
-            .register_type::<InsideWindow>();
-
-        app.add_system(wrapping_linear_movement.system().before("shadow_movement"))
-            .add_system(
-                non_wrapping_linear_movement
-                    .system()
-                    .before("shadow_movement"),
-            )
-            .add_system(move_shadow.system().label("shadow_movement"));
-    }
-}
-
-fn wrapping_linear_movement(
+pub fn wrapping_linear_movement(
     mut query: Query<
         (&mut Transform, &mut GfxBounds, &Velocity),
         (Without<ShadowOf>, Without<NonWrapping>),
@@ -144,13 +107,13 @@ fn wrapping_linear_movement(
     }
 }
 
-fn non_wrapping_linear_movement(
+pub fn non_wrapping_linear_movement(
     mut query: Query<
         (Entity, &mut Transform, &mut GfxBounds, &Velocity),
         (Without<ShadowOf>, With<NonWrapping>),
     >,
-    mut enter_window: EventWriter<EnterWindow>,
-    mut exit_window: EventWriter<ExitWindow>,
+    mut enter_window_event: EventWriter<EnterWindowEvent>,
+    mut exit_window_event: EventWriter<ExitWindowEvent>,
     window_bounds: Res<GfxBounds>,
     time: Res<Time>,
 ) {
@@ -170,14 +133,14 @@ fn non_wrapping_linear_movement(
             pos.x >= -ww && pos.x <= ww && pos.y >= -wh && pos.y <= wh,
         ) {
             (true, true) => {}
-            (true, false) => exit_window.send(ExitWindow(entity)),
-            (false, true) => enter_window.send(EnterWindow(entity)),
+            (true, false) => exit_window_event.send(ExitWindowEvent(entity)),
+            (false, true) => enter_window_event.send(EnterWindowEvent(entity)),
             (false, false) => {}
         }
     }
 }
 
-fn move_shadow(
+pub fn move_shadow(
     mut commands: Commands,
     mut shadows: Query<(Entity, &mut Transform, &mut GfxBounds, &ShadowOf)>,
     controllers: Query<(Entity, &Transform), (With<ShadowController>, Without<ShadowOf>)>,

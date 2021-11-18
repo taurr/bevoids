@@ -1,38 +1,23 @@
-use bevy::prelude::*;
+use bevy::{log, prelude::*};
 use bevy_asset_map::{FontAssetMap, GfxBounds};
 use derive_more::{AsMut, AsRef, Display};
 
-use crate::{
-    text::{AsTextWithAttr, TextAttr},
-    GameFont, GameState,
-};
+use super::GameFont;
+use crate::text::{AsTextWithAttr, TextAttr};
 
-pub struct ScoreBoardPlugin;
+#[derive(Debug)]
+pub(crate) struct AddScoreEvent(pub u32);
 
-#[derive(Component, Debug, Clone, AsRef, AsMut, Display, Reflect)]
+#[derive(Component, Debug, Clone, AsRef, AsMut, Display)]
 #[display(fmt = "Score: {}", score)]
-pub struct ScoreBoard {
+pub(crate) struct ScoreBoardComponent {
     #[as_ref]
     score: u32,
 }
 
-impl Plugin for ScoreBoardPlugin {
-    fn build(&self, app: &mut App) {
-        app.register_type::<ScoreBoard>();
-
-        app.add_system_set(
-            SystemSet::on_enter(GameState::InGame).with_system(enter_ingame_scoreboard),
-        );
-        app.add_system_set(
-            SystemSet::on_enter(GameState::GameOver).with_system(enter_gameover_scoreboard),
-        );
-        app.add_system_set(SystemSet::on_update(GameState::InGame).with_system(update_scoreboard));
-    }
-}
-
-fn enter_ingame_scoreboard(
+pub(crate) fn setup_ingame_scoreboard(
     mut commands: Commands,
-    query: Query<Entity, With<ScoreBoard>>,
+    query: Query<Entity, With<ScoreBoardComponent>>,
     font_asset_map: Res<FontAssetMap<GameFont>>,
     win_bounds: Res<GfxBounds>,
 ) {
@@ -40,10 +25,11 @@ fn enter_ingame_scoreboard(
     query.iter().for_each(|e| commands.entity(e).despawn());
 
     // create a fresh scoreboard
+    let board = ScoreBoardComponent { score: 0 };
+
     let font = font_asset_map
         .get(&GameFont::ScoreBoard)
         .expect("unable to get font for ScoreBoard");
-    let board = ScoreBoard { score: 0 };
     let color = Color::BEIGE;
     let textattr = TextAttr {
         alignment: TextAlignment {
@@ -73,9 +59,9 @@ fn enter_ingame_scoreboard(
         .insert(textattr);
 }
 
-fn enter_gameover_scoreboard(
+pub(crate) fn setup_gameover_scoreboard(
     mut commands: Commands,
-    mut query: Query<(Entity, &ScoreBoard, &mut Transform, &mut TextAttr)>,
+    mut query: Query<(Entity, &ScoreBoardComponent, &mut Transform, &mut TextAttr)>,
 ) {
     for (e, board, mut tf, mut textattr) in query.iter_mut() {
         tf.translation = Vec3::new(0., 0., 800.);
@@ -91,13 +77,19 @@ fn enter_gameover_scoreboard(
     }
 }
 
-fn update_scoreboard(
+pub(crate) fn update_scoreboard(
+    mut addscore_events: EventReader<AddScoreEvent>,
     mut commands: Commands,
-    query: Query<(Entity, &ScoreBoard, &TextAttr), Changed<ScoreBoard>>,
+    mut query: Query<(Entity, &mut ScoreBoardComponent, &TextAttr)>,
 ) {
-    for (e, board, textattr) in query.iter() {
+    let (scoreboard_entity, mut scoreboard, textattr) = query.single_mut();
+
+    let score: u32 = addscore_events.iter().map(|e| e.0).sum();
+    if score > 0 {
+        scoreboard.score += score;
+        log::info!(score, total = scoreboard.score, "update score");
         commands
-            .entity(e)
-            .insert(board.as_text_with_attr(textattr.clone()));
+            .entity(scoreboard_entity)
+            .insert(scoreboard.as_text_with_attr(textattr.clone()));
     }
 }

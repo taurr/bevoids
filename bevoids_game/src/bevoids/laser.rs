@@ -1,54 +1,25 @@
 use bevy::{log, math::vec3, prelude::*};
 use bevy_asset_map::{GfxBounds, TextureAssetMap};
-use bevy_effects::sound::{PlaySfx, SfxCmdEvent};
-use derive_more::{Constructor, Deref};
+use bevy_effects::{
+    despawn::DelayedFadeDespawn,
+    sound::{PlaySfx, SfxCmdEvent},
+};
 use std::{f32::consts::PI, time::Duration};
 
-use crate::{
-    plugins::{DelayedFadeDespawn, Despawn, Player, ShadowController, Velocity},
+use super::{
+    movement::{ShadowController, Velocity},
+    player::Player,
     settings::Settings,
-    GameState, GeneralTexture, SoundEffect,
+    GeneralTexture, SoundEffect,
 };
 
-pub struct LaserPlugin;
-
 #[derive(Debug, Clone, Copy)]
-pub struct FireLaserEvent;
+pub(crate) struct FireLaserEvent;
 
-#[derive(Debug, Clone, Copy, Deref, Constructor)]
-pub struct LaserSpentEvent(Entity);
+#[derive(Component, Debug)]
+pub(crate) struct Laser;
 
-#[derive(Component, Debug, Reflect)]
-pub struct Laser;
-
-impl Plugin for LaserPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_event::<FireLaserEvent>()
-            .add_event::<LaserSpentEvent>();
-
-        app.register_type::<Laser>();
-
-        app.add_system_set(
-            SystemSet::on_update(GameState::InGame)
-                .with_system(fire_laser)
-                .with_system(spend_laser),
-        );
-    }
-}
-
-fn spend_laser(
-    mut events: EventReader<LaserSpentEvent>,
-    query: Query<Entity, With<Laser>>,
-    mut commands: Commands,
-) {
-    for &laser in events.iter().map(|e| e as &Entity) {
-        if query.iter().any(|b| b == laser) {
-            commands.entity(laser).remove::<Laser>().insert(Despawn);
-        }
-    }
-}
-
-fn fire_laser(
+pub(crate) fn handle_fire_laser(
     mut commands: Commands,
     mut events: EventReader<FireLaserEvent>,
     mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,

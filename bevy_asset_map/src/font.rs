@@ -105,17 +105,19 @@ where
 
 pub fn monitor_font_assets<KEY>(
     mut font_event: EventReader<AssetEvent<Font>>,
-    mut font_asset_map: ResMut<FontAssetMap<KEY>>,
+    font_asset_map: Option<ResMut<FontAssetMap<KEY>>>,
     font_assets: Res<Assets<Font>>,
 ) where
     KEY: 'static + core::fmt::Debug + Clone + Eq + Send + Sync,
 {
-    for ev in font_event.iter() {
-        match ev {
-            AssetEvent::Created { handle } | AssetEvent::Modified { handle } => {
-                update_font_map(&mut font_asset_map, handle, &font_assets);
+    if let Some(mut font_asset_map) = font_asset_map {
+        for ev in font_event.iter() {
+            match ev {
+                AssetEvent::Created { handle } | AssetEvent::Modified { handle } => {
+                    update_font_map(&mut font_asset_map, handle, &font_assets);
+                }
+                AssetEvent::Removed { handle } => warn_removed_font(&font_asset_map, handle),
             }
-            AssetEvent::Removed { handle } => warn_removed_font(&font_asset_map, handle),
         }
     }
 }

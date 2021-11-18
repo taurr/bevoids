@@ -123,21 +123,25 @@ where
 pub fn monitor_texture_assets<KEY>(
     mut texture_events: EventReader<AssetEvent<Texture>>,
     mut texture_info_event: EventWriter<TextureAssetInfo<KEY>>,
-    mut texture_asset_map: ResMut<TextureAssetMap<KEY>>,
+    texture_asset_map: Option<ResMut<TextureAssetMap<KEY>>>,
     texture_assets: Res<Assets<Texture>>,
 ) where
     KEY: 'static + core::fmt::Debug + Clone + Eq + Send + Sync,
 {
-    for ev in texture_events.iter() {
-        match ev {
-            AssetEvent::Created { handle } | AssetEvent::Modified { handle } => update_texture_map(
-                &mut texture_asset_map,
-                &texture_assets,
-                handle,
-                &mut texture_info_event,
-            ),
-            AssetEvent::Removed { handle } => {
-                warn_removed_texture(&texture_asset_map, handle);
+    if let Some(mut texture_asset_map) = texture_asset_map {
+        for ev in texture_events.iter() {
+            match ev {
+                AssetEvent::Created { handle } | AssetEvent::Modified { handle } => {
+                    update_texture_map(
+                        &mut texture_asset_map,
+                        &texture_assets,
+                        handle,
+                        &mut texture_info_event,
+                    )
+                }
+                AssetEvent::Removed { handle } => {
+                    warn_removed_texture(&texture_asset_map, handle);
+                }
             }
         }
     }

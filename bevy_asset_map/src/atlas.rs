@@ -138,22 +138,28 @@ where
 pub fn monitor_atlas_assets<KEY>(
     mut texture_events: EventReader<AssetEvent<Texture>>,
     mut atlas_info_event: EventWriter<AtlasAssetInfo<KEY>>,
-    mut atlas_asset_map: ResMut<AtlasAssetMap<KEY>>,
+    atlas_asset_map: Option<ResMut<AtlasAssetMap<KEY>>>,
     texture_assets: Res<Assets<Texture>>,
     mut texture_atlas_assets: ResMut<Assets<TextureAtlas>>,
 ) where
     KEY: 'static + core::fmt::Debug + Clone + Send + Sync,
 {
-    for ev in texture_events.iter() {
-        match ev {
-            AssetEvent::Created { handle } | AssetEvent::Modified { handle } => update_atlas_map(
-                &mut atlas_asset_map,
-                handle,
-                &texture_assets,
-                &mut texture_atlas_assets,
-                &mut atlas_info_event,
-            ),
-            AssetEvent::Removed { handle } => warn_removed_atlas_texture(&atlas_asset_map, handle),
+    if let Some(mut atlas_asset_map) = atlas_asset_map {
+        for ev in texture_events.iter() {
+            match ev {
+                AssetEvent::Created { handle } | AssetEvent::Modified { handle } => {
+                    update_atlas_map(
+                        &mut atlas_asset_map,
+                        handle,
+                        &texture_assets,
+                        &mut texture_atlas_assets,
+                        &mut atlas_info_event,
+                    )
+                }
+                AssetEvent::Removed { handle } => {
+                    warn_removed_atlas_texture(&atlas_asset_map, handle)
+                }
+            }
         }
     }
 }

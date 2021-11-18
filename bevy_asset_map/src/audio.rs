@@ -112,17 +112,19 @@ where
 
 pub fn monitor_audio_assets<KEY>(
     mut audio_event: EventReader<AssetEvent<AudioSource>>,
-    mut audio_asset_map: ResMut<AudioAssetMap<KEY>>,
+    audio_asset_map: Option<ResMut<AudioAssetMap<KEY>>>,
     audio_assets: Res<Assets<AudioSource>>,
 ) where
     KEY: 'static + core::fmt::Debug + Clone + Eq + Send + Sync,
 {
-    for ev in audio_event.iter() {
-        match ev {
-            AssetEvent::Created { handle } | AssetEvent::Modified { handle } => {
-                update_audio_map(&mut audio_asset_map, handle, &audio_assets);
+    if let Some(mut audio_asset_map) = audio_asset_map {
+        for ev in audio_event.iter() {
+            match ev {
+                AssetEvent::Created { handle } | AssetEvent::Modified { handle } => {
+                    update_audio_map(&mut audio_asset_map, handle, &audio_assets);
+                }
+                AssetEvent::Removed { handle } => warn_removed_audio(&audio_asset_map, handle),
             }
-            AssetEvent::Removed { handle } => warn_removed_audio(&audio_asset_map, handle),
         }
     }
 }

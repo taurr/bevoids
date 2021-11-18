@@ -58,7 +58,7 @@ pub(crate) fn spawn_asteroid_spawner(
     old_asteroids_query
         .iter()
         .for_each(|e| commands.entity(e).despawn_recursive());
-
+    
     // clear counter
     commands.insert_resource(AsteroidCounter::default());
 

@@ -87,15 +87,26 @@ pub(crate) fn asteroid_spawner(
     ) {
         (true, false, _) => {
             // reset timer with a short timeout to NOT spawn asteroid because player crashed!
-            log::warn!("field empty - force spawning asteroid");
-            spawner_data.timer.set_duration(Duration::from_secs_f32(
-                settings.asteroid.spawndelay_seconds,
-            ));
+            let delay = Duration::from_secs_f32(settings.asteroid.spawndelay_seconds);
+            spawner_data.timer.set_duration(delay);
             spawner_data.timer.reset();
             spawner_data.paused = true;
-            return;
+            log::warn!("field empty - respiratory pause");
         }
-        (_, _, true) => {
+        (_, true, true) => {
+            // we're here after user has cleared the field + a small pause
+            let delay = spawner_data.delay;
+            spawner_data.timer.set_duration(delay);
+            spawner_data.timer.reset();
+            spawner_data.paused = false;
+            log::warn!("field empty - spawning asteroid");
+            spawn_event.send(SpawnAsteroidEvent::new(
+                rand::thread_rng()
+                    .gen_range(settings.asteroid.size_min..settings.asteroid.size_max),
+                None,
+            ));
+        }
+        (_, false, true) => {
             // start timer again, new timeout
             let delay = Duration::from_secs_f32(
                 (spawner_data.delay.as_secs_f32() * settings.asteroid.spawndelay_multiplier).clamp(
@@ -104,20 +115,17 @@ pub(crate) fn asteroid_spawner(
                 ),
             );
             spawner_data.timer.set_duration(delay);
-            spawner_data.paused = false;
+            spawner_data.timer.reset();
+            spawner_data.delay = delay;
             log::warn!(duration=?delay, "spawning planned asteroid");
+            spawn_event.send(SpawnAsteroidEvent::new(
+                rand::thread_rng()
+                    .gen_range(settings.asteroid.size_min..settings.asteroid.size_max),
+                None,
+            ));
         }
-        _ => return,
+        _ => {}
     };
-
-    // spawn an asteroid
-    spawn_event.send(SpawnAsteroidEvent::new(
-        rand::thread_rng().gen_range(settings.asteroid.size_min..settings.asteroid.size_max),
-        None,
-    ));
-
-    // reset timer
-    spawner_data.timer.reset();
 }
 
 pub(crate) fn handle_shot_asteroids(
@@ -301,7 +309,7 @@ pub(crate) fn handle_asteroid_explosion(
             Err(_) => None,
         })
     {
-        log::warn!(?asteroid, "remove asteroid");
+        log::info!(?asteroid, "asteroid exploding");
 
         let mut anim_position = asteroid_tf.translation;
         anim_position.z -= 1.;

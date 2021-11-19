@@ -34,15 +34,17 @@ impl DespawnPlugin {
 
 impl Plugin for DespawnPlugin {
     fn build(&self, app: &mut App) {
-        let mut set = SystemSet::new()
-            .with_system(despawn)
+        let fade_set = SystemSet::new()
             .with_system(delayed_despawn)
             .with_system(delayed_fade_despawn)
             .with_system(fade_despawn);
         if let Some(r) = self.run_criteria.lock().unwrap().take() {
-            set = set.with_run_criteria(r);
+            app.add_system_set_to_stage(CoreStage::PostUpdate, fade_set.with_run_criteria(r));
+        } else {
+            app.add_system_set_to_stage(CoreStage::PostUpdate, fade_set);
         }
-        app.add_system_set_to_stage(CoreStage::Last, set);
+
+        app.add_system_set_to_stage(CoreStage::Last, SystemSet::new().with_system(despawn));
     }
 }
 

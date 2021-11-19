@@ -67,10 +67,10 @@ impl Plugin for Bevoids {
             .add_plugin(BoundsPlugin);
 
         // introduce the state to its relevant stages
-        let state = GameState::Initialize;
-        app.add_state_to_stage(CoreStage::PreUpdate, state)
-            .add_state_to_stage(CoreStage::Update, state)
-            .add_state_to_stage(CoreStage::PostUpdate, state);
+        app.insert_resource(State::new(GameState::Initialize))
+            .add_system_set_to_stage(CoreStage::PreUpdate, State::<GameState>::get_driver())
+            .add_system_set_to_stage(CoreStage::Update, State::<GameState>::get_driver())
+            .add_system_set_to_stage(CoreStage::PostUpdate, State::<GameState>::get_driver());
 
         // all states
         app.add_system_set_to_stage(
@@ -183,14 +183,18 @@ fn goto_playing(
     state.set(GameState::Playing).unwrap();
 }
 
-fn pause_control(kb: Res<Input<KeyCode>>, mut state: ResMut<State<GameState>>) {
+fn pause_control(mut kb: ResMut<Input<KeyCode>>, mut state: ResMut<State<GameState>>) {
+    // NOTE: triggering state changes from input, requires us to reset manually
+    // See https://github.com/bevyengine/bevy/issues/1700
     if kb.just_pressed(KeyCode::Escape) {
         match state.current() {
             GameState::Playing => {
                 state.set(GameState::Paused).unwrap();
+                kb.reset(KeyCode::Escape);
             }
             GameState::Paused => {
                 state.set(GameState::Playing).unwrap();
+                kb.reset(KeyCode::Escape);
             }
             _ => {}
         }

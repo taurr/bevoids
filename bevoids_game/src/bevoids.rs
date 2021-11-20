@@ -38,7 +38,7 @@ pub enum GameState {
 pub struct Bevoids {}
 
 impl Plugin for Bevoids {
-    fn build(&self, app: &mut App) {
+    fn build(&self, app: &mut AppBuilder) {
         log::trace!("setting up systems");
 
         // events
@@ -52,9 +52,9 @@ impl Plugin for Bevoids {
             .add_event::<AddScoreEvent>();
 
         // misc
-        app.add_plugin(DespawnPlugin::with_run_criteria(run_if_not_paused))
+        app.add_plugin(DespawnPlugin::with_run_criteria(run_if_not_paused.system()))
             .add_plugin(AnimationEffectPlugin::<AnimationAtlas>::with_run_criteria(
-                run_if_not_paused,
+                run_if_not_paused.system(),
             ))
             .add_plugin(SoundEffectsPlugin::<SoundEffect>::default())
             .add_plugin(FontAssetMapPlugin::<GameFont>::default())
@@ -72,7 +72,7 @@ impl Plugin for Bevoids {
         // all states
         app.add_system_set_to_stage(
             CoreStage::Update,
-            SystemSet::new().with_system(pause_control),
+            SystemSet::new().with_system(pause_control.system()),
         );
 
         setup_initialize(app);
@@ -83,93 +83,90 @@ impl Plugin for Bevoids {
     }
 }
 
-fn setup_initialize(app: &mut App) {
+fn setup_initialize(app: &mut AppBuilder) {
     let state = GameState::Initialize;
 
-    app.add_startup_system_set(
-        SystemSet::new()
-            .with_system(load_gamefont)
-            .with_system(load_general_textures)
-            .with_system(load_asteroid_textures)
-            .with_system(load_background_textures)
-            .with_system(load_animations)
-            .with_system(load_audio),
-    )
-    .add_system_set(SystemSet::on_update(state).with_system(wait_for_resources));
+    app.add_startup_system(load_gamefont.system())
+        .add_startup_system(load_general_textures.system())
+        .add_startup_system(load_asteroid_textures.system())
+        .add_startup_system(load_background_textures.system())
+        .add_startup_system(load_animations.system())
+        .add_startup_system(load_audio.system())
+        .add_system_set(SystemSet::on_update(state).with_system(wait_for_resources.system()));
 }
 
-fn setup_startgame(app: &mut App) {
+fn setup_startgame(app: &mut AppBuilder) {
     let state = GameState::StartGame;
 
     app.add_system_set(
         SystemSet::on_enter(state)
-            .with_system(spawn_player)
-            .with_system(spawn_asteroid_spawner)
-            .with_system(setup_ingame_scoreboard)
-            .with_system(goto_playing),
+            .with_system(spawn_player.system())
+            .with_system(spawn_asteroid_spawner.system())
+            .with_system(setup_ingame_scoreboard.system())
+            .with_system(goto_playing.system()),
     );
 }
 
-fn setup_playing(app: &mut App) {
+fn setup_playing(app: &mut AppBuilder) {
     let state = GameState::Playing;
 
     app.add_system_set_to_stage(
         CoreStage::PreUpdate,
         SystemSet::on_update(state)
-            .with_system(wrapping_linear_movement)
-            .with_system(non_wrapping_linear_movement)
-            .with_system(move_shadow),
+            .with_system(wrapping_linear_movement.system())
+            .with_system(non_wrapping_linear_movement.system())
+            .with_system(move_shadow.system()),
     )
     .add_system_set_to_stage(
         CoreStage::Update,
         SystemSet::on_update(state)
-            .with_system(player_controls)
-            .with_system(asteroid_spawner)
-            .with_system(handle_fire_laser)
-            .with_system(handle_player_dead)
-            .with_system(handle_shot_asteroids)
-            .with_system(update_scoreboard)
-            .with_system(hittest_shot_vs_asteroid)
-            .with_system(hittest_player_vs_asteroid),
+            .with_system(player_controls.system())
+            .with_system(asteroid_spawner.system())
+            .with_system(handle_fire_laser.system())
+            .with_system(handle_player_dead.system())
+            .with_system(handle_shot_asteroids.system())
+            .with_system(update_scoreboard.system())
+            .with_system(hittest_shot_vs_asteroid.system())
+            .with_system(hittest_player_vs_asteroid.system()),
     )
     .add_system_set_to_stage(
         CoreStage::PostUpdate,
         SystemSet::on_update(state)
-            .with_system(handle_spawn_asteroid)
-            .with_system(handle_asteroid_explosion),
+            .with_system(handle_spawn_asteroid.system())
+            .with_system(handle_asteroid_explosion.system()),
     )
-    .add_system_set(SystemSet::on_exit(state).with_system(stop_thruster_sounds));
+    .add_system_set(SystemSet::on_exit(state).with_system(stop_thruster_sounds.system()));
 }
 
-fn setup_paused(_app: &mut App) {
+fn setup_paused(_app: &mut AppBuilder) {
     let _state = GameState::Paused;
 }
 
-fn setup_gameover(app: &mut App) {
+fn setup_gameover(app: &mut AppBuilder) {
     let state = GameState::GameOver;
 
     app.add_system_set(
         SystemSet::on_enter(state)
-            .with_system(despawn_asteroid_spawner)
-            .with_system(setup_gameover_scoreboard)
-            .with_system(init_gameover_texts),
+            .with_system(despawn_asteroid_spawner.system())
+            .with_system(setup_gameover_scoreboard.system())
+            .with_system(init_gameover_texts.system()),
     )
     .add_system_set_to_stage(
         CoreStage::PreUpdate,
         SystemSet::on_update(state)
-            .with_system(wrapping_linear_movement)
-            .with_system(non_wrapping_linear_movement)
-            .with_system(move_shadow),
+            .with_system(wrapping_linear_movement.system())
+            .with_system(non_wrapping_linear_movement.system())
+            .with_system(move_shadow.system()),
     )
     .add_system_set_to_stage(
         CoreStage::Update,
-        SystemSet::on_update(state).with_system(restart_on_enter),
+        SystemSet::on_update(state).with_system(restart_on_enter.system()),
     )
     .add_system_set_to_stage(
         CoreStage::PostUpdate,
-        SystemSet::on_update(state).with_system(handle_asteroid_explosion),
+        SystemSet::on_update(state).with_system(handle_asteroid_explosion.system()),
     )
-    .add_system_set(SystemSet::on_exit(state).with_system(remove_gameover_texts));
+    .add_system_set(SystemSet::on_exit(state).with_system(remove_gameover_texts.system()));
 }
 
 fn goto_playing(

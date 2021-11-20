@@ -9,13 +9,13 @@ use parry2d::{
 pub struct BoundsPlugin;
 
 impl Plugin for BoundsPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_startup_system_to_stage(StartupStage::PostStartup, initialize_window_bounds)
-            .add_system(resized);
+    fn build(&self, app: &mut AppBuilder) {
+        app.add_startup_system_to_stage(StartupStage::PostStartup, initialize_window_bounds.system())
+            .add_system(resized.system());
     }
 }
 
-#[derive(Debug, Component, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct GfxBounds {
     aabb: AABB,
     sphere: BoundingSphere,

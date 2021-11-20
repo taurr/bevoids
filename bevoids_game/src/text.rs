@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-#[derive(Component, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct TextAttr {
     pub alignment: TextAlignment,
     pub style: TextStyle,

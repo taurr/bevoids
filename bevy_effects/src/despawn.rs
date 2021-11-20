@@ -33,27 +33,25 @@ impl DespawnPlugin {
 }
 
 impl Plugin for DespawnPlugin {
-    fn build(&self, app: &mut App) {
+    fn build(&self, app: &mut AppBuilder) {
         let fade_set = SystemSet::new()
-            .with_system(delayed_despawn)
-            .with_system(delayed_fade_despawn)
-            .with_system(fade_despawn);
+            .with_system(delayed_despawn.system())
+            .with_system(delayed_fade_despawn.system())
+            .with_system(fade_despawn.system());
         if let Some(r) = self.run_criteria.lock().unwrap().take() {
             app.add_system_set_to_stage(CoreStage::PostUpdate, fade_set.with_run_criteria(r));
         } else {
             app.add_system_set_to_stage(CoreStage::PostUpdate, fade_set);
         }
 
-        app.add_system_set_to_stage(CoreStage::Last, SystemSet::new().with_system(despawn));
+        app.add_system_set_to_stage(CoreStage::Last, SystemSet::new().with_system(despawn.system()));
     }
 }
 
 /// Component used to despawn entities after [Corestage::PostUpdate].
-#[derive(Component)]
 pub struct Despawn;
 
 /// Component used to despawn entities after a specific duration.
-#[derive(Component)]
 pub struct DelayedDespawn {
     timer: Timer,
     before_despawn: Option<Box<dyn FnOnce(&mut EntityCommands) + Send + Sync>>,
@@ -61,7 +59,6 @@ pub struct DelayedDespawn {
 
 /// Component added to entites that should fade to invisibility, then despawn.
 /// Requires the entity to have a [ColorMaterial]
-#[derive(Component)]
 pub struct FadeDespawn {
     fade_duration: Duration,
     alpha_value: f32,
@@ -70,7 +67,6 @@ pub struct FadeDespawn {
 
 /// Component added to entites that after a delay should fade to invisibility, then despawn.
 /// Requires the entity to have a [ColorMaterial]
-#[derive(Component)]
 pub struct DelayedFadeDespawn {
     timer: Timer,
     fade_duration: Duration,

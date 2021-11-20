@@ -8,7 +8,7 @@ use crate::text::{AsTextWithAttr, TextAttr};
 #[derive(Debug)]
 pub(crate) struct AddScoreEvent(pub u32);
 
-#[derive(Component, Debug, Clone, AsRef, AsMut, Display)]
+#[derive(Debug, Clone, AsRef, AsMut, Display)]
 #[display(fmt = "Score: {}", score)]
 pub(crate) struct ScoreBoardComponent {
     #[as_ref]
@@ -33,8 +33,8 @@ pub(crate) fn setup_ingame_scoreboard(
     let color = Color::BEIGE;
     let textattr = TextAttr {
         alignment: TextAlignment {
-            vertical: VerticalAlign::Top,
-            horizontal: HorizontalAlign::Right,
+            horizontal: HorizontalAlign::Left,
+            vertical: VerticalAlign::Bottom,
         },
         style: TextStyle {
             font,
@@ -47,7 +47,7 @@ pub(crate) fn setup_ingame_scoreboard(
             text: board.as_text_with_attr(textattr.clone()),
             transform: Transform {
                 translation: Vec3::new(
-                    win_bounds.width() / 2. - 15.,
+                    win_bounds.width() / 2. - 20.,
                     win_bounds.height() / 2. - 10.,
                     1.,
                 ),
@@ -82,7 +82,8 @@ pub(crate) fn update_scoreboard(
     mut commands: Commands,
     mut query: Query<(Entity, &mut ScoreBoardComponent, &TextAttr)>,
 ) {
-    let (scoreboard_entity, mut scoreboard, textattr) = query.single_mut();
+    let (scoreboard_entity, mut scoreboard, textattr) =
+        query.iter_mut().next().expect("couldn't get query result");
 
     let score: u32 = addscore_events.iter().map(|e| e.0).sum();
     if score > 0 {

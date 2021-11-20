@@ -18,10 +18,10 @@ use super::{
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct PlayerDeadEvent;
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub(crate) struct Player;
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub(crate) struct Flame;
 
 pub(crate) fn handle_player_dead(
@@ -160,8 +160,10 @@ pub(crate) fn player_controls(
     settings: Res<Settings>,
     bounds: Res<GfxBounds>,
 ) {
-    let (player, mut player_velocity, mut player_transform) =
-        player_query.get_single_mut().expect("no player to control");
+    let (player, mut player_velocity, mut player_transform) = player_query
+        .iter_mut()
+        .next()
+        .expect("no player to control");
 
     fire_laser(&kb, fire_laser_event);
     turn_player(&kb, &time, &mut player_transform, &settings);

@@ -23,11 +23,11 @@ impl<KEY> Plugin for TextureAssetMapPlugin<KEY>
 where
     KEY: 'static + core::fmt::Debug + Clone + Eq + Sync + Send,
 {
-    fn build(&self, app: &mut App) {
+    fn build(&self, app: &mut AppBuilder) {
         app.add_event::<TextureAssetInfo<KEY>>();
         app.add_system_set_to_stage(
             CoreStage::Update,
-            SystemSet::new().with_system(monitor_texture_assets::<KEY>),
+            SystemSet::new().with_system(monitor_texture_assets::<KEY>.system()),
         );
     }
 }

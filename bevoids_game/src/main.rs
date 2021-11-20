@@ -35,7 +35,7 @@ fn main() {
     })
     .expect("unable to parse settings file");
 
-    App::new()
+    App::build()
         .insert_resource(WindowDescriptor {
             vsync: true,
             resizable: false,
@@ -47,7 +47,7 @@ fn main() {
         .insert_resource(AssetPath::from(assets_path))
         .insert_resource(settings)
         .add_plugins(DefaultPlugins)
-        .add_startup_system(initialize_camera)
+        .add_startup_system(initialize_camera.system())
         //
         .add_plugin(Bevoids::default())
         //

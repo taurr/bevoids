@@ -1,4 +1,4 @@
-use bevy::{log, math::vec3, prelude::*};
+use bevy::{log, prelude::*};
 use bevy_asset_map::{GfxBounds, TextureAssetMap};
 use bevy_effects::{
     despawn::DelayedFadeDespawn,
@@ -16,7 +16,7 @@ use super::{
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct FireLaserEvent;
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub(crate) struct Laser;
 
 pub(crate) fn handle_fire_laser(
@@ -37,7 +37,7 @@ pub(crate) fn handle_fire_laser(
                 ..
             },
             &Velocity(player_velocity),
-        ) = player_query.get_single().expect("missing player");
+        ) = player_query.iter().next().expect("missing player");
 
         let laser_texture = textures
             .get(GeneralTexture::Laser)
@@ -53,12 +53,10 @@ pub(crate) fn handle_fire_laser(
         let position =
             position + orientation.mul_vec3(Vec3::new(0., settings.player.gun_ypos, -1.));
 
-        let velocity = {
-            let velocity = orientation
-                .mul_vec3(vec3(0., settings.laser.speed, 0.))
-                .truncate();
-            Velocity::from(velocity + player_velocity.project_onto(Vec2::from(velocity)))
-        };
+        let velocity = orientation.mul_vec3(Vec3::Y).truncate();
+        let velocity = velocity
+            * (player_velocity.length() * player_velocity.angle_between(velocity).cos()
+                + settings.laser.speed);
 
         let laser_id = commands
             .spawn_bundle(SpriteBundle {
@@ -71,7 +69,7 @@ pub(crate) fn handle_fire_laser(
                 ..SpriteBundle::default()
             })
             .insert(Laser)
-            .insert(velocity)
+            .insert(Velocity::from(velocity))
             .insert(GfxBounds::from_pos_and_size(position.truncate(), size))
             .insert(DelayedFadeDespawn::new(
                 Duration::from_millis(settings.laser.lifetime_miliseconds),

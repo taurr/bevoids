@@ -33,7 +33,7 @@ pub(crate) struct SpawnAsteroidEvent {
 }
 
 // Marks an entity as an asteroid
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub(crate) struct Asteroid;
 
 #[derive(Default)]
@@ -42,7 +42,7 @@ pub(crate) struct AsteroidCounter {
     shot: usize,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub(crate) struct AsteroidsSpawner {
     delay: Duration,
     timer: Timer,
@@ -78,10 +78,10 @@ pub(crate) fn asteroid_spawner(
     settings: Res<Settings>,
     time: Res<Time>,
 ) {
-    let mut spawner_data = spawner_query.single_mut();
+    let mut spawner_data = spawner_query.iter_mut().next().unwrap();
 
     match (
-        asteroids_query.is_empty(),
+        asteroids_query.iter().next().is_none(),
         spawner_data.paused,
         spawner_data.timer.tick(time.delta()).finished(),
     ) {
@@ -203,7 +203,7 @@ pub(crate) fn handle_spawn_asteroid(
     window_bounds: Res<GfxBounds>,
     settings: Res<Settings>,
 ) {
-    let player_tf = player_tf_query.get_single().expect("player not present!");
+    let player_tf = player_tf_query.iter().next().expect("player not present!");
 
     for SpawnAsteroidEvent { size, position } in spawn_asteroid_events
         .iter()

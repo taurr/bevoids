@@ -25,10 +25,10 @@ impl<KEY> Plugin for SoundEffectsPlugin<KEY>
 where
     KEY: 'static + core::fmt::Debug + Clone + Eq + core::hash::Hash + Send + Sync + ToString,
 {
-    fn build(&self, app: &mut App) {
+    fn build(&self, app: &mut AppBuilder) {
         app.add_plugin(AudioAssetMapPlugin::<KEY>::default())
             .add_event::<SfxCmdEvent<KEY>>()
-            .add_system_set(SystemSet::new().with_system(play_sound_effect_on_event::<KEY>));
+            .add_system_set(SystemSet::new().with_system(play_sound_effect_on_event::<KEY>.system()));
     }
 }
 

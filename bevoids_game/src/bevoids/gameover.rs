@@ -5,11 +5,11 @@ use derive_more::Display;
 use super::{GameFont, GameState};
 use crate::text::{AsTextWithAttr, TextAttr};
 
-#[derive(Component, Debug, Display)]
+#[derive(Debug, Display)]
 #[display(fmt = "Game Over")]
 pub(crate) struct GameOverText;
 
-#[derive(Component, Debug, Display)]
+#[derive(Debug, Display)]
 #[display(fmt = "Press return to try again")]
 pub(crate) struct PressReturnText;
 

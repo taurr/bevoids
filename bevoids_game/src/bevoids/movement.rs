@@ -4,13 +4,13 @@ use derive_more::{Add, Deref, DerefMut, From, Into, Sub};
 use enum_iterator::IntoEnumIterator;
 use parry2d::bounding_volume::BoundingVolume;
 
-#[derive(Component, Debug, Copy, Clone, Deref, DerefMut, Add, Sub, From, Into)]
+#[derive(Debug, Copy, Clone, Deref, DerefMut, Add, Sub, From, Into)]
 pub struct Velocity(pub Vec2);
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct ShadowController;
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct NonWrapping;
 
 #[allow(non_camel_case_types)]
@@ -26,13 +26,13 @@ enum ShadowPlacement {
     MaxW_MinH,
 }
 
-#[derive(Component, Debug, From, Into)]
+#[derive(Debug, From, Into)]
 pub struct ShadowOf {
     pub controller: Entity,
     placement: ShadowPlacement,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct InsideWindow;
 
 pub struct EnterWindowEvent(Entity);
@@ -146,7 +146,10 @@ pub fn move_shadow(
     controllers: Query<(Entity, &Transform), (With<ShadowController>, Without<ShadowOf>)>,
     window_bounds: Res<GfxBounds>,
 ) {
-    let [w, h] = window_bounds.size().to_array();
+    let (w, h) = {
+        let b = window_bounds.size();
+        (b.x, b.y)
+    };
     for (shadow, mut shadow_bounds, mut shadow_tf, placement, controller_tf) in shadows
         .iter_mut()
         .map(|(entity, transform, bounds, shadowof)| {

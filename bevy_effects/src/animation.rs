@@ -52,10 +52,10 @@ impl<KEY> Plugin for AnimationEffectPlugin<KEY>
 where
     KEY: 'static + core::fmt::Debug + Clone + Eq + Send + Sync,
 {
-    fn build(&self, app: &mut App) {
+    fn build(&self, app: &mut AppBuilder) {
         let mut set = SystemSet::new()
-            .with_system(start_animation_effect::<KEY>)
-            .with_system(update_animation_effect::<KEY>);
+            .with_system(start_animation_effect::<KEY>.system())
+            .with_system(update_animation_effect::<KEY>.system());
         if let Some(r) = self.run_criteria.lock().unwrap().take() {
             set = set.with_run_criteria(r);
         }
@@ -65,7 +65,7 @@ where
     }
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct AnimEffect;
 
 pub fn start_animation_effect<KEY>(
@@ -85,10 +85,15 @@ pub fn start_animation_effect<KEY>(
         let atlas_info = atlas_asset_map.get(key).expect("texture atlas not present");
         let texture_atlas = atlas_info.atlas.clone();
         let scale = size / atlas_info.tile_size.max_element();
+        let transform = Transform {
+            translation: *position,
+            scale: Vec3::splat(scale),
+            ..Default::default()
+        };
         commands
             .spawn_bundle(SpriteSheetBundle {
                 texture_atlas,
-                transform: Transform::from_translation(*position).with_scale(Vec3::splat(scale)),
+                transform,
                 ..Default::default()
             })
             .insert(AnimEffect)

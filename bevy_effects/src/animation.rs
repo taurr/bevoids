@@ -4,7 +4,7 @@ use bevy::{
     ecs::schedule::{IntoRunCriteria, RunCriteriaDescriptorOrLabel},
     prelude::*,
 };
-use bevy_asset_map::AtlasAssetMap;
+use bevy_asset_map::{AtlasAssetMap, AtlasAssetMapPlugin};
 
 pub struct AnimationEffectPlugin<KEY> {
     run_criteria: Mutex<Cell<Option<RunCriteriaDescriptorOrLabel>>>,
@@ -50,17 +50,18 @@ where
 
 impl<KEY> Plugin for AnimationEffectPlugin<KEY>
 where
-    KEY: 'static + Clone + Eq + Send + Sync,
+    KEY: 'static + core::fmt::Debug + Clone + Eq + Send + Sync,
 {
     fn build(&self, app: &mut App) {
-        app.add_event::<AnimationEffectEvent<KEY>>();
         let mut set = SystemSet::new()
             .with_system(start_animation_effect::<KEY>)
             .with_system(update_animation_effect::<KEY>);
         if let Some(r) = self.run_criteria.lock().unwrap().take() {
             set = set.with_run_criteria(r);
         }
-        app.add_system_set(set);
+        app.add_plugin(AtlasAssetMapPlugin::<KEY>::default())
+            .add_event::<AnimationEffectEvent<KEY>>()
+            .add_system_set(set);
     }
 }
 

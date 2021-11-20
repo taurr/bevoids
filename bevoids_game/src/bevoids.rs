@@ -1,7 +1,5 @@
 use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
-use bevy_asset_map::{
-    AtlasAssetMapPlugin, BoundsPlugin, FontAssetMapPlugin, TextureAssetMapPlugin,
-};
+use bevy_asset_map::{BoundsPlugin, FontAssetMapPlugin, TextureAssetMapPlugin};
 use bevy_effects::{
     animation::AnimationEffectPlugin,
     despawn::DespawnPlugin,
@@ -59,7 +57,6 @@ impl Plugin for Bevoids {
                 run_if_not_paused,
             ))
             .add_plugin(SoundEffectsPlugin::<SoundEffect>::default())
-            .add_plugin(AtlasAssetMapPlugin::<AnimationAtlas>::default())
             .add_plugin(FontAssetMapPlugin::<GameFont>::default())
             .add_plugin(TextureAssetMapPlugin::<GeneralTexture>::default())
             .add_plugin(TextureAssetMapPlugin::<AsteroidTexture>::default())

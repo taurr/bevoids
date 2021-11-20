@@ -83,6 +83,6 @@ pub(crate) fn remove_gameover_texts(
 
 pub(crate) fn restart_on_enter(kb: Res<Input<KeyCode>>, mut state: ResMut<State<GameState>>) {
     if kb.pressed(KeyCode::Return) {
-        state.set(GameState::StartGame).unwrap();
+        state.set(GameState::Playing).unwrap();
     }
 }

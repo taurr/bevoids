@@ -1,9 +1,7 @@
 use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
 use bevy_asset_map::{BoundsPlugin, FontAssetMapPlugin, TextureAssetMapPlugin};
 use bevy_effects::{
-    animation::AnimationEffectPlugin,
-    despawn::DespawnPlugin,
-    sound::{PlaySfx, SfxCmdEvent, SoundEffectsPlugin},
+    animation::AnimationEffectPlugin, despawn::DespawnPlugin, sound::SoundEffectsPlugin,
 };
 use derive_more::{AsRef, Deref, Display, From, Into};
 
@@ -28,7 +26,7 @@ pub struct AssetPath(String);
 #[derive(Debug, Display, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum GameState {
     Initialize,
-    StartGame,
+    //Menu,
     Playing,
     Paused,
     GameOver,
@@ -76,7 +74,6 @@ impl Plugin for Bevoids {
         );
 
         setup_initialize(app);
-        setup_startgame(app);
         setup_playing(app);
         setup_paused(app);
         setup_gameover(app);
@@ -95,27 +92,14 @@ fn setup_initialize(app: &mut AppBuilder) {
         .add_system_set(SystemSet::on_update(state).with_system(wait_for_resources.system()));
 }
 
-fn setup_startgame(app: &mut AppBuilder) {
-    let state = GameState::StartGame;
+fn setup_playing(app: &mut AppBuilder) {
+    let state = GameState::Playing;
 
     app.add_system_set(
         SystemSet::on_enter(state)
             .with_system(spawn_player.system())
             .with_system(spawn_asteroid_spawner.system())
-            .with_system(setup_ingame_scoreboard.system())
-            .with_system(goto_playing.system()),
-    );
-}
-
-fn setup_playing(app: &mut AppBuilder) {
-    let state = GameState::Playing;
-
-    app.add_system_set_to_stage(
-        CoreStage::PreUpdate,
-        SystemSet::on_update(state)
-            .with_system(wrapping_linear_movement.system())
-            .with_system(non_wrapping_linear_movement.system())
-            .with_system(move_shadow.system()),
+            .with_system(setup_ingame_scoreboard.system()),
     )
     .add_system_set_to_stage(
         CoreStage::Update,
@@ -127,11 +111,11 @@ fn setup_playing(app: &mut AppBuilder) {
             .with_system(handle_shot_asteroids.system())
             .with_system(update_scoreboard.system())
             .with_system(hittest_shot_vs_asteroid.system())
-            .with_system(hittest_player_vs_asteroid.system()),
-    )
-    .add_system_set_to_stage(
-        CoreStage::PostUpdate,
-        SystemSet::on_update(state)
+            .with_system(hittest_player_vs_asteroid.system())
+            //
+            .with_system(wrapping_linear_movement.system())
+            .with_system(non_wrapping_linear_movement.system())
+            .with_system(move_shadow.system())
             .with_system(handle_spawn_asteroid.system())
             .with_system(handle_asteroid_explosion.system()),
     )
@@ -152,29 +136,15 @@ fn setup_gameover(app: &mut AppBuilder) {
             .with_system(init_gameover_texts.system()),
     )
     .add_system_set_to_stage(
-        CoreStage::PreUpdate,
+        CoreStage::Update,
         SystemSet::on_update(state)
+            .with_system(restart_on_enter.system())
             .with_system(wrapping_linear_movement.system())
             .with_system(non_wrapping_linear_movement.system())
-            .with_system(move_shadow.system()),
-    )
-    .add_system_set_to_stage(
-        CoreStage::Update,
-        SystemSet::on_update(state).with_system(restart_on_enter.system()),
-    )
-    .add_system_set_to_stage(
-        CoreStage::PostUpdate,
-        SystemSet::on_update(state).with_system(handle_asteroid_explosion.system()),
+            .with_system(move_shadow.system())
+            .with_system(handle_asteroid_explosion.system()),
     )
     .add_system_set(SystemSet::on_exit(state).with_system(remove_gameover_texts.system()));
-}
-
-fn goto_playing(
-    mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
-    mut state: ResMut<State<GameState>>,
-) {
-    sfx_event.send(PlaySfx::new(SoundEffect::Notification).into());
-    state.set(GameState::Playing).unwrap();
 }
 
 fn pause_control(mut kb: ResMut<Input<KeyCode>>, mut state: ResMut<State<GameState>>) {
@@ -183,11 +153,11 @@ fn pause_control(mut kb: ResMut<Input<KeyCode>>, mut state: ResMut<State<GameSta
     if kb.just_pressed(KeyCode::Escape) {
         match state.current() {
             GameState::Playing => {
-                state.set(GameState::Paused).unwrap();
+                state.push(GameState::Paused).unwrap();
                 kb.reset(KeyCode::Escape);
             }
             GameState::Paused => {
-                state.set(GameState::Playing).unwrap();
+                state.pop().unwrap();
                 kb.reset(KeyCode::Escape);
             }
             _ => {}

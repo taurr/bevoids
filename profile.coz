@@ -1,0 +1,21 @@
+startup	time=1637530051221356299
+runtime	time=18453585990
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/alloc/src/string.rs:2306	count=3
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/core/src/fmt/builders.rs:133	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/core/src/fmt/builders.rs:149	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/core/src/fmt/builders.rs:155	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/core/src/fmt/builders.rs:157	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/core/src/fmt/mod.rs:0	count=3
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/core/src/fmt/mod.rs:1143	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/core/src/fmt/mod.rs:1148	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/core/src/fmt/mod.rs:1302	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/core/src/fmt/mod.rs:1328	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/core/src/ptr/mut_ptr.rs:242	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/core/src/slice/iter/macros.rs:0	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/core/src/slice/iter/macros.rs:146	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/core/src/str/mod.rs:165	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/std/src/io/buffered/bufwriter.rs:0	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/std/src/sync/condvar.rs:124	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/std/src/sys/unix/condvar.rs:0	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/std/src/sys/unix/time.rs:45	count=1
+samples	location=/rustc/59eed8a2aac0230a8b53e89d4e99d55912ba6b35/library/std/src/time.rs:355	count=1

@@ -3,6 +3,7 @@ use bevy_asset_map::{BoundsPlugin, FontAssetMapPlugin, TextureAssetMapPlugin};
 use bevy_effects::{
     animation::AnimationEffectPlugin, despawn::DespawnPlugin, sound::SoundEffectsPlugin,
 };
+use bevy_egui::{EguiContext, EguiPlugin, egui};
 use derive_more::{AsRef, Deref, Display, From, Into};
 
 mod asteroids;
@@ -26,7 +27,7 @@ pub struct AssetPath(String);
 #[derive(Debug, Display, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum GameState {
     Initialize,
-    //Menu,
+    Menu,
     Playing,
     Paused,
     GameOver,
@@ -74,10 +75,20 @@ impl Plugin for Bevoids {
         );
 
         setup_initialize(app);
+        setup_menu(app);
         setup_playing(app);
         setup_paused(app);
         setup_gameover(app);
     }
+}
+
+fn setup_menu(app: &mut AppBuilder) {
+    let state = GameState::Menu;
+
+    app.add_plugin(EguiPlugin)
+        .add_system_set(SystemSet::on_update(state).with_system(start_menu.system()))
+        .add_system_set(SystemSet::on_update(state).with_system(restart_on_enter.system()))
+        .add_system_set(SystemSet::on_exit(state).with_system(stop_menu.system()));
 }
 
 fn setup_initialize(app: &mut AppBuilder) {
@@ -104,9 +115,9 @@ fn setup_playing(app: &mut AppBuilder) {
     .add_system_set_to_stage(
         CoreStage::Update,
         SystemSet::on_update(state)
-            .with_system(player_controls.system())
-            .with_system(asteroid_spawner.system())
-            .with_system(handle_fire_laser.system())
+            .with_system(player_controls.system().label("input"))
+            .with_system(asteroid_spawner.system().label("spawner"))
+            .with_system(handle_fire_laser.system().after("input"))
             .with_system(handle_player_dead.system())
             .with_system(handle_shot_asteroids.system())
             .with_system(update_scoreboard.system())
@@ -116,7 +127,7 @@ fn setup_playing(app: &mut AppBuilder) {
             .with_system(wrapping_linear_movement.system())
             .with_system(non_wrapping_linear_movement.system())
             .with_system(move_shadow.system())
-            .with_system(handle_spawn_asteroid.system())
+            .with_system(handle_spawn_asteroid.system().after("spawner"))
             .with_system(handle_asteroid_explosion.system()),
     )
     .add_system_set(SystemSet::on_exit(state).with_system(stop_thruster_sounds.system()));
@@ -171,3 +182,11 @@ fn run_if_not_paused(mode: Res<State<GameState>>) -> ShouldRun {
         _ => ShouldRun::Yes,
     }
 }
+
+fn start_menu(egui_context: Res<EguiContext>) {
+    egui::Window::new("Hello").show(egui_context.ctx(), |ui| {
+        ui.label("world");
+    });
+}
+
+fn stop_menu(_egui_context: Res<EguiContext>) {}

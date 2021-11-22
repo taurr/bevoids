@@ -36,6 +36,8 @@ fn main() {
     .expect("unable to parse settings file");
 
     App::build()
+        .insert_resource(ClearColor(Color::BLACK))
+        .insert_resource(Msaa { samples: 4 })
         .insert_resource(WindowDescriptor {
             vsync: true,
             resizable: false,

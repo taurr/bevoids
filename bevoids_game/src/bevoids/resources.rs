@@ -206,7 +206,7 @@ pub(crate) fn wait_for_resources(
         && fonts.ready()
     {
         state
-            .set(GameState::Playing)
+            .set(GameState::Menu)
             .expect("unable to transition into the InGame state");
     }
 }

@@ -7,5 +7,8 @@ exclude = [".git", ".vscode", "target"]
 #bevy = { git = "https://github.com/bevyengine/bevy", rev = "6a8a8c9d21f32e0e46623db9438813b009f9e014" }
 #bevy_kira_audio = { git = "https://github.com/NiklasEi/bevy_kira_audio.git", branch = "bevy_main" }
 
+[profile.release]
+lto = true
+
 [profile.dev.package."*"]
 opt-level = 3

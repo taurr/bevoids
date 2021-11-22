@@ -24,6 +24,9 @@ pub(crate) struct Player;
 #[derive(Debug)]
 pub(crate) struct Flame;
 
+#[derive(Debug)]
+pub(crate) struct Background;
+
 pub(crate) fn handle_player_dead(
     mut events: EventReader<PlayerDeadEvent>,
     mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
@@ -64,7 +67,7 @@ pub(crate) fn handle_player_dead(
 pub(crate) fn spawn_player(
     mut commands: Commands,
     mut color_assets: ResMut<Assets<ColorMaterial>>,
-    window_bounds: Res<GfxBounds>,
+    background_query: Query<Entity, With<Background>>,
     texture_asset_map: Res<TextureAssetMap<GeneralTexture>>,
     background_asset_map: Res<TextureAssetMap<BackgroundTexture>>,
     win_bounds: Res<GfxBounds>,
@@ -72,9 +75,17 @@ pub(crate) fn spawn_player(
 ) {
     let mut rng = rand::thread_rng();
 
+    spawn_background(
+        &background_asset_map,
+        &mut color_assets,
+        &background_query,
+        &win_bounds,
+        &mut commands,
+    );
+
     let player_position = Vec3::new(
-        rng.gen_range(-window_bounds.width() / 2.0..window_bounds.width() / 2.0),
-        rng.gen_range(-window_bounds.height() / 2.0..window_bounds.height() / 2.0),
+        rng.gen_range(-win_bounds.width() / 2.0..win_bounds.width() / 2.0),
+        rng.gen_range(-win_bounds.height() / 2.0..win_bounds.height() / 2.0),
         settings.player.zpos,
     );
 
@@ -116,11 +127,21 @@ pub(crate) fn spawn_player(
         &Some(|mut cmds: EntityCommands| {
             cmds.insert(Player);
         }),
-        &window_bounds,
+        &win_bounds,
         &mut commands,
     );
 
     log::info!(player=?player_id, "player spawned");
+}
+
+pub(crate) fn spawn_background(
+    background_asset_map: &TextureAssetMap<BackgroundTexture>,
+    color_assets: &mut Assets<ColorMaterial>,
+    background_query: &Query<Entity, With<Background>>,
+    win_bounds: &GfxBounds,
+    commands: &mut Commands,
+) {
+    let mut rng = rand::thread_rng();
 
     let bg_texture = background_asset_map
         .get(BackgroundTexture(
@@ -133,14 +154,21 @@ pub(crate) fn spawn_player(
         win_bounds.width() / bg_size.x as f32,
         win_bounds.height() / bg_size.y as f32,
     );
-    commands.spawn_bundle(SpriteBundle {
-        material: bg_material,
-        transform: Transform {
-            scale: Vec3::splat(bg_scale),
-            ..Default::default()
-        },
-        ..SpriteBundle::default()
-    });
+
+    if let Some(entity) = background_query.iter().next() {
+        commands.entity(entity).despawn_recursive();
+    }
+
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: bg_material,
+            transform: Transform {
+                scale: Vec3::splat(bg_scale),
+                ..Default::default()
+            },
+            ..SpriteBundle::default()
+        })
+        .insert(Background);
 }
 
 pub(crate) fn stop_thruster_sounds(mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>) {

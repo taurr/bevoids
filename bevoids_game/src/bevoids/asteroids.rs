@@ -93,7 +93,8 @@ pub(crate) fn asteroid_spawner(
             spawner_data.paused = true;
             log::debug!("field empty - respiratory pause");
         }
-        (_, true, true) => {
+        (true, true, false) => { /* No asteroids in the field, but we're on top of it, waiting for timer */}
+        (true, true, true) => {
             // we're here after user has cleared the field + a small pause
             let delay = spawner_data.delay;
             spawner_data.timer.set_duration(delay);
@@ -106,7 +107,7 @@ pub(crate) fn asteroid_spawner(
                 None,
             ));
         }
-        (_, false, true) => {
+        (false, false, true) => {
             // start timer again, new timeout
             let delay = Duration::from_secs_f32(
                 (spawner_data.delay.as_secs_f32() * settings.asteroid.spawndelay_multiplier).clamp(
@@ -196,14 +197,14 @@ pub(crate) fn despawn_asteroid_spawner(
 pub(crate) fn handle_spawn_asteroid(
     mut spawn_asteroid_events: EventReader<SpawnAsteroidEvent>,
     mut commands: Commands,
-    mut counter: ResMut<AsteroidCounter>,
+    mut counter: Option<ResMut<AsteroidCounter>>,
     mut material_assets: ResMut<Assets<ColorMaterial>>,
     textures: Res<TextureAssetMap<AsteroidTexture>>,
     player_tf_query: Query<&Transform, (With<Player>, With<ShadowController>)>,
     window_bounds: Res<GfxBounds>,
     settings: Res<Settings>,
 ) {
-    let player_tf = player_tf_query.iter().next().expect("player not present!");
+    let player_tf = player_tf_query.iter().next();
 
     for SpawnAsteroidEvent { size, position } in spawn_asteroid_events
         .iter()
@@ -217,11 +218,15 @@ pub(crate) fn handle_spawn_asteroid(
                     let (w, h) = (window_bounds.width() / 2.0, window_bounds.height() / 2.0);
                     Vec2::new(rng.gen_range(-w..w), rng.gen_range(-h..h))
                 };
-                if position
-                    .extend(player_tf.translation.z)
-                    .distance(player_tf.translation)
-                    > settings.asteroid.spawn_player_distance
-                {
+                if let Some(player_tf) = player_tf {
+                    if position
+                        .extend(player_tf.translation.z)
+                        .distance(player_tf.translation)
+                        > settings.asteroid.spawn_player_distance
+                    {
+                        break position;
+                    }
+                } else {
                     break position;
                 }
             }
@@ -276,8 +281,10 @@ pub(crate) fn handle_spawn_asteroid(
             &mut commands,
         );
 
-        counter.spawned += 1;
-        log::debug!(asteroid=?asteroid_id, asteroids_spawned = counter.spawned, "asteroid spawned");
+        if let Some(counter) = counter.as_mut() {
+            counter.spawned += 1;
+            log::debug!(asteroid=?asteroid_id, asteroids_spawned = counter.spawned, "asteroid spawned");
+        }
     }
 }
 

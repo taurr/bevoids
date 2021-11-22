@@ -1,15 +1,24 @@
 use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
-use bevy_asset_map::{BoundsPlugin, FontAssetMapPlugin, TextureAssetMapPlugin};
+use bevy_asset_map::{
+    BoundsPlugin, FontAssetMapPlugin, TextureAssetMapPlugin,
+};
 use bevy_effects::{
     animation::AnimationEffectPlugin, despawn::DespawnPlugin, sound::SoundEffectsPlugin,
 };
 use bevy_egui::{egui, EguiContext, EguiPlugin};
+#[cfg(feature = "inspector")]
+use bevy_inspector_egui::WorldInspectorPlugin;
 use derive_more::{AsRef, Deref, Display, From, Into};
+
+use crate::bevoids::{
+    menu::{set_menu_background, start_menu},
+};
 
 mod asteroids;
 mod gameover;
 mod hit_test;
 mod laser;
+mod menu;
 mod movement;
 mod player;
 mod resources;
@@ -50,6 +59,9 @@ impl Plugin for Bevoids {
             .add_event::<FireLaserEvent>()
             .add_event::<AddScoreEvent>();
 
+        #[cfg(feature = "inspector")]
+        app.add_plugin(WorldInspectorPlugin::new());
+
         // misc
         app.add_plugin(DespawnPlugin::with_run_criteria(run_if_not_paused.system()))
             .add_plugin(AnimationEffectPlugin::<AnimationAtlas>::with_run_criteria(
@@ -60,7 +72,23 @@ impl Plugin for Bevoids {
             .add_plugin(TextureAssetMapPlugin::<GeneralTexture>::default())
             .add_plugin(TextureAssetMapPlugin::<AsteroidTexture>::default())
             .add_plugin(TextureAssetMapPlugin::<BackgroundTexture>::default())
-            .add_plugin(BoundsPlugin);
+            .add_plugin(BoundsPlugin)
+            .add_startup_system(set_egui_defaults.system())
+            .add_system(capture_cursor_when_playing.system())
+            .add_system(esc_to_pause_unpause.system())
+            .add_system(
+                wrapping_linear_movement
+                    .system()
+                    .chain(move_shadow.system())
+                    .with_run_criteria(run_if_not_paused.system()),
+            )
+            .add_system(
+                non_wrapping_linear_movement
+                    .system()
+                    .with_run_criteria(run_if_not_paused.system()),
+            )
+            .add_system(handle_spawn_asteroid.system())
+            .add_system(handle_asteroid_explosion.system());
 
         // introduce the state to its relevant stages
         app.insert_resource(State::new(GameState::Initialize))
@@ -68,27 +96,12 @@ impl Plugin for Bevoids {
             .add_system_set_to_stage(CoreStage::Update, State::<GameState>::get_driver())
             .add_system_set_to_stage(CoreStage::PostUpdate, State::<GameState>::get_driver());
 
-        // all states
-        app.add_system_set_to_stage(
-            CoreStage::Update,
-            SystemSet::new().with_system(pause_control.system()),
-        );
-
         setup_initialize(app);
         setup_menu(app);
         setup_playing(app);
         setup_paused(app);
         setup_gameover(app);
     }
-}
-
-fn setup_menu(app: &mut AppBuilder) {
-    let state = GameState::Menu;
-
-    app.add_plugin(EguiPlugin)
-        .add_system_set(SystemSet::on_update(state).with_system(start_menu.system()))
-        .add_system_set(SystemSet::on_update(state).with_system(restart_on_enter.system()))
-        .add_system_set(SystemSet::on_exit(state).with_system(stop_menu.system()));
 }
 
 fn setup_initialize(app: &mut AppBuilder) {
@@ -103,6 +116,18 @@ fn setup_initialize(app: &mut AppBuilder) {
         .add_system_set(SystemSet::on_update(state).with_system(wait_for_resources.system()));
 }
 
+fn setup_menu(app: &mut AppBuilder) {
+    let state = GameState::Menu;
+
+    app.add_plugin(EguiPlugin)
+        .add_system_set(SystemSet::on_enter(state).with_system(set_menu_background.system()))
+        .add_system_set(
+            SystemSet::on_update(state)
+                .with_system(restart_on_enter.system())
+                .with_system(start_menu.system()),
+        );
+}
+
 fn setup_playing(app: &mut AppBuilder) {
     let state = GameState::Playing;
 
@@ -115,8 +140,7 @@ fn setup_playing(app: &mut AppBuilder) {
     .add_system_set_to_stage(
         CoreStage::Update,
         SystemSet::on_update(state)
-            .with_system(asteroid_spawner.system().label("spawner"))
-            .with_system(handle_spawn_asteroid.system().after("spawner"))
+            .with_system(asteroid_spawner.system())
             .with_system(player_controls.system().label("input"))
             .with_system(handle_fire_laser.system().after("input"))
             .with_system(hittest_shot_vs_asteroid.system().label("hittest"))
@@ -128,18 +152,13 @@ fn setup_playing(app: &mut AppBuilder) {
                     .system()
                     .after("hittest")
                     .label("split"),
-            )
-            .with_system(handle_asteroid_explosion.system().after("split"))
-            .with_system(
-                wrapping_linear_movement
-                    .system()
-                    .chain(move_shadow.system())
-                    .label("movement")
-                    .after("input"),
-            )
-            .with_system(non_wrapping_linear_movement.system().label("movement")),
+            ),
     )
-    .add_system_set(SystemSet::on_exit(state).with_system(stop_thruster_sounds.system()));
+    .add_system_set(
+        SystemSet::on_exit(state)
+            .with_system(stop_thruster_sounds.system())
+            .with_system(despawn_asteroid_spawner.system()),
+    );
 }
 
 fn setup_paused(_app: &mut AppBuilder) {
@@ -151,25 +170,17 @@ fn setup_gameover(app: &mut AppBuilder) {
 
     app.add_system_set(
         SystemSet::on_enter(state)
-            .with_system(despawn_asteroid_spawner.system())
             .with_system(setup_gameover_scoreboard.system())
             .with_system(init_gameover_texts.system()),
     )
     .add_system_set_to_stage(
         CoreStage::Update,
-        SystemSet::on_update(state)
-            .with_system(restart_on_enter.system())
-            .with_system(wrapping_linear_movement.system())
-            .with_system(non_wrapping_linear_movement.system())
-            .with_system(move_shadow.system())
-            .with_system(handle_asteroid_explosion.system()),
+        SystemSet::on_update(state).with_system(restart_on_enter.system()),
     )
     .add_system_set(SystemSet::on_exit(state).with_system(remove_gameover_texts.system()));
 }
 
-fn pause_control(mut kb: ResMut<Input<KeyCode>>, mut state: ResMut<State<GameState>>) {
-    // NOTE: triggering state changes from input, requires us to reset manually
-    // See https://github.com/bevyengine/bevy/issues/1700
+fn esc_to_pause_unpause(mut kb: ResMut<Input<KeyCode>>, mut state: ResMut<State<GameState>>) {
     if kb.just_pressed(KeyCode::Escape) {
         match state.current() {
             GameState::Playing => {
@@ -185,17 +196,40 @@ fn pause_control(mut kb: ResMut<Input<KeyCode>>, mut state: ResMut<State<GameSta
     }
 }
 
-fn run_if_not_paused(mode: Res<State<GameState>>) -> ShouldRun {
-    match mode.current() {
+fn run_if_not_paused(state: Res<State<GameState>>) -> ShouldRun {
+    match state.current() {
         GameState::Paused => ShouldRun::No,
         _ => ShouldRun::Yes,
     }
 }
 
-fn start_menu(egui_context: Res<EguiContext>) {
-    egui::Window::new("Hello").show(egui_context.ctx(), |ui| {
-        ui.label("world");
-    });
+fn capture_cursor_when_playing(state: Res<State<GameState>>, mut windows: ResMut<Windows>) {
+    let window = windows.get_primary_mut().unwrap();
+    let capture = match state.current() {
+        GameState::Paused => false,
+        GameState::Playing => true,
+        _ => false,
+    };
+    window.set_cursor_lock_mode(capture);
+    window.set_cursor_visibility(!capture);
 }
 
-fn stop_menu(_egui_context: Res<EguiContext>) {}
+fn set_egui_defaults(egui_context: Res<EguiContext>) {
+    let ctx = egui_context.ctx();
+    let mut fonts = egui::FontDefinitions::default();
+    fonts.family_and_size.insert(
+        egui::TextStyle::Button,
+        (egui::FontFamily::Proportional, 24.0),
+    );
+    ctx.set_fonts(fonts);
+
+    let mut visuals = egui::Visuals::dark();
+    visuals.button_frame = true;
+    visuals.widgets.noninteractive.bg_stroke = egui::Stroke::none();
+    visuals.widgets.noninteractive.bg_fill = egui::Color32::from_black_alpha(160);
+    ctx.set_visuals(visuals);
+
+    let mut style: egui::Style = (*ctx.style()).clone();
+    style.spacing.item_spacing = egui::vec2(10.0, 10.0);
+    ctx.set_style(style);
+}

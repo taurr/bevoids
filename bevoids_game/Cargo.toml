@@ -20,6 +20,7 @@ itertools = "0.10"
 toml = "0.5"
 serde = "1.0"
 serde_derive = "1.0"
+bevy-inspector-egui = { version = "0.6", optional = true }
 
 [dependencies.bevy]
 version = "0.5"
@@ -38,3 +39,6 @@ features = [
     #"trace",
     #"wgpu_trace",
 ]
+
+[features]
+inspector = ["bevy-inspector-egui"]

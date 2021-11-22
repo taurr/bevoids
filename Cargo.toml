@@ -8,7 +8,8 @@ exclude = [".git", ".vscode", "target"]
 #bevy_kira_audio = { git = "https://github.com/NiklasEi/bevy_kira_audio.git", branch = "bevy_main" }
 
 [profile.release]
-lto = true
+lto = false
+opt-level = 3
 
 [profile.dev.package."*"]
-opt-level = 3
+opt-level = 1

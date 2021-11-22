@@ -31,6 +31,7 @@ pub struct Asteroid {
 pub struct General {
     pub animation_fps: f32,
     pub max_score: f32,
+    pub asteroids_in_start_menu: usize,
 }
 
 #[derive(Deserialize)]

@@ -1,8 +1,10 @@
 #![allow(clippy::complexity)]
 
-// TODO: menu state: display menu before starting the game
+// TODO: score as egui
+// TODO: gameover text as egui
 // TODO: display high-score
 // TODO: save high-score
+// TODO: countdown when starting
 // TODO: sound on highscore
 // TODO: tests in bevy?
 
@@ -36,7 +38,7 @@ fn main() {
     .expect("unable to parse settings file");
 
     App::build()
-        .insert_resource(ClearColor(Color::BLACK))
+        .insert_resource(ClearColor(Color::DARK_GRAY))
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(WindowDescriptor {
             vsync: true,

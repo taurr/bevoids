@@ -3,7 +3,7 @@ use bevy_asset_map::{BoundsPlugin, FontAssetMapPlugin, TextureAssetMapPlugin};
 use bevy_effects::{
     animation::AnimationEffectPlugin, despawn::DespawnPlugin, sound::SoundEffectsPlugin,
 };
-use bevy_egui::{EguiContext, EguiPlugin, egui};
+use bevy_egui::{egui, EguiContext, EguiPlugin};
 use derive_more::{AsRef, Deref, Display, From, Into};
 
 mod asteroids;
@@ -115,20 +115,29 @@ fn setup_playing(app: &mut AppBuilder) {
     .add_system_set_to_stage(
         CoreStage::Update,
         SystemSet::on_update(state)
-            .with_system(player_controls.system().label("input"))
             .with_system(asteroid_spawner.system().label("spawner"))
-            .with_system(handle_fire_laser.system().after("input"))
-            .with_system(handle_player_dead.system())
-            .with_system(handle_shot_asteroids.system())
-            .with_system(update_scoreboard.system())
-            .with_system(hittest_shot_vs_asteroid.system())
-            .with_system(hittest_player_vs_asteroid.system())
-            //
-            .with_system(wrapping_linear_movement.system())
-            .with_system(non_wrapping_linear_movement.system())
-            .with_system(move_shadow.system())
             .with_system(handle_spawn_asteroid.system().after("spawner"))
-            .with_system(handle_asteroid_explosion.system()),
+            .with_system(player_controls.system().label("input"))
+            .with_system(handle_fire_laser.system().after("input"))
+            .with_system(hittest_shot_vs_asteroid.system().label("hittest"))
+            .with_system(hittest_player_vs_asteroid.system().label("hittest"))
+            .with_system(handle_player_dead.system().after("hittest"))
+            .with_system(update_scoreboard.system().after("hittest"))
+            .with_system(
+                handle_shot_asteroids
+                    .system()
+                    .after("hittest")
+                    .label("split"),
+            )
+            .with_system(handle_asteroid_explosion.system().after("split"))
+            .with_system(
+                wrapping_linear_movement
+                    .system()
+                    .chain(move_shadow.system())
+                    .label("movement")
+                    .after("input"),
+            )
+            .with_system(non_wrapping_linear_movement.system().label("movement")),
     )
     .add_system_set(SystemSet::on_exit(state).with_system(stop_thruster_sounds.system()));
 }

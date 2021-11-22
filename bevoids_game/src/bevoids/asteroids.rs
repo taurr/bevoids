@@ -91,7 +91,7 @@ pub(crate) fn asteroid_spawner(
             spawner_data.timer.set_duration(delay);
             spawner_data.timer.reset();
             spawner_data.paused = true;
-            log::info!("field empty - respiratory pause");
+            log::debug!("field empty - respiratory pause");
         }
         (_, true, true) => {
             // we're here after user has cleared the field + a small pause

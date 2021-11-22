@@ -22,7 +22,7 @@ pub(crate) fn hittest_shot_vs_asteroid(
                 .as_sphere()
                 .intersects(&asteroid_bounds.as_sphere())
             {
-                log::info!(?asteroid, "laser hit asteroid");
+                log::debug!(?asteroid, "laser hit asteroid");
                 asteroid_shot_event.send(AsteroidShotEvent::new(asteroid));
                 commands.entity(laser_entity).insert(Despawn);
                 continue 'laser;

@@ -168,7 +168,7 @@ pub(crate) fn handle_shot_asteroids(
         // spawn split asteroids
         let split_size = asteroid_bounds.size().max_element() * settings.asteroid.split_size_factor;
         if split_size >= settings.asteroid.size_min {
-            log::info!(?asteroid, "split asteroid");
+            log::debug!(?asteroid, "split asteroid");
             for _ in 0..settings.asteroid.split_number {
                 spawn_event.send(SpawnAsteroidEvent::new(
                     split_size,
@@ -277,7 +277,7 @@ pub(crate) fn handle_spawn_asteroid(
         );
 
         counter.spawned += 1;
-        log::info!(asteroid=?asteroid_id, asteroids_spawned = counter.spawned, "asteroid spawned");
+        log::debug!(asteroid=?asteroid_id, asteroids_spawned = counter.spawned, "asteroid spawned");
     }
 }
 
@@ -309,7 +309,7 @@ pub(crate) fn handle_asteroid_explosion(
             Err(_) => None,
         })
     {
-        log::info!(?asteroid, "asteroid exploding");
+        log::debug!(?asteroid, "asteroid exploding");
 
         let mut anim_position = asteroid_tf.translation;
         anim_position.z -= 1.;

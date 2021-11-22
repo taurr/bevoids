@@ -1,7 +1,5 @@
 use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
-use bevy_asset_map::{
-    BoundsPlugin, FontAssetMapPlugin, TextureAssetMapPlugin,
-};
+use bevy_asset_map::{BoundsPlugin, FontAssetMapPlugin, TextureAssetMapPlugin};
 use bevy_effects::{
     animation::AnimationEffectPlugin, despawn::DespawnPlugin, sound::SoundEffectsPlugin,
 };
@@ -12,6 +10,7 @@ use derive_more::{AsRef, Deref, Display, From, Into};
 
 use crate::bevoids::{
     menu::{set_menu_background, start_menu},
+    paused::display_paused_menu,
 };
 
 mod asteroids;
@@ -20,6 +19,7 @@ mod hit_test;
 mod laser;
 mod menu;
 mod movement;
+mod paused;
 mod player;
 mod resources;
 mod scoreboard;
@@ -135,11 +135,12 @@ fn setup_playing(app: &mut AppBuilder) {
         SystemSet::on_enter(state)
             .with_system(spawn_player.system())
             .with_system(spawn_asteroid_spawner.system())
-            .with_system(setup_ingame_scoreboard.system()),
+            .with_system(reset_scoreboard.system()),
     )
     .add_system_set_to_stage(
         CoreStage::Update,
         SystemSet::on_update(state)
+            .with_system(display_playing_scoreboard.system())
             .with_system(asteroid_spawner.system())
             .with_system(player_controls.system().label("input"))
             .with_system(handle_fire_laser.system().after("input"))
@@ -147,12 +148,7 @@ fn setup_playing(app: &mut AppBuilder) {
             .with_system(hittest_player_vs_asteroid.system().label("hittest"))
             .with_system(handle_player_dead.system().after("hittest"))
             .with_system(update_scoreboard.system().after("hittest"))
-            .with_system(
-                handle_shot_asteroids
-                    .system()
-                    .after("hittest")
-                    .label("split"),
-            ),
+            .with_system(handle_shot_asteroids.system().after("hittest")),
     )
     .add_system_set(
         SystemSet::on_exit(state)
@@ -161,23 +157,23 @@ fn setup_playing(app: &mut AppBuilder) {
     );
 }
 
-fn setup_paused(_app: &mut AppBuilder) {
-    let _state = GameState::Paused;
+fn setup_paused(app: &mut AppBuilder) {
+    let state = GameState::Paused;
+    app.add_system_set_to_stage(
+        CoreStage::Update,
+        SystemSet::on_update(state).with_system(display_paused_menu.system()),
+    );
 }
 
 fn setup_gameover(app: &mut AppBuilder) {
     let state = GameState::GameOver;
 
-    app.add_system_set(
-        SystemSet::on_enter(state)
-            .with_system(setup_gameover_scoreboard.system())
-            .with_system(init_gameover_texts.system()),
-    )
-    .add_system_set_to_stage(
+    app.add_system_set_to_stage(
         CoreStage::Update,
-        SystemSet::on_update(state).with_system(restart_on_enter.system()),
-    )
-    .add_system_set(SystemSet::on_exit(state).with_system(remove_gameover_texts.system()));
+        SystemSet::on_update(state)
+            .with_system(restart_on_enter.system())
+            .with_system(display_gameover_menu.system()),
+    );
 }
 
 fn esc_to_pause_unpause(mut kb: ResMut<Input<KeyCode>>, mut state: ResMut<State<GameState>>) {
@@ -221,6 +217,18 @@ fn set_egui_defaults(egui_context: Res<EguiContext>) {
         egui::TextStyle::Button,
         (egui::FontFamily::Proportional, 24.0),
     );
+    fonts.family_and_size.insert(
+        egui::TextStyle::Heading,
+        (egui::FontFamily::Proportional, 36.0),
+    );
+    fonts.family_and_size.insert(
+        egui::TextStyle::Body,
+        (egui::FontFamily::Proportional, 24.0),
+    );
+    fonts.family_and_size.insert(
+        egui::TextStyle::Small,
+        (egui::FontFamily::Proportional, 14.0),
+    );
     ctx.set_fonts(fonts);
 
     let mut visuals = egui::Visuals::dark();
@@ -229,7 +237,7 @@ fn set_egui_defaults(egui_context: Res<EguiContext>) {
     visuals.widgets.noninteractive.bg_fill = egui::Color32::from_black_alpha(160);
     ctx.set_visuals(visuals);
 
-    let mut style: egui::Style = (*ctx.style()).clone();
-    style.spacing.item_spacing = egui::vec2(10.0, 10.0);
-    ctx.set_style(style);
+    //let mut style: egui::Style = (*ctx.style()).clone();
+    //style.spacing.item_spacing = egui::vec2(10.0, 10.0);
+    //ctx.set_style(style);
 }

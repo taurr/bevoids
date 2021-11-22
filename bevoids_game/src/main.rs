@@ -1,7 +1,5 @@
 #![allow(clippy::complexity)]
 
-// TODO: score as egui
-// TODO: gameover text as egui
 // TODO: display high-score
 // TODO: save high-score
 // TODO: countdown when starting
@@ -13,7 +11,7 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 
 mod bevoids;
-mod text;
+//mod text;
 
 use crate::bevoids::{settings::Settings, AssetPath, Bevoids};
 
@@ -38,7 +36,7 @@ fn main() {
     .expect("unable to parse settings file");
 
     App::build()
-        .insert_resource(ClearColor(Color::DARK_GRAY))
+        .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(WindowDescriptor {
             vsync: true,

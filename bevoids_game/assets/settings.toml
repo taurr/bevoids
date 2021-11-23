@@ -1,7 +1,9 @@
 [general]
-animation_fps = 60
 max_score = 100
-asteroids_in_start_menu = 30
+animation_fps = 60
+highscores_capacity = 10
+background_fade_seconds = 1
+asteroids_in_start_menu = 20
 
 [asteroid]
 size_max = 150

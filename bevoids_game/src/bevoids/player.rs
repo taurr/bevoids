@@ -8,6 +8,8 @@ use bevy_effects::{
 use rand::Rng;
 use std::f32::consts::PI;
 
+use crate::bevoids::{Background, spawn_background};
+
 use super::{
     laser::FireLaserEvent,
     movement::{spawn_display_shadows, InsideWindow, ShadowController, Velocity},
@@ -23,9 +25,6 @@ pub(crate) struct Player;
 
 #[derive(Debug)]
 pub(crate) struct Flame;
-
-#[derive(Debug)]
-pub(crate) struct Background;
 
 pub(crate) fn handle_player_dead(
     mut events: EventReader<PlayerDeadEvent>,
@@ -74,13 +73,13 @@ pub(crate) fn spawn_player(
     settings: Res<Settings>,
 ) {
     let mut rng = rand::thread_rng();
-
     spawn_background(
         &background_asset_map,
         &mut color_assets,
         &background_query,
         &win_bounds,
         &mut commands,
+        &settings,
     );
 
     let player_position = Vec3::new(
@@ -132,43 +131,6 @@ pub(crate) fn spawn_player(
     );
 
     log::info!(player=?player_id, "player spawned");
-}
-
-pub(crate) fn spawn_background(
-    background_asset_map: &TextureAssetMap<BackgroundTexture>,
-    color_assets: &mut Assets<ColorMaterial>,
-    background_query: &Query<Entity, With<Background>>,
-    win_bounds: &GfxBounds,
-    commands: &mut Commands,
-) {
-    let mut rng = rand::thread_rng();
-
-    let bg_texture = background_asset_map
-        .get(BackgroundTexture(
-            rng.gen_range(0..background_asset_map.len()),
-        ))
-        .expect("no texture for background");
-    let bg_material = color_assets.add(bg_texture.texture.clone().into());
-    let bg_size = bg_texture.size;
-    let bg_scale = f32::max(
-        win_bounds.width() / bg_size.x as f32,
-        win_bounds.height() / bg_size.y as f32,
-    );
-
-    if let Some(entity) = background_query.iter().next() {
-        commands.entity(entity).despawn_recursive();
-    }
-
-    commands
-        .spawn_bundle(SpriteBundle {
-            material: bg_material,
-            transform: Transform {
-                scale: Vec3::splat(bg_scale),
-                ..Default::default()
-            },
-            ..SpriteBundle::default()
-        })
-        .insert(Background);
 }
 
 pub(crate) fn stop_thruster_sounds(mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>) {

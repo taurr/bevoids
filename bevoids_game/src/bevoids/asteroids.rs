@@ -10,10 +10,11 @@ use itertools::Itertools;
 use rand::Rng;
 use std::{f32::consts::PI, time::Duration};
 
+use crate::bevoids::highscore::{AddScoreEvent, Score};
+
 use super::{
     movement::{spawn_display_shadows, InsideWindow, ShadowController, ShadowOf, Velocity},
     player::Player,
-    scoreboard::AddScoreEvent,
     settings::Settings,
     AnimationAtlas, AsteroidTexture, SoundEffect,
 };
@@ -30,11 +31,16 @@ pub(crate) struct AsteroidShotEvent(Entity);
 pub(crate) struct SpawnAsteroidEvent {
     size: f32,
     position: Option<Vec3>,
+    is_background: bool,
 }
 
 // Marks an entity as an asteroid
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub(crate) struct Asteroid;
+
+// Marks an entity as an asteroid
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct BackgroundAsteroid;
 
 #[derive(Default)]
 pub(crate) struct AsteroidCounter {
@@ -51,17 +57,8 @@ pub(crate) struct AsteroidsSpawner {
 
 pub(crate) fn spawn_asteroid_spawner(
     mut commands: Commands,
-    old_asteroids_query: Query<Entity, With<Asteroid>>,
     settings: Res<Settings>,
 ) {
-    // instantly clear old asteroid entities
-    old_asteroids_query
-        .iter()
-        .for_each(|e| commands.entity(e).despawn_recursive());
-
-    // clear counter
-    commands.insert_resource(AsteroidCounter::default());
-
     // start spawning new asteroid entities
     let delay = Duration::from_secs_f32(settings.asteroid.spawndelay_initial_seconds);
     commands.spawn().insert(AsteroidsSpawner {
@@ -93,7 +90,8 @@ pub(crate) fn asteroid_spawner(
             spawner_data.paused = true;
             log::debug!("field empty - respiratory pause");
         }
-        (true, true, false) => { /* No asteroids in the field, but we're on top of it, waiting for timer */}
+        (true, true, false) => { /* No asteroids in the field, but we're on top of it, waiting for timer */
+        }
         (true, true, true) => {
             // we're here after user has cleared the field + a small pause
             let delay = spawner_data.delay;
@@ -105,6 +103,7 @@ pub(crate) fn asteroid_spawner(
                 rand::thread_rng()
                     .gen_range(settings.asteroid.size_min..settings.asteroid.size_max),
                 None,
+                false,
             ));
         }
         (false, false, true) => {
@@ -123,6 +122,7 @@ pub(crate) fn asteroid_spawner(
                 rand::thread_rng()
                     .gen_range(settings.asteroid.size_min..settings.asteroid.size_max),
                 None,
+                false,
             ));
         }
         _ => {}
@@ -160,11 +160,11 @@ pub(crate) fn handle_shot_asteroids(
         log::info!(asteroids_shot = counter.shot);
 
         // add score
-        score_event.send(AddScoreEvent(
+        score_event.send(AddScoreEvent(Score::new(
             ((settings.asteroid.size_max - asteroid_bounds.size().max_element())
                 / (settings.asteroid.size_max - settings.asteroid.size_min)
                 * settings.general.max_score) as u32,
-        ));
+        )));
 
         // spawn split asteroids
         let split_size = asteroid_bounds.size().max_element() * settings.asteroid.split_size_factor;
@@ -174,6 +174,7 @@ pub(crate) fn handle_shot_asteroids(
                 spawn_event.send(SpawnAsteroidEvent::new(
                     split_size,
                     Some(asteroid_tf.translation),
+                    false,
                 ));
             }
         }
@@ -206,7 +207,11 @@ pub(crate) fn handle_spawn_asteroid(
 ) {
     let player_tf = player_tf_query.iter().next();
 
-    for SpawnAsteroidEvent { size, position } in spawn_asteroid_events
+    for SpawnAsteroidEvent {
+        size,
+        position,
+        is_background,
+    } in spawn_asteroid_events
         .iter()
         .filter(|&e| e.size >= settings.asteroid.size_min)
     {
@@ -259,7 +264,6 @@ pub(crate) fn handle_spawn_asteroid(
                 },
                 ..SpriteBundle::default()
             })
-            .insert(Asteroid)
             .insert(GfxBounds::from_pos_and_size(
                 position.truncate(),
                 asteroid_size,
@@ -268,6 +272,11 @@ pub(crate) fn handle_spawn_asteroid(
             .insert(Velocity::from(velocity))
             .insert(InsideWindow)
             .id();
+        if *is_background {
+            commands.entity(asteroid_id).insert(BackgroundAsteroid);
+        } else {
+            commands.entity(asteroid_id).insert(Asteroid);
+        };
 
         spawn_display_shadows(
             asteroid_id,
@@ -275,7 +284,11 @@ pub(crate) fn handle_spawn_asteroid(
             asteroid_scale,
             material,
             &Some(|mut cmds: EntityCommands| {
-                cmds.insert(Asteroid);
+                if *is_background {
+                    cmds.insert(BackgroundAsteroid);
+                } else {
+                    cmds.insert(Asteroid);
+                };
             }),
             &window_bounds,
             &mut commands,

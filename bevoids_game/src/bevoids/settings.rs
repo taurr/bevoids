@@ -11,6 +11,15 @@ pub struct Settings {
 }
 
 #[derive(Deserialize)]
+pub struct General {
+    pub animation_fps: f32,
+    pub background_fade_seconds: f32,
+    pub max_score: f32,
+    pub asteroids_in_start_menu: usize,
+    pub highscores_capacity: u8,
+}
+
+#[derive(Deserialize)]
 pub struct Asteroid {
     pub size_max: f32,
     pub size_min: f32,
@@ -25,13 +34,6 @@ pub struct Asteroid {
     pub spawn_player_distance: f32,
     pub split_number: u32,
     pub split_size_factor: f32,
-}
-
-#[derive(Deserialize)]
-pub struct General {
-    pub animation_fps: f32,
-    pub max_score: f32,
-    pub asteroids_in_start_menu: usize,
 }
 
 #[derive(Deserialize)]

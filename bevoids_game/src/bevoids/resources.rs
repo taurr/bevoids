@@ -9,6 +9,8 @@ use derive_more::Display;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
+use crate::bevoids::highscore::HighScoreRepository;
+
 use super::{settings::Settings, AssetPath, GameState};
 
 #[derive(Debug, Display, Copy, Clone, Eq, PartialEq, Hash)]
@@ -43,6 +45,13 @@ pub(crate) struct AsteroidTexture(pub usize);
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub(crate) struct BackgroundTexture(pub usize);
+
+pub(crate) fn load_highscores(mut commands: Commands, settings: Res<Settings>) {
+    // TODO: attempt deserializing old highscore repo
+    commands.insert_resource(HighScoreRepository::with_capacity(
+        settings.general.highscores_capacity,
+    ));
+}
 
 pub(crate) fn load_gamefont(
     mut commands: Commands,
@@ -206,7 +215,7 @@ pub(crate) fn wait_for_resources(
         && fonts.ready()
     {
         state
-            .set(GameState::Menu)
+            .set(GameState::MainMenu)
             .expect("unable to transition into the InGame state");
     }
 }

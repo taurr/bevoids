@@ -8,6 +8,50 @@ use bevy::{
 };
 use std::{cell::Cell, sync::Mutex, time::Duration};
 
+pub struct FadeIn {
+    fade_duration: Duration,
+    alpha_value: f32,
+    after_fadein: Option<Box<dyn FnOnce(&mut EntityCommands) + Send + Sync>>,
+}
+
+impl Default for FadeIn {
+    fn default() -> Self {
+        Self {
+            fade_duration: Duration::from_millis(500),
+            alpha_value: 0.,
+            after_fadein: None,
+        }
+    }
+}
+
+impl From<Duration> for FadeIn {
+    fn from(delay: Duration) -> Self {
+        Self::new(delay)
+    }
+}
+
+impl FadeIn {
+    #[allow(dead_code)]
+    pub fn new(fade_duration: Duration) -> Self {
+        Self {
+            fade_duration,
+            alpha_value: 0.,
+            after_fadein: None,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn after_fadein<F>(self, func: F) -> Self
+    where
+        F: FnOnce(&mut EntityCommands) + Send + Sync + 'static,
+    {
+        Self {
+            after_fadein: Some(Box::new(func)),
+            ..self
+        }
+    }
+}
+
 pub struct DespawnPlugin {
     run_criteria: Mutex<Cell<Option<RunCriteriaDescriptorOrLabel>>>,
 }
@@ -37,14 +81,18 @@ impl Plugin for DespawnPlugin {
         let fade_set = SystemSet::new()
             .with_system(delayed_despawn.system())
             .with_system(delayed_fade_despawn.system())
-            .with_system(fade_despawn.system());
+            .with_system(fadein.system())
+            .with_system(fadeout_despawn.system());
         if let Some(r) = self.run_criteria.lock().unwrap().take() {
             app.add_system_set_to_stage(CoreStage::PostUpdate, fade_set.with_run_criteria(r));
         } else {
             app.add_system_set_to_stage(CoreStage::PostUpdate, fade_set);
         }
 
-        app.add_system_set_to_stage(CoreStage::Last, SystemSet::new().with_system(despawn.system()));
+        app.add_system_set_to_stage(
+            CoreStage::Last,
+            SystemSet::new().with_system(despawn.system()),
+        );
     }
 }
 
@@ -136,6 +184,16 @@ impl From<&mut DelayedFadeDespawn> for FadeDespawn {
             alpha_value: 1.,
             fade_duration: dfd.fade_duration,
             before_despawn: dfd.before_despawn.take(),
+        }
+    }
+}
+
+impl Default for FadeDespawn {
+    fn default() -> Self {
+        Self {
+            fade_duration: Duration::from_millis(500),
+            alpha_value: 1.,
+            before_despawn: None,
         }
     }
 }
@@ -246,7 +304,7 @@ fn delayed_fade_despawn(
     }
 }
 
-fn fade_despawn(
+fn fadeout_despawn(
     mut commands: Commands,
     mut query: Query<(Entity, &mut FadeDespawn, &Handle<ColorMaterial>)>,
     mut color_material_assets: ResMut<Assets<ColorMaterial>>,
@@ -266,6 +324,31 @@ fn fade_despawn(
             commands.entity(entity).despawn_recursive();
         } else if let Some(material) = color_material_assets.get_mut(material_handle) {
             material.color.set_a(fadeout.alpha_value);
+        }
+    }
+}
+
+fn fadein(
+    mut commands: Commands,
+    mut query: Query<(Entity, &mut FadeIn, &Handle<ColorMaterial>)>,
+    mut color_material_assets: ResMut<Assets<ColorMaterial>>,
+    time: Res<Time>,
+) {
+    for (entity, mut fadein, material_handle) in query.iter_mut() {
+        fadein.alpha_value = (fadein.alpha_value + (1.0 / fadein.fade_duration.as_secs_f32()) * time.delta_seconds())
+        .clamp(0., 1.);
+
+        if fadein.alpha_value >= 1. {
+            log::trace!(?entity, "faded in");
+            let mut entity_commands = commands.entity(entity);
+            entity_commands.remove::<FadeIn>();
+            if let Some(func) = fadein.after_fadein.take() {
+                func(&mut entity_commands);
+            }
+        }
+
+        if let Some(material) = color_material_assets.get_mut(material_handle) {
+            material.color.set_a(fadein.alpha_value);
         }
     }
 }

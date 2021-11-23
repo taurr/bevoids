@@ -1,9 +1,7 @@
 #![allow(clippy::complexity)]
 
-// TODO: display high-score
 // TODO: save high-score
 // TODO: countdown when starting
-// TODO: sound on highscore
 // TODO: tests in bevy?
 
 use bevy::{log, prelude::*};

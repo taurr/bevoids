@@ -58,6 +58,28 @@ impl HighScoreRepository {
     }
 
     #[allow(dead_code)]
+    pub fn position(&self, score: &Score) -> Option<usize> {
+        match self
+            .scores
+            .iter()
+            .enumerate()
+            .find(|(_, sr)| *score >= sr.score)
+            .map(|(index, _)| index)
+        {
+            idx @ Some(_) => idx,
+            None => {
+                if self.scores.is_empty() {
+                    Some(0)
+                } else if self.max_records as usize > self.scores.len() {
+                    Some(self.scores.len())
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    #[allow(dead_code)]
     pub fn lowest_score(&self) -> Score {
         if let Some(last) = self.scores.last() {
             last.score
@@ -67,7 +89,7 @@ impl HighScoreRepository {
     }
 
     #[allow(dead_code)]
-    pub fn push(&mut self, score: HighScore) -> Result<(), ()> {
+    pub fn push(&mut self, score: HighScore) -> Result<usize, ()> {
         let index = match self
             .scores
             .iter()
@@ -87,7 +109,7 @@ impl HighScoreRepository {
 
         self.scores.truncate(self.max_records as usize);
         if self.scores.len() > index {
-            Ok(())
+            Ok(index)
         } else {
             Err(())
         }
@@ -198,18 +220,27 @@ pub(crate) fn load_highscores(
     assets_path: Res<AssetPath>,
     settings: Res<Settings>,
 ) {
-    let mut pb = PathBuf::from(assets_path.as_str());
-    pb.push("highscores.toml");
+    let pb = highscores_path(&assets_path);
     if let Ok(content) = std::fs::read_to_string(pb.as_path()) {
-        let highscores: Result<HighScoreRepository, _> = toml::from_str(&content);
+        let highscores: Result<HighScoreRepository, _> = serde_json::from_str(&content);
         if let Ok(highscores) = highscores {
             commands.insert_resource(highscores);
             return;
         }
     }
     let highscores = HighScoreRepository::with_capacity(settings.general.highscores_capacity);
-    if let Ok(toml_highscores) = toml::to_string_pretty(&highscores) {
-        std::fs::write(pb, toml_highscores).expect("unable to write highscores");
-    }
+    save_highscores(&highscores, &assets_path);
     commands.insert_resource(highscores);
+}
+
+fn highscores_path(assets_path: &AssetPath) -> PathBuf {
+    let mut pb = PathBuf::from(assets_path.as_str());
+    pb.push("highscores.json");
+    pb
+}
+
+pub(crate) fn save_highscores(highscores: &HighScoreRepository, assets_path: &AssetPath) {
+    let pb = highscores_path(assets_path);
+    let highscores = serde_json::to_string_pretty(&highscores).unwrap();
+    std::fs::write(pb, highscores).expect("unable to write highscores");
 }

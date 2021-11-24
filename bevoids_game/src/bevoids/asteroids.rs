@@ -55,10 +55,7 @@ pub(crate) struct AsteroidsSpawner {
     paused: bool,
 }
 
-pub(crate) fn spawn_asteroid_spawner(
-    mut commands: Commands,
-    settings: Res<Settings>,
-) {
+pub(crate) fn spawn_asteroid_spawner(mut commands: Commands, settings: Res<Settings>) {
     // start spawning new asteroid entities
     let delay = Duration::from_secs_f32(settings.asteroid.spawndelay_initial_seconds);
     commands.spawn().insert(AsteroidsSpawner {
@@ -163,7 +160,7 @@ pub(crate) fn handle_shot_asteroids(
         score_event.send(AddScoreEvent(Score::new(
             ((settings.asteroid.size_max - asteroid_bounds.size().max_element())
                 / (settings.asteroid.size_max - settings.asteroid.size_min)
-                * settings.general.max_score) as u32,
+                * settings.asteroid.max_score) as u32,
         )));
 
         // spawn split asteroids

@@ -1,0 +1,52 @@
+{
+  "general": {
+    "animation_fps": 60.0,
+    "background_fade_seconds": 1.0,
+    "asteroids_in_start_menu": 20,
+    "highscores_capacity": 10
+  },
+  "laser": {
+    "size": 35.0,
+    "speed": 500.0,
+    "lifetime_miliseconds": 800,
+    "fadeout_miliseconds": 250
+  },
+  "player": {
+    "size": 50.0,
+    "zpos": 900.0,
+    "gun_ypos": 20.0,
+    "accelleration": 250.0,
+    "decelleration": 33.3,
+    "turn_speed_slow": 1.75,
+    "turn_speed_fast": 4.5,
+    "max_speed": 800.0,
+    "flame_width": 15.0,
+    "flame_ypos": -30.0
+  },
+  "volume": {
+    "laser": 0.6,
+    "thruster": 0.4,
+    "ship_explosion": 1.0,
+    "asteroid_explosion": 0.8
+  },
+  "window": {
+    "width": 800,
+    "height": 800
+  },
+  "asteroid": {
+    "max_score": 100.0,
+    "size_max": 150.0,
+    "size_min": 20.0,
+    "speed_max": 125.0,
+    "speed_min": 25.0,
+    "zpos_min": 100.0,
+    "zpos_max": 200.0,
+    "spawndelay_seconds": 0.5,
+    "spawndelay_initial_seconds": 15.0,
+    "spawndelay_min_seconds": 5.0,
+    "spawndelay_multiplier": 0.98,
+    "spawn_player_distance": 200.0,
+    "split_number": 2,
+    "split_size_factor": 0.66
+  }
+}

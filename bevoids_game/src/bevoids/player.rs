@@ -8,7 +8,10 @@ use bevy_effects::{
 use rand::Rng;
 use std::f32::consts::PI;
 
-use crate::bevoids::{Background, spawn_background};
+use crate::bevoids::{
+    highscore::{HighScoreRepository, Score},
+    spawn_background, Background,
+};
 
 use super::{
     laser::FireLaserEvent,
@@ -35,6 +38,8 @@ pub(crate) fn handle_player_dead(
     mut state: ResMut<State<GameState>>,
     win_bounds: Res<GfxBounds>,
     settings: Res<Settings>,
+    score: Res<Score>,
+    highscore_repository: Res<HighScoreRepository>,
 ) {
     for _ in events.iter() {
         for (player, transform, bounds) in player_query.iter() {
@@ -59,7 +64,11 @@ pub(crate) fn handle_player_dead(
                 .insert(Despawn);
         }
 
-        state.set(GameState::GameOver).unwrap();
+        if highscore_repository.position(&score).is_some() {
+            state.set(GameState::NewHighScore).unwrap();
+        } else {
+            state.set(GameState::GameOver).unwrap();
+        }
     }
 }
 

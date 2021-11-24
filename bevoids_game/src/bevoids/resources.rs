@@ -1,7 +1,7 @@
 use bevy::{log, prelude::*};
 use bevy_asset_map::{
-    AtlasAssetMap, AtlasDefinition, AudioAssetMap, AudioPaths,
-    TextureAssetMap, TextureAtlasPaths, TexturePaths,
+    AtlasAssetMap, AtlasDefinition, AudioAssetMap, AudioPaths, TextureAssetMap, TextureAtlasPaths,
+    TexturePaths,
 };
 use bevy_effects::sound::set_audio_channel_defaults;
 use bevy_kira_audio::Audio;
@@ -25,6 +25,7 @@ pub(crate) enum GeneralTexture {
     Laser,
     Flame,
     Spaceship,
+    Trophy,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -50,6 +51,7 @@ pub(crate) fn load_general_textures(
             (GeneralTexture::Laser, "gfx/laser.png"),
             (GeneralTexture::Spaceship, "gfx/spaceship.png"),
             (GeneralTexture::Flame, "gfx/flame.png"),
+            (GeneralTexture::Trophy, "gfx/trophy.png"),
         ])
         .with_base_path(assets_path.clone()),
         &asset_server,
@@ -175,12 +177,7 @@ pub(crate) fn wait_for_resources(
 ) {
     log::trace!("waiting...");
 
-    if tex1.ready()
-        && tex2.ready()
-        && tex3.ready()
-        && anim1.ready()
-        && audio1.ready()
-    {
+    if tex1.ready() && tex2.ready() && tex3.ready() && anim1.ready() && audio1.ready() {
         state
             .set(GameState::MainMenu)
             .expect("unable to transition into the InGame state");

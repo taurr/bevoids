@@ -1,6 +1,6 @@
-use serde_derive::Deserialize;
+use serde_derive::{Deserialize, Serialize};
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Settings {
     pub general: General,
     pub laser: Laser,
@@ -10,17 +10,17 @@ pub struct Settings {
     pub asteroid: Asteroid,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct General {
     pub animation_fps: f32,
     pub background_fade_seconds: f32,
-    pub max_score: f32,
     pub asteroids_in_start_menu: usize,
     pub highscores_capacity: u8,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Asteroid {
+    pub max_score: f32,
     pub size_max: f32,
     pub size_min: f32,
     pub speed_max: f32,
@@ -36,13 +36,13 @@ pub struct Asteroid {
     pub split_size_factor: f32,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Window {
     pub width: u32,
     pub height: u32,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Player {
     pub size: f32,
     pub zpos: f32,
@@ -56,7 +56,7 @@ pub struct Player {
     pub flame_ypos: f32,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Laser {
     pub size: f32,
     pub speed: f32,
@@ -64,7 +64,7 @@ pub struct Laser {
     pub fadeout_miliseconds: u64,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Volume {
     pub laser: f32,
     pub thruster: f32,

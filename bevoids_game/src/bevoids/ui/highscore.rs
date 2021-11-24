@@ -35,4 +35,22 @@ pub(crate) fn display_highscore_menu(
                 },
             );
         });
+
+    egui::Window::new("HighScore Hint")
+        .resizable(false)
+        .title_bar(false)
+        .anchor(egui::Align2::RIGHT_BOTTOM, [-5., -5.])
+        .show(ctx, |ui| {
+            ui.add(egui::Label::new("Hit Enter for main menu").small());
+        });
+}
+
+pub(crate) fn enter_for_mainmenu(
+    mut kb: ResMut<Input<KeyCode>>,
+    mut state: ResMut<State<GameState>>,
+) {
+    if kb.just_pressed(KeyCode::Return) {
+        kb.reset(KeyCode::Return);
+        state.set(GameState::MainMenu).unwrap();
+    }
 }

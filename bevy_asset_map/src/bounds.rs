@@ -10,8 +10,11 @@ pub struct BoundsPlugin;
 
 impl Plugin for BoundsPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system_to_stage(StartupStage::PostStartup, initialize_window_bounds.system())
-            .add_system(resized.system());
+        app.add_startup_system_to_stage(
+            StartupStage::PostStartup,
+            initialize_window_bounds.system(),
+        )
+        .add_system(resized.system());
     }
 }
 

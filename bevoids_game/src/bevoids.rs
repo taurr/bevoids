@@ -1,9 +1,7 @@
 use std::time::Duration;
 
 use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
-use bevy_asset_map::{
-    BoundsPlugin, GfxBounds, TextureAssetMap, TextureAssetMapPlugin,
-};
+use bevy_asset_map::{BoundsPlugin, GfxBounds, TextureAssetMap, TextureAssetMapPlugin};
 use bevy_effects::{
     animation::AnimationEffectPlugin,
     despawn::{DespawnPlugin, FadeDespawn, FadeIn},
@@ -15,7 +13,10 @@ use bevy_inspector_egui::WorldInspectorPlugin;
 use derive_more::{AsRef, DebugCustom, Deref, Display, From, Into};
 use rand::Rng;
 
-use crate::bevoids::{highscore::{AddScoreEvent, Score, load_highscores, update_score}, settings::Settings};
+use crate::bevoids::{
+    highscore::{load_highscores, update_score, AddScoreEvent, Score},
+    settings::Settings,
+};
 
 mod asteroids;
 mod highscore;
@@ -39,8 +40,8 @@ pub enum GameState {
     HighScoreMenu,
     Playing,
     Paused,
-    GameOver,     // TODO: if new highscore, goto NewHighScore
-    NewHighScore, // TODO: allow username entry for highscore, goto highscore menu
+    GameOver,
+    NewHighScore,
 }
 
 #[derive(Debug, Default)]
@@ -133,7 +134,11 @@ fn setup_mainmenu(app: &mut AppBuilder) {
 fn setup_highscore(app: &mut AppBuilder) {
     let state = GameState::HighScoreMenu;
     app.add_system_set(SystemSet::on_enter(state).with_system(set_menu_background.system()))
-        .add_system_set(SystemSet::on_update(state).with_system(display_highscore_menu.system()));
+        .add_system_set(
+            SystemSet::on_update(state)
+                .with_system(display_highscore_menu.system())
+                .with_system(enter_for_mainmenu.system()),
+        );
 }
 
 fn setup_playing(app: &mut AppBuilder) {
@@ -183,8 +188,10 @@ fn setup_gameover(app: &mut AppBuilder) {
 fn setup_new_highscore(app: &mut AppBuilder) {
     let state = GameState::NewHighScore;
 
-    app.add_system_set(SystemSet::on_update(state).with_system(restart_on_enter.system()))
-        .add_system_set(SystemSet::on_exit(state).with_system(clear_playingfield.system()));
+    app.add_system_set(
+        SystemSet::on_update(state).with_system(display_new_highscore_menu.system()),
+    )
+    .add_system_set(SystemSet::on_exit(state).with_system(clear_playingfield.system()));
 }
 
 fn esc_to_pause_unpause(mut kb: ResMut<Input<KeyCode>>, mut state: ResMut<State<GameState>>) {

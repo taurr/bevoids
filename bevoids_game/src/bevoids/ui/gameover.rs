@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext};
 
-use crate::bevoids::{GameState, highscore::Score};
+use crate::bevoids::{highscore::Score, GameState};
 
 pub(crate) fn display_gameover_menu(
     egui_context: Res<EguiContext>,
@@ -28,7 +28,7 @@ pub(crate) fn display_gameover_menu(
 
                     ui.add(egui::Label::new(score).text_color(egui::Color32::WHITE));
 
-                    if ui.button("Start").clicked() {
+                    if ui.button("Try Again").clicked() {
                         state.set(GameState::Playing).unwrap();
                     }
                     if ui.button("Main Menu").clicked() {

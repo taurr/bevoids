@@ -1,6 +1,5 @@
 #![allow(clippy::complexity)]
 
-// TODO: save high-score
 // TODO: countdown when starting
 // TODO: tests in bevy?
 
@@ -26,10 +25,10 @@ fn main() {
         pb.push("assets");
         pb.display().to_string()
     });
-    let settings: Settings = toml::from_str(&{
+    let settings: Settings = serde_json::from_str(&{
         let mut pb = PathBuf::from(&assets_path);
-        pb.push("settings.toml");
-        std::fs::read_to_string(pb).expect("unable to read settings")
+        pb.push("settings.json");
+        std::fs::read_to_string(pb.as_path()).expect("unable to read settings")
     })
     .expect("unable to parse settings file");
 

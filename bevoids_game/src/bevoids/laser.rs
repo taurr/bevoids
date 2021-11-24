@@ -50,8 +50,8 @@ pub(crate) fn handle_fire_laser(
             )
         };
 
-        let position =
-            player_position + player_orientation.mul_vec3(Vec3::new(0., settings.player.gun_ypos, -1.));
+        let position = player_position
+            + player_orientation.mul_vec3(Vec3::new(0., settings.player.gun_ypos, -1.));
 
         let velocity = player_orientation.mul_vec3(Vec3::Y).truncate();
         let velocity = velocity

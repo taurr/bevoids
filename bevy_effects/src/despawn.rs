@@ -335,7 +335,8 @@ fn fadein(
     time: Res<Time>,
 ) {
     for (entity, mut fadein, material_handle) in query.iter_mut() {
-        fadein.alpha_value = (fadein.alpha_value + (1.0 / fadein.fade_duration.as_secs_f32()) * time.delta_seconds())
+        fadein.alpha_value = (fadein.alpha_value
+            + (1.0 / fadein.fade_duration.as_secs_f32()) * time.delta_seconds())
         .clamp(0., 1.);
 
         if fadein.alpha_value >= 1. {

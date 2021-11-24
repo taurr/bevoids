@@ -2,6 +2,9 @@
 name = "bevy_asset_map"
 version = "0.1.0"
 edition = "2021"
+authors = ["Johnny T. Vestergaard (jtv@jrtv.dk)"]
+description = "Bevy plugins for the Bevoids game - resource loading & management"
+readme = "../README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

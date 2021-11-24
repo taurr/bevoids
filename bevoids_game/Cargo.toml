@@ -2,6 +2,10 @@
 name = "bevoids"
 version = "0.1.0"
 edition = "2021"
+license-file = "../LICENSE-MIT"
+authors = ["Johnny T. Vestergaard (jtv@jrtv.dk)"]
+description = "A simple game, heavily inspired by the classic Asteroids"
+readme = "../README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -26,21 +30,7 @@ chrono = { version = "0.4", features = ["serde"] }
 [dependencies.bevy]
 version = "0.5"
 default-features = false
-features = [
-    #"bevy_dynamic_plugin",
-    "render",
-    "bevy_wgpu",
-    "bevy_winit",
-    #"bevy_gilrs",
-    #"bevy_gltf",
-    "png",
-    "jpeg",
-    "x11",
-    #"wayland",
-    #"trace",
-    #"wgpu_trace",
-    "serialize"
-]
+features = ["render", "bevy_wgpu", "bevy_winit", "png", "jpeg", "serialize"]
 
 [dev-dependencies]
 quickcheck = "1.0"

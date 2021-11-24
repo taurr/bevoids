@@ -1,4 +1,3 @@
 /target
-Cargo.lock
 .vscode/settings.json
 bevoids_game/assets/highscores.json

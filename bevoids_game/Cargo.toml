@@ -39,6 +39,7 @@ features = [
     #"wayland",
     #"trace",
     #"wgpu_trace",
+    "serialize"
 ]
 
 [dev-dependencies]

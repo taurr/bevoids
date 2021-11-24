@@ -5,6 +5,13 @@
     "asteroids_in_start_menu": 20,
     "highscores_capacity": 10
   },
+  "keycodes": {
+    "turn_left": ["Left", "A"],
+    "turn_right": ["Right", "D"],
+    "modifier": ["LControl", "RControl"],
+    "accellerate": ["Up", "W"],
+    "fire": ["Space"]
+  },
   "laser": {
     "size": 35.0,
     "speed": 500.0,

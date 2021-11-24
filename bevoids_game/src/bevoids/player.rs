@@ -164,7 +164,7 @@ pub(crate) fn player_controls(
         .next()
         .expect("no player to control");
 
-    fire_laser(&kb, fire_laser_event);
+    fire_laser(&kb, fire_laser_event, &settings);
     turn_player(&kb, &time, &mut player_transform, &settings);
     accelleration(
         &kb,
@@ -196,7 +196,9 @@ fn accelleration(
     bounds: &GfxBounds,
     settings: &Settings,
 ) {
-    if kb.pressed(KeyCode::Up) {
+    let keycodes = &settings.keycodes;
+
+    if keycodes.accellerate.iter().any(|&c| kb.pressed(c)) {
         // accelleration
         let delta_v = player_transform
             .rotation
@@ -206,8 +208,9 @@ fn accelleration(
         let velocity =
             (Vec2::from(*player_velocity) + delta_v).clamp_length(0., settings.player.max_speed);
         **player_velocity = velocity.into();
+
         let panning = (player_transform.translation.x + bounds.width() / 2.) / bounds.width();
-        if kb.just_pressed(KeyCode::Up) {
+        if keycodes.accellerate.iter().any(|&c| kb.just_pressed(c)) {
             log::trace!("accellerate on");
             sfx_event.send(
                 LoopSfx::new(SoundEffect::Thruster)
@@ -233,7 +236,7 @@ fn accelleration(
         let velocity =
             (Vec2::from(*player_velocity) - delta_v).clamp_length(0., settings.player.max_speed);
         *player_velocity = velocity.into();
-        if kb.just_released(KeyCode::Up) {
+        if keycodes.accellerate.iter().any(|&c| kb.just_released(c)) {
             log::trace!("accellerate off");
             sfx_event.send(StopSfx::new(SoundEffect::Thruster).into());
             for flame in flame_query.iter() {
@@ -243,8 +246,14 @@ fn accelleration(
     }
 }
 
-fn fire_laser(kb: &Input<KeyCode>, mut fire_laser_events: EventWriter<FireLaserEvent>) {
-    if kb.just_pressed(KeyCode::Space) {
+fn fire_laser(
+    kb: &Input<KeyCode>,
+    mut fire_laser_events: EventWriter<FireLaserEvent>,
+    settings: &Settings,
+) {
+    let keycodes = &settings.keycodes;
+
+    if keycodes.fire.iter().any(|c| kb.just_pressed(*c)) {
         log::trace!("fire!");
         fire_laser_events.send(FireLaserEvent);
     }
@@ -256,17 +265,19 @@ fn turn_player(
     player_transform: &mut Transform,
     settings: &Settings,
 ) {
-    let speed = if kb.pressed(KeyCode::RControl) {
+    let keycodes = &settings.keycodes;
+
+    let speed = if keycodes.modifier.iter().any(|&c| kb.pressed(c)) {
         settings.player.turn_speed_fast
     } else {
         settings.player.turn_speed_slow
     };
 
-    if kb.pressed(KeyCode::Left) {
+    if keycodes.turn_left.iter().any(|&c| kb.pressed(c)) {
         player_transform.rotation = player_transform
             .rotation
             .mul_quat(Quat::from_rotation_z(speed * time.delta_seconds()));
-    } else if kb.pressed(KeyCode::Right) {
+    } else if keycodes.turn_right.iter().any(|&c| kb.pressed(c)) {
         player_transform.rotation = player_transform
             .rotation
             .mul_quat(Quat::from_rotation_z(-speed * time.delta_seconds()));

@@ -1,3 +1,4 @@
+use bevy::prelude::KeyCode;
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -8,6 +9,7 @@ pub struct Settings {
     pub volume: Volume,
     pub window: Window,
     pub asteroid: Asteroid,
+    pub keycodes: KeyCodes,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -16,6 +18,27 @@ pub struct General {
     pub background_fade_seconds: f32,
     pub asteroids_in_start_menu: usize,
     pub highscores_capacity: u8,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct KeyCodes {
+    pub turn_left: Vec<KeyCode>,
+    pub turn_right: Vec<KeyCode>,
+    pub modifier: Vec<KeyCode>,
+    pub accellerate: Vec<KeyCode>,
+    pub fire: Vec<KeyCode>,
+}
+
+impl Default for KeyCodes {
+    fn default() -> Self {
+        Self {
+            turn_left: vec![KeyCode::Left, KeyCode::A],
+            turn_right: vec![KeyCode::Right, KeyCode::D],
+            modifier: vec![KeyCode::RControl, KeyCode::LControl],
+            accellerate: vec![KeyCode::Up, KeyCode::W],
+            fire: vec![KeyCode::Space],
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]

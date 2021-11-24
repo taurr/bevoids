@@ -1,6 +1,5 @@
 [workspace]
-members = ["*"]
-exclude = [".git", ".vscode", "target", "images"]
+members = ["bevoids_game", "bevy_asset_map", "bevy_effects"]
 
 [profile.dev.package."*"]
 opt-level = 3

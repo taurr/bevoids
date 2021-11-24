@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
 use bevy_asset_map::{
-    BoundsPlugin, FontAssetMapPlugin, GfxBounds, TextureAssetMap, TextureAssetMapPlugin,
+    BoundsPlugin, GfxBounds, TextureAssetMap, TextureAssetMapPlugin,
 };
 use bevy_effects::{
     animation::AnimationEffectPlugin,
@@ -69,7 +69,6 @@ impl Plugin for Bevoids {
                 run_if_not_paused.system(),
             ))
             .add_plugin(SoundEffectsPlugin::<SoundEffect>::default())
-            .add_plugin(FontAssetMapPlugin::<GameFont>::default())
             .add_plugin(TextureAssetMapPlugin::<GeneralTexture>::default())
             .add_plugin(TextureAssetMapPlugin::<AsteroidTexture>::default())
             .add_plugin(TextureAssetMapPlugin::<BackgroundTexture>::default())
@@ -111,7 +110,6 @@ fn setup_initialize(app: &mut AppBuilder) {
     let state = GameState::Initialize;
 
     app.add_startup_system(load_highscores.system())
-        .add_startup_system(load_gamefont.system())
         .add_startup_system(load_general_textures.system())
         .add_startup_system(load_asteroid_textures.system())
         .add_startup_system(load_background_textures.system())

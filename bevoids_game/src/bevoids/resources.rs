@@ -1,6 +1,6 @@
 use bevy::{log, prelude::*};
 use bevy_asset_map::{
-    AtlasAssetMap, AtlasDefinition, AudioAssetMap, AudioPaths, FontAssetMap, FontPaths,
+    AtlasAssetMap, AtlasDefinition, AudioAssetMap, AudioPaths,
     TextureAssetMap, TextureAtlasPaths, TexturePaths,
 };
 use bevy_effects::sound::set_audio_channel_defaults;
@@ -33,32 +33,10 @@ pub(crate) enum AnimationAtlas {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub(crate) enum GameFont {
-    ScoreBoard,
-    GameOver,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub(crate) struct AsteroidTexture(pub usize);
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub(crate) struct BackgroundTexture(pub usize);
-
-pub(crate) fn load_gamefont(
-    mut commands: Commands,
-    assets_path: Res<AssetPath>,
-    asset_server: Res<AssetServer>,
-) {
-    log::debug!("loading fonts");
-    commands.insert_resource(FontAssetMap::with_font_paths(
-        &FontPaths::from_files([
-            (GameFont::ScoreBoard, "fonts/FiraMono-Medium.ttf"),
-            (GameFont::GameOver, "fonts/FiraSans-Bold.ttf"),
-        ])
-        .with_base_path(assets_path.clone()),
-        &asset_server,
-    ));
-}
 
 pub(crate) fn load_general_textures(
     mut commands: Commands,
@@ -194,16 +172,14 @@ pub(crate) fn wait_for_resources(
     tex3: Res<TextureAssetMap<BackgroundTexture>>,
     anim1: Res<AtlasAssetMap<AnimationAtlas>>,
     audio1: Res<AudioAssetMap<SoundEffect>>,
-    fonts: Res<FontAssetMap<GameFont>>,
 ) {
-    log::debug!("waiting...");
+    log::trace!("waiting...");
 
     if tex1.ready()
         && tex2.ready()
         && tex3.ready()
         && anim1.ready()
         && audio1.ready()
-        && fonts.ready()
     {
         state
             .set(GameState::MainMenu)

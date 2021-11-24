@@ -6,6 +6,7 @@ use crate::bevoids::{highscore::Score, GameState};
 pub(crate) fn display_paused_menu(
     egui_context: Res<EguiContext>,
     score: Res<Score>,
+    mut started: Local<bool>,
     mut state: ResMut<State<GameState>>,
 ) {
     let ctx = egui_context.ctx();
@@ -30,11 +31,15 @@ pub(crate) fn display_paused_menu(
                     ui.add(egui::Label::new(score).text_color(egui::Color32::WHITE));
 
                     let continue_button = ui.button("Continue");
-                    continue_button.request_focus();
                     if continue_button.clicked() {
+                        *started = false;
                         state.pop().unwrap();
                     }
 
+                    if !*started {
+                        *started = true;
+                        continue_button.request_focus();
+                    }
                     hint = "Hit Escape or Enter to continue".to_string();
                 },
             );

@@ -15,6 +15,7 @@ pub(crate) fn display_new_highscore_menu(
     mut highscore_repo: ResMut<HighScoreRepository>,
     mut kb: ResMut<Input<KeyCode>>,
     assets_path: Res<AssetPath>,
+    mut started: Local<bool>,
 ) {
     let ctx = egui_context.ctx();
     let mut hint: String = "".to_string();
@@ -57,10 +58,14 @@ pub(crate) fn display_new_highscore_menu(
 
                             save_highscores(&highscore_repo, &assets_path);
 
+                            *started = false;
                             state.set(GameState::HighScoreMenu).unwrap();
                         }
                     } else {
-                        name_box.request_focus();
+                        if !*started {
+                            *started = true;
+                            name_box.request_focus();
+                        }
                         hint = "At least 3 charaters required".to_string();
                     }
                 },

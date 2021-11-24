@@ -10,6 +10,7 @@ pub(crate) fn display_highscore_menu(
     egui_context: Res<EguiContext>,
     mut state: ResMut<State<GameState>>,
     highscores: Res<HighScoreRepository>,
+    mut started: Local<bool>,
 ) {
     let ctx = egui_context.ctx();
     let mut hint: String = "".to_string();
@@ -68,12 +69,14 @@ pub(crate) fn display_highscore_menu(
                     ui.add(egui::Separator::default().horizontal().spacing(20.));
                     let mainmenu_button = ui.button("Main Menu");
                     if mainmenu_button.clicked() {
+                        *started = false;
                         state.set(GameState::MainMenu).unwrap();
                     }
 
                     if mainmenu_button.has_focus() {
                         hint = "Hit Enter for main menu".to_string();
-                    } else {
+                    } else if !*started {
+                        *started = true;
                         mainmenu_button.request_focus();
                     }
                 },

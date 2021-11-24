@@ -7,6 +7,7 @@ pub(crate) fn display_gameover_menu(
     egui_context: Res<EguiContext>,
     score: Res<Score>,
     mut state: ResMut<State<GameState>>,
+    mut started: Local<bool>,
 ) {
     let ctx = egui_context.ctx();
     let score = score.to_string();
@@ -27,14 +28,16 @@ pub(crate) fn display_gameover_menu(
                     );
                     ui.add(egui::Separator::default().horizontal().spacing(20.));
 
-                    ui.add(egui::Label::new(score).text_color(egui::Color32::WHITE));
+                    ui.add(egui::Label::new(score).text_color(egui::Color32::GREEN));
 
                     let play_button = ui.button("Try Again");
                     if play_button.clicked() {
+                        *started = false;
                         state.set(GameState::Playing).unwrap();
                     }
                     let mainmenu_button = ui.button("Main Menu");
                     if mainmenu_button.clicked() {
+                        *started = false;
                         state.set(GameState::MainMenu).unwrap();
                     }
 
@@ -42,7 +45,8 @@ pub(crate) fn display_gameover_menu(
                         hint = "Hit Enter to try again".to_string();
                     } else if mainmenu_button.has_focus() {
                         hint = "Hit Enter for mainmenu".to_string();
-                    } else {
+                    } else if !*started {
+                        *started = true;
                         play_button.request_focus();
                     }
                 },

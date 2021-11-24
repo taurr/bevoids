@@ -32,8 +32,8 @@ pub(crate) fn handle_fire_laser(
     for _ in events.iter() {
         let (
             &Transform {
-                translation: position,
-                rotation: orientation,
+                translation: player_position,
+                rotation: player_orientation,
                 ..
             },
             &Velocity(player_velocity),
@@ -51,9 +51,9 @@ pub(crate) fn handle_fire_laser(
         };
 
         let position =
-            position + orientation.mul_vec3(Vec3::new(0., settings.player.gun_ypos, -1.));
+            player_position + player_orientation.mul_vec3(Vec3::new(0., settings.player.gun_ypos, -1.));
 
-        let velocity = orientation.mul_vec3(Vec3::Y).truncate();
+        let velocity = player_orientation.mul_vec3(Vec3::Y).truncate();
         let velocity = velocity
             * (player_velocity.length() * player_velocity.angle_between(velocity).cos()
                 + settings.laser.speed);
@@ -63,7 +63,7 @@ pub(crate) fn handle_fire_laser(
                 material: material_assets.add(laser_texture.texture.clone().into()),
                 transform: Transform {
                     translation: position,
-                    rotation: Quat::from_rotation_z(PI / 2.).mul_quat(orientation),
+                    rotation: Quat::from_rotation_z(PI / 2.).mul_quat(player_orientation),
                     scale: Vec2::splat(scale).extend(1.),
                 },
                 ..SpriteBundle::default()

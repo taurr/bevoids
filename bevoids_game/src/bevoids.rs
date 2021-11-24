@@ -15,10 +15,7 @@ use bevy_inspector_egui::WorldInspectorPlugin;
 use derive_more::{AsRef, DebugCustom, Deref, Display, From, Into};
 use rand::Rng;
 
-use crate::bevoids::{
-    highscore::{update_score, AddScoreEvent, Score},
-    settings::Settings,
-};
+use crate::bevoids::{highscore::{AddScoreEvent, Score, load_highscores, update_score}, settings::Settings};
 
 mod asteroids;
 mod highscore;

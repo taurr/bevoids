@@ -1,7 +1,10 @@
-use bevy::{log, prelude::{EventReader, ResMut}};
+use bevy::{log, prelude::*};
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use derive_more::{Add, AddAssign, AsRef, Constructor, Display, From, Into};
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+
+use crate::bevoids::{settings::Settings, AssetPath};
 
 #[derive(Debug)]
 pub(crate) struct AddScoreEvent(pub Score);
@@ -188,4 +191,25 @@ pub(crate) fn update_score(
             "update score"
         );
     }
+}
+
+pub(crate) fn load_highscores(
+    mut commands: Commands,
+    assets_path: Res<AssetPath>,
+    settings: Res<Settings>,
+) {
+    let mut pb = PathBuf::from(assets_path.as_str());
+    pb.push("highscores.toml");
+    if let Ok(content) = std::fs::read_to_string(pb.as_path()) {
+        let highscores: Result<HighScoreRepository, _> = toml::from_str(&content);
+        if let Ok(highscores) = highscores {
+            commands.insert_resource(highscores);
+            return;
+        }
+    }
+    let highscores = HighScoreRepository::with_capacity(settings.general.highscores_capacity);
+    if let Ok(toml_highscores) = toml::to_string_pretty(&highscores) {
+        std::fs::write(pb, toml_highscores).expect("unable to write highscores");
+    }
+    commands.insert_resource(highscores);
 }

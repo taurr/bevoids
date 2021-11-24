@@ -235,6 +235,10 @@ fn set_egui_defaults(egui_context: Res<EguiContext>) {
         egui::TextStyle::Small,
         (egui::FontFamily::Proportional, 14.0),
     );
+    fonts.family_and_size.insert(
+        egui::TextStyle::Monospace,
+        (egui::FontFamily::Monospace, 24.0),
+    );
     ctx.set_fonts(fonts);
 
     let mut visuals = egui::Visuals::dark();

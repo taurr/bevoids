@@ -58,6 +58,11 @@ impl HighScoreRepository {
     }
 
     #[allow(dead_code)]
+    pub fn count(&self) -> usize {
+        self.scores.len()
+    }
+
+    #[allow(dead_code)]
     pub fn position(&self, score: &Score) -> Option<usize> {
         match self
             .scores
@@ -223,7 +228,12 @@ pub(crate) fn load_highscores(
     let pb = highscores_path(&assets_path);
     if let Ok(content) = std::fs::read_to_string(pb.as_path()) {
         let highscores: Result<HighScoreRepository, _> = serde_json::from_str(&content);
-        if let Ok(highscores) = highscores {
+        if let Ok(mut highscores) = highscores {
+            highscores.scores.sort_by(|h1, h2| h2.score.cmp(&h1.score));
+            highscores
+                .scores
+                .truncate(settings.general.highscores_capacity as usize);
+            highscores.max_records = settings.general.highscores_capacity;
             commands.insert_resource(highscores);
             return;
         }

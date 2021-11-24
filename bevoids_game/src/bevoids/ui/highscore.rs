@@ -11,6 +11,7 @@ pub(crate) fn display_highscore_menu(
     mut state: ResMut<State<GameState>>,
 ) {
     let ctx = egui_context.ctx();
+    let mut hint: String = "".to_string();
 
     egui::Window::new("HighScore Menu")
         .resizable(false)
@@ -26,11 +27,19 @@ pub(crate) fn display_highscore_menu(
                             .text_color(Color32::WHITE),
                     );
                     ui.add(egui::Separator::default().horizontal().spacing(20.));
+                    // TODO: display 2 small trophys - 1 in each side
 
                     // TODO: implement highscore menu
 
-                    if ui.button("Main Menu").clicked() {
+                    let mainmenu_button = ui.button("Main Menu");
+                    if mainmenu_button.clicked() {
                         state.set(GameState::MainMenu).unwrap();
+                    }
+
+                    if mainmenu_button.has_focus() {
+                        hint = "Hit Enter for main menu".to_string();
+                    } else {
+                        mainmenu_button.request_focus();
                     }
                 },
             );
@@ -41,16 +50,6 @@ pub(crate) fn display_highscore_menu(
         .title_bar(false)
         .anchor(egui::Align2::RIGHT_BOTTOM, [-5., -5.])
         .show(ctx, |ui| {
-            ui.add(egui::Label::new("Hit Enter for main menu").small());
+            ui.add(egui::Label::new(hint).small());
         });
-}
-
-pub(crate) fn enter_for_mainmenu(
-    mut kb: ResMut<Input<KeyCode>>,
-    mut state: ResMut<State<GameState>>,
-) {
-    if kb.just_pressed(KeyCode::Return) {
-        kb.reset(KeyCode::Return);
-        state.set(GameState::MainMenu).unwrap();
-    }
 }

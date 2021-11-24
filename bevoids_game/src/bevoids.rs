@@ -124,21 +124,13 @@ fn setup_mainmenu(app: &mut AppBuilder) {
 
     app.add_plugin(EguiPlugin)
         .add_system_set(SystemSet::on_enter(state).with_system(set_menu_background.system()))
-        .add_system_set(
-            SystemSet::on_update(state)
-                .with_system(restart_on_enter.system())
-                .with_system(display_main_menu.system()),
-        );
+        .add_system_set(SystemSet::on_update(state).with_system(display_main_menu.system()));
 }
 
 fn setup_highscore(app: &mut AppBuilder) {
     let state = GameState::HighScoreMenu;
     app.add_system_set(SystemSet::on_enter(state).with_system(set_menu_background.system()))
-        .add_system_set(
-            SystemSet::on_update(state)
-                .with_system(display_highscore_menu.system())
-                .with_system(enter_for_mainmenu.system()),
-        );
+        .add_system_set(SystemSet::on_update(state).with_system(display_highscore_menu.system()));
 }
 
 fn setup_playing(app: &mut AppBuilder) {
@@ -177,12 +169,8 @@ fn setup_paused(app: &mut AppBuilder) {
 fn setup_gameover(app: &mut AppBuilder) {
     let state = GameState::GameOver;
 
-    app.add_system_set(
-        SystemSet::on_update(state)
-            .with_system(restart_on_enter.system())
-            .with_system(display_gameover_menu.system()),
-    )
-    .add_system_set(SystemSet::on_exit(state).with_system(clear_playingfield.system()));
+    app.add_system_set(SystemSet::on_update(state).with_system(display_gameover_menu.system()))
+        .add_system_set(SystemSet::on_exit(state).with_system(clear_playingfield.system()));
 }
 
 fn setup_new_highscore(app: &mut AppBuilder) {

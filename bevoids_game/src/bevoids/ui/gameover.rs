@@ -10,6 +10,7 @@ pub(crate) fn display_gameover_menu(
 ) {
     let ctx = egui_context.ctx();
     let score = score.to_string();
+    let mut hint: String = "".to_string();
 
     egui::Window::new("GameOver Menu")
         .resizable(false)
@@ -28,11 +29,21 @@ pub(crate) fn display_gameover_menu(
 
                     ui.add(egui::Label::new(score).text_color(egui::Color32::WHITE));
 
-                    if ui.button("Try Again").clicked() {
+                    let play_button = ui.button("Try Again");
+                    if play_button.clicked() {
                         state.set(GameState::Playing).unwrap();
                     }
-                    if ui.button("Main Menu").clicked() {
+                    let mainmenu_button = ui.button("Main Menu");
+                    if mainmenu_button.clicked() {
                         state.set(GameState::MainMenu).unwrap();
+                    }
+
+                    if play_button.has_focus() {
+                        hint = "Hit Enter to try again".to_string();
+                    } else if mainmenu_button.has_focus() {
+                        hint = "Hit Enter for mainmenu".to_string();
+                    } else {
+                        play_button.request_focus();
                     }
                 },
             )
@@ -43,16 +54,6 @@ pub(crate) fn display_gameover_menu(
         .title_bar(false)
         .anchor(egui::Align2::RIGHT_BOTTOM, [-5., -5.])
         .show(ctx, |ui| {
-            ui.add(egui::Label::new("Hit Enter to try again").small());
+            ui.add(egui::Label::new(hint).small());
         });
-}
-
-pub(crate) fn restart_on_enter(
-    mut kb: ResMut<Input<KeyCode>>,
-    mut state: ResMut<State<GameState>>,
-) {
-    if kb.just_pressed(KeyCode::Return) {
-        kb.reset(KeyCode::Return);
-        state.set(GameState::Playing).unwrap();
-    }
 }

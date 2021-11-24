@@ -17,6 +17,7 @@ pub(crate) fn display_new_highscore_menu(
     assets_path: Res<AssetPath>,
 ) {
     let ctx = egui_context.ctx();
+    let mut hint: String = "".to_string();
 
     egui::Window::new("NewHighScore Menu")
         .resizable(false)
@@ -43,9 +44,9 @@ pub(crate) fn display_new_highscore_menu(
                     ui.add(egui::Separator::default().horizontal().spacing(20.));
                     let name_box =
                         ui.add(egui::TextEdit::singleline(&mut *name).hint_text("Enter your name"));
-                    name_box.request_focus();
 
                     if name.len() >= 3 {
+                        hint = "Hit Enter accept".to_string();
                         ui.add(egui::Separator::default().horizontal().spacing(20.));
                         if ui.button("Enter hall of fame").clicked() || name_box.clicked() {
                             kb.reset(KeyCode::Return);
@@ -58,6 +59,9 @@ pub(crate) fn display_new_highscore_menu(
 
                             state.set(GameState::HighScoreMenu).unwrap();
                         }
+                    } else {
+                        name_box.request_focus();
+                        hint = "At least 3 charaters required".to_string();
                     }
                 },
             )
@@ -68,13 +72,6 @@ pub(crate) fn display_new_highscore_menu(
         .title_bar(false)
         .anchor(egui::Align2::RIGHT_BOTTOM, [-5., -5.])
         .show(ctx, |ui| {
-            ui.add(
-                egui::Label::new(if name.len() >= 3 {
-                    "Hit Enter accept"
-                } else {
-                    "At least 3 charaters required"
-                })
-                .small(),
-            );
+            ui.add(egui::Label::new(hint).small());
         });
 }

@@ -12,6 +12,7 @@ pub(crate) fn display_main_menu(
     mut exit: EventWriter<AppExit>,
 ) {
     let ctx = egui_context.ctx();
+    let mut hint: String = "".to_string();
 
     egui::Window::new("MainMenu Menu")
         .resizable(false)
@@ -24,14 +25,27 @@ pub(crate) fn display_main_menu(
                     ui.add(Label::new("Game Menu").heading().text_color(Color32::WHITE));
                     ui.add(egui::Separator::default().horizontal().spacing(20.));
 
-                    if ui.button("Start").clicked() {
+                    let start_button = ui.button("Play");
+                    if start_button.clicked() {
                         state.set(GameState::Playing).unwrap();
                     }
-                    if ui.button("Highscores").clicked() {
+                    let highscore_button = ui.button("Highscores");
+                    if highscore_button.clicked() {
                         state.set(GameState::HighScoreMenu).unwrap();
                     }
-                    if ui.button("Exit").clicked() {
+                    let exit_button = ui.button("Exit");
+                    if exit_button.clicked() {
                         exit.send(AppExit);
+                    }
+
+                    if start_button.has_focus() {
+                        hint = "Hit Enter to play".to_string();
+                    } else if highscore_button.has_focus() {
+                        hint = "Hit Enter to view highscores".to_string();
+                    } else if exit_button.has_focus() {
+                        hint = "Hit Enter to exit".to_string();
+                    } else {
+                        start_button.request_focus();
                     }
                 },
             );
@@ -42,6 +56,6 @@ pub(crate) fn display_main_menu(
         .title_bar(false)
         .anchor(egui::Align2::RIGHT_BOTTOM, [-5., -5.])
         .show(ctx, |ui| {
-            ui.add(egui::Label::new("Hit Enter to start").small());
+            ui.add(egui::Label::new(hint).small());
         });
 }

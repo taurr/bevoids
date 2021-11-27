@@ -4,33 +4,15 @@
 // TODO: tests in bevy?
 
 use bevy::{log, prelude::*};
-use std::path::PathBuf;
-use structopt::StructOpt;
+use bevy_asset_map::EmbeddedAssetPlugin;
 
 mod bevoids;
 //mod text;
 
-use crate::bevoids::{settings::Settings, AssetPath, Bevoids};
-
-#[derive(Debug, StructOpt)]
-struct Args {
-    #[structopt(long)]
-    assets: Option<String>,
-}
+use crate::bevoids::{Bevoids, GameAssets};
 
 fn main() {
-    let args = Args::from_args();
-    let assets_path = args.assets.unwrap_or_else(|| {
-        let mut pb = PathBuf::from(std::env::current_dir().unwrap());
-        pb.push("assets");
-        pb.display().to_string()
-    });
-    let settings: Settings = serde_json::from_str(&{
-        let mut pb = PathBuf::from(&assets_path);
-        pb.push("settings.json");
-        std::fs::read_to_string(pb.as_path()).expect("unable to read settings")
-    })
-    .expect("unable to parse settings file");
+    let settings = GameAssets::get_settings();
 
     App::build()
         .insert_resource(ClearColor(Color::BLACK))
@@ -43,9 +25,13 @@ fn main() {
             title: module_path!().into(),
             ..WindowDescriptor::default()
         })
-        .insert_resource(AssetPath::from(assets_path))
         .insert_resource(settings)
-        .add_plugins(DefaultPlugins)
+        //
+        .add_plugins_with(DefaultPlugins, |group| {
+            group.add_before::<bevy::asset::AssetPlugin, _>(
+                EmbeddedAssetPlugin::<GameAssets>::default(),
+            )
+        })
         .add_startup_system(initialize_camera.system())
         //
         .add_plugin(Bevoids::default())

@@ -13,7 +13,7 @@ Currently theres no easy way of installing the game 😢
 However, clone the repo and run the game using:
 
 ```shell
-cargo run --release -- --assets $PWD/bevoids_game/assets
+cargo run --release
 ```
 
 Should work on both Linux and Windows, though you'd need to adjust the `--assets` argument.

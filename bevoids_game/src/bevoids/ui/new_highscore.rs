@@ -3,7 +3,7 @@ use bevy_egui::{egui, EguiContext};
 
 use crate::bevoids::{
     highscore::{save_highscores, HighScore, HighScoreRepository, Score},
-    AssetPath, GameState,
+    GameState,
 };
 
 pub(crate) fn display_new_highscore_menu(
@@ -14,7 +14,6 @@ pub(crate) fn display_new_highscore_menu(
     mut name: Local<String>,
     mut highscore_repo: ResMut<HighScoreRepository>,
     mut kb: ResMut<Input<KeyCode>>,
-    assets_path: Res<AssetPath>,
     mut started: Local<bool>,
 ) {
     let ctx = egui_context.ctx();
@@ -56,7 +55,7 @@ pub(crate) fn display_new_highscore_menu(
                                 .expect("failed adding highscore");
                             name.clear();
 
-                            save_highscores(&highscore_repo, &assets_path);
+                            save_highscores(&highscore_repo);
 
                             *started = false;
                             state.set(GameState::HighScoreMenu).unwrap();

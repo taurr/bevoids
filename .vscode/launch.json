@@ -16,7 +16,8 @@
         }
       },
       "env": {
-        "RUST_LOG": "info,bevoids=debug,wgpu_core=warn"
+        "RUST_LOG": "bevoids=debug",
+        "RUST_BACKTRACE": "1"
       },
       "args": ["--assets", "${workspaceFolder}/bevoids_game/assets"],
       "cwd": "${workspaceFolder}"

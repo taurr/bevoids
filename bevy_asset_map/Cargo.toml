@@ -11,6 +11,8 @@ readme = "../README.md"
 [dependencies]
 bevy_kira_audio = "0.6"
 parry2d = "0.7"
+rust-embed = "6.2"
+itertools = "0.10"
 
 [dependencies.bevy]
 version = "0.5"

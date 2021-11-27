@@ -1,10 +1,10 @@
 use bevy::{log, prelude::*};
 use chrono::{DateTime, Utc};
-use derive_more::{Add, AddAssign, AsRef, Constructor, Display, From, Into};
+use derive_more::{Add, AddAssign, Constructor, Display, From, Into};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
-use crate::bevoids::{settings::Settings, AssetPath};
+use crate::bevoids::settings::Settings;
 
 #[derive(Debug)]
 pub(crate) struct AddScoreEvent(pub Score);
@@ -15,12 +15,11 @@ pub(crate) struct AddScoreEvent(pub Score);
     Default,
     Clone,
     Copy,
-    AsRef,
     Add,
     AddAssign,
     PartialEq,
-    Eq,
     PartialOrd,
+    Eq,
     Ord,
     Constructor,
     From,
@@ -220,12 +219,8 @@ pub(crate) fn update_score(
     }
 }
 
-pub(crate) fn load_highscores(
-    mut commands: Commands,
-    assets_path: Res<AssetPath>,
-    settings: Res<Settings>,
-) {
-    let pb = highscores_path(&assets_path);
+pub(crate) fn load_highscores(mut commands: Commands, settings: Res<Settings>) {
+    let pb = highscores_path();
     if let Ok(content) = std::fs::read_to_string(pb.as_path()) {
         let highscores: Result<HighScoreRepository, _> = serde_json::from_str(&content);
         if let Ok(mut highscores) = highscores {
@@ -239,18 +234,22 @@ pub(crate) fn load_highscores(
         }
     }
     let highscores = HighScoreRepository::with_capacity(settings.general.highscores_capacity);
-    save_highscores(&highscores, &assets_path);
+    save_highscores(&highscores);
     commands.insert_resource(highscores);
 }
 
-fn highscores_path(assets_path: &AssetPath) -> PathBuf {
-    let mut pb = PathBuf::from(assets_path.as_str());
+fn highscores_path() -> PathBuf {
+    let current_exe = env::current_exe().unwrap();
+    let application = current_exe.file_stem().unwrap().to_str().unwrap();
+    let project_dirs = directories::ProjectDirs::from("", "", application).unwrap();
+    let mut pb = PathBuf::from(project_dirs.data_dir());
+    std::fs::create_dir_all(pb.as_path()).ok();
     pb.push("highscores.json");
     pb
 }
 
-pub(crate) fn save_highscores(highscores: &HighScoreRepository, assets_path: &AssetPath) {
-    let pb = highscores_path(assets_path);
+pub(crate) fn save_highscores(highscores: &HighScoreRepository) {
+    let pb = highscores_path();
     let highscores = serde_json::to_string_pretty(&highscores).unwrap();
     std::fs::write(pb, highscores).expect("unable to write highscores");
 }

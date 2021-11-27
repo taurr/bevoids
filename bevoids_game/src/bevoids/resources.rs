@@ -6,10 +6,8 @@ use bevy_asset_map::{
 use bevy_effects::sound::set_audio_channel_defaults;
 use bevy_kira_audio::Audio;
 use derive_more::Display;
-use std::path::PathBuf;
-use walkdir::WalkDir;
 
-use super::{settings::Settings, AssetPath, GameState};
+use super::{settings::Settings, GameState};
 
 #[derive(Debug, Display, Copy, Clone, Eq, PartialEq, Hash)]
 pub(crate) enum SoundEffect {
@@ -39,11 +37,7 @@ pub(crate) struct AsteroidTexture(pub usize);
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub(crate) struct BackgroundTexture(pub usize);
 
-pub(crate) fn load_general_textures(
-    mut commands: Commands,
-    assets_path: Res<AssetPath>,
-    asset_server: Res<AssetServer>,
-) {
+pub(crate) fn load_general_textures(mut commands: Commands, asset_server: Res<AssetServer>) {
     log::debug!("loading textures");
 
     commands.insert_resource(TextureAssetMap::with_texture_paths(
@@ -52,69 +46,63 @@ pub(crate) fn load_general_textures(
             (GeneralTexture::Spaceship, "gfx/spaceship.png"),
             (GeneralTexture::Flame, "gfx/flame.png"),
             (GeneralTexture::Trophy, "gfx/trophy.png"),
-        ])
-        .with_base_path(assets_path.clone()),
+        ]),
         &asset_server,
     ));
 }
 
-pub(crate) fn load_asteroid_textures(
-    mut commands: Commands,
-    assets_path: Res<AssetPath>,
-    asset_server: Res<AssetServer>,
-) {
-    fn asteroid_texture_paths(assets_path: &str) -> Vec<(AsteroidTexture, String)> {
-        let mut pb = PathBuf::from(assets_path);
-        pb.push("gfx/asteroids");
-
-        WalkDir::new(pb)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().is_file())
-            .enumerate()
-            .map(|(i, e)| (AsteroidTexture(i), e.path().display().to_string()))
-            .collect()
-    }
-
+pub(crate) fn load_asteroid_textures(mut commands: Commands, asset_server: Res<AssetServer>) {
     log::debug!("loading asteroids");
+    let assets = vec![
+        "gfx/asteroids/asteroid_1.png",
+        "gfx/asteroids/asteroid_2.png",
+        "gfx/asteroids/asteroid_3.png",
+        "gfx/asteroids/asteroid_4.png",
+        "gfx/asteroids/asteroid_5.png",
+        "gfx/asteroids/asteroid_6.png",
+        "gfx/asteroids/asteroid_7.png",
+    ];
 
     commands.insert_resource(TextureAssetMap::with_texture_paths(
-        &TexturePaths::from_files(asteroid_texture_paths(&assets_path)),
+        &TexturePaths::from_files(
+            assets
+                .iter()
+                .enumerate()
+                .map(|(i, &e)| (AsteroidTexture(i), e)),
+        ),
         &asset_server,
     ));
 }
 
-pub(crate) fn load_background_textures(
-    mut commands: Commands,
-    assets_path: Res<AssetPath>,
-    asset_server: Res<AssetServer>,
-) {
-    fn background_texture_paths(assets_path: &str) -> Vec<(BackgroundTexture, String)> {
-        let mut pb = PathBuf::from(assets_path);
-        pb.push("gfx/backgrounds");
-
-        WalkDir::new(pb)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().is_file())
-            .enumerate()
-            .map(|(i, e)| (BackgroundTexture(i), e.path().display().to_string()))
-            .collect()
-    }
-
+pub(crate) fn load_background_textures(mut commands: Commands, asset_server: Res<AssetServer>) {
     log::debug!("loading backgrounds");
+    let assets = vec![
+        "gfx/backgrounds/bg_1.jpg",
+        "gfx/backgrounds/bg_2.jpg",
+        "gfx/backgrounds/bg_3.jpg",
+        "gfx/backgrounds/bg_4.jpg",
+        "gfx/backgrounds/bg_5.jpg",
+        "gfx/backgrounds/bg_6.jpg",
+        "gfx/backgrounds/bg_7.jpg",
+        "gfx/backgrounds/bg_8.jpg",
+        "gfx/backgrounds/bg_9.jpg",
+        "gfx/backgrounds/bg_10.jpg",
+        "gfx/backgrounds/bg_11.jpg",
+        "gfx/backgrounds/bg_12.jpg",
+    ];
 
     commands.insert_resource(TextureAssetMap::with_texture_paths(
-        &TexturePaths::from_files(background_texture_paths(&assets_path)),
+        &TexturePaths::from_files(
+            assets
+                .iter()
+                .enumerate()
+                .map(|(i, &e)| (BackgroundTexture(i), e)),
+        ),
         &asset_server,
     ));
 }
 
-pub(crate) fn load_animations(
-    mut commands: Commands,
-    assets_path: Res<AssetPath>,
-    asset_server: Res<AssetServer>,
-) {
+pub(crate) fn load_animations(mut commands: Commands, asset_server: Res<AssetServer>) {
     log::debug!("loading animations");
     commands.insert_resource(AtlasAssetMap::with_texture_paths(
         &TextureAtlasPaths::from_files([(
@@ -124,15 +112,13 @@ pub(crate) fn load_animations(
                 columns: 9,
                 rows: 9,
             },
-        )])
-        .with_base_path(assets_path.clone()),
+        )]),
         &asset_server,
     ));
 }
 
 pub(crate) fn load_audio(
     mut commands: Commands,
-    assets_path: Res<AssetPath>,
     asset_server: Res<AssetServer>,
     audio: Res<Audio>,
     settings: Res<Settings>,
@@ -145,8 +131,7 @@ pub(crate) fn load_audio(
             (SoundEffect::Laser, "sounds/laser.wav"),
             (SoundEffect::ShipExplode, "sounds/ship_explode.wav"),
             (SoundEffect::Thruster, "sounds/thruster.wav"),
-        ])
-        .with_base_path(assets_path.clone()),
+        ]),
         &asset_server,
     ));
     log::trace!("setting default volume in audio channels");
@@ -181,5 +166,19 @@ pub(crate) fn wait_for_resources(
         state
             .set(GameState::MainMenu)
             .expect("unable to transition into the InGame state");
+    }
+}
+
+use rust_embed::RustEmbed;
+
+#[derive(RustEmbed)]
+#[folder = "assets/"]
+pub struct GameAssets;
+
+impl GameAssets {
+    pub fn get_settings() -> Settings {
+        let settings: Settings = serde_json::from_slice(&Self::get("settings.json").unwrap().data)
+            .expect("unable to parse settings file");
+        settings
     }
 }

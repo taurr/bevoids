@@ -34,11 +34,9 @@ pub(crate) fn display_highscore_menu(
 
                     let row_height = ui.fonts()[egui::TextStyle::Body].row_height();
                     let num_rows = highscores.count();
-                    ScrollArea::from_max_height(row_height * 11. + 4.).show_rows(
-                        ui,
-                        row_height,
-                        num_rows,
-                        |ui, row_range| {
+                    ScrollArea::vertical()
+                        .max_height(row_height * 11. + 4.)
+                        .show_rows(ui, row_height, num_rows, |ui, row_range| {
                             for (n, highscore) in highscores
                                 .iter()
                                 .skip(row_range.start)
@@ -63,8 +61,7 @@ pub(crate) fn display_highscore_menu(
                                     );
                                 });
                             }
-                        },
-                    );
+                        });
 
                     ui.add(egui::Separator::default().horizontal().spacing(20.));
                     let mainmenu_button = ui.button("Main Menu");

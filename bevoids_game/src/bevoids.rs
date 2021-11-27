@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use bevy::{ecs::schedule::ShouldRun, log, prelude::*};
 use bevy_asset_map::{BoundsPlugin, GfxBounds, TextureAssetMap, TextureAssetMapPlugin};
 use bevy_effects::{
@@ -10,8 +8,9 @@ use bevy_effects::{
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 #[cfg(feature = "inspector")]
 use bevy_inspector_egui::WorldInspectorPlugin;
-use derive_more::{AsRef, DebugCustom, Deref, Display, From, Into};
+use derive_more::Display;
 use rand::Rng;
+use std::time::Duration;
 
 use crate::bevoids::{
     highscore::{load_highscores, update_score, AddScoreEvent, Score},
@@ -28,12 +27,10 @@ mod resources;
 pub mod settings;
 mod ui;
 
+pub use resources::GameAssets;
 use {asteroids::*, hit_test::*, laser::*, movement::*, player::*, resources::*, ui::*};
 
-#[derive(Debug, Display, Clone, Eq, PartialEq, AsRef, Deref, From, Into)]
-pub struct AssetPath(String);
-
-#[derive(DebugCustom, Display, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Display, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum GameState {
     Initialize,
     MainMenu,
@@ -65,7 +62,8 @@ impl Plugin for Bevoids {
         app.add_plugin(WorldInspectorPlugin::new());
 
         // misc
-        app.add_plugin(DespawnPlugin::with_run_criteria(run_if_not_paused.system()))
+        app.add_plugin(EguiPlugin)
+            .add_plugin(DespawnPlugin::with_run_criteria(run_if_not_paused.system()))
             .add_plugin(AnimationEffectPlugin::<AnimationAtlas>::with_run_criteria(
                 run_if_not_paused.system(),
             ))
@@ -122,7 +120,7 @@ fn setup_initialize(app: &mut AppBuilder) {
 fn setup_mainmenu(app: &mut AppBuilder) {
     let state = GameState::MainMenu;
 
-    app.add_plugin(EguiPlugin)
+    app //.add_plugin(EguiPlugin)
         .add_system_set(SystemSet::on_enter(state).with_system(set_menu_background.system()))
         .add_system_set(SystemSet::on_update(state).with_system(display_main_menu.system()));
 }

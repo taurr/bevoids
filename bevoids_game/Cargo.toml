@@ -12,20 +12,20 @@ readme = "../README.md"
 [dependencies]
 bevy_asset_map = { path = "../bevy_asset_map" }
 bevy_effects = { path = "../bevy_effects" }
-bevy_egui = "0.7"
-structopt = "0.3"
+bevy_egui = "0.8"
 bevy_kira_audio = { version = "0.6.0", features = ["mp3", "wav"] }
+bevy-inspector-egui = { version = "0.6", optional = true }
 parry2d = "0.7"
 rand = "0.8.4"
 derive_more = "0.99"
 enum-iterator = "0.7"
-walkdir = "2.3"
 itertools = "0.10"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-bevy-inspector-egui = { version = "0.6", optional = true }
 chrono = { version = "0.4", features = ["serde"] }
+rust-embed = "6.2"
+directories = "4.0"
 
 [dependencies.bevy]
 version = "0.5"

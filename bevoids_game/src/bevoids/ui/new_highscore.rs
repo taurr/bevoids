@@ -45,13 +45,14 @@ pub(crate) fn display_new_highscore_menu(
                     let name_box =
                         ui.add(egui::TextEdit::singleline(&mut *name).hint_text("Enter your name"));
 
-                    if name.len() >= 3 {
+                    let trimmed_name = name.trim();
+                    if trimmed_name.len() >= 3 {
                         hint = "Hit Enter accept".to_string();
                         ui.add(egui::Separator::default().horizontal().spacing(20.));
                         if ui.button("Enter hall of fame").clicked() || name_box.clicked() {
                             kb.reset(KeyCode::Return);
                             highscore_repo
-                                .push(HighScore::new(*score, name.clone()))
+                                .push(HighScore::new(*score, trimmed_name))
                                 .expect("failed adding highscore");
                             name.clear();
 

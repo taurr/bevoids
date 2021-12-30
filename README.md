@@ -12,15 +12,17 @@ Any ideas or improvements, feel free to leave issues, or better yet, contribute 
 
 ## Installation
 
-Currently theres no easy way of installing the game 😢
+Easiest way is to download the latest pre-built binary from the [latest_release] on github.
+After downloading, make the file executable and run it.
 
-However, clone the repo and run the game using:
+As an alternative, or if you want to sniff around in the code or contribute:
 
 ```shell
+git clone https://github.com/taurr/bevoids.git
+cd bevoids
 cargo run --release
 ```
 
-Should work on Linux, Windows and Mac.
-
+[latest_release]: https://github.com/taurr/bevoids/releases/latest
 [Rust]:https://www.rust-lang.org
 [Bevy]:https://bevyengine.org

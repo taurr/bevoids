@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Removed
+- CI: No need to manually trigger `check` or `Build & Release` workflows on GitHub
 
 ## [0.9.0] - 2021-12-30
 We have to start somewhere, and this game is now fully playable.

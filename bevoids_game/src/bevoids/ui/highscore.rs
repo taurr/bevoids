@@ -36,7 +36,8 @@ pub(crate) fn display_highscore_menu(
                         const VTROPHY: f32 = 50.;
                         const HTROPHY: f32 = VTROPHY * 0.77;
                         let x_spacing = ui.spacing().item_spacing.x;
-                        let twidth = ui.available_width() - 2.*HTROPHY - 2.*HSPACE - 2.*x_spacing;
+                        let twidth =
+                            ui.available_width() - 2. * HTROPHY - 2. * HSPACE - 2. * x_spacing;
 
                         ui.add_space(HSPACE);
                         ui.add(egui::widgets::Image::new(

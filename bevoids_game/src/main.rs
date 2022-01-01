@@ -1,9 +1,12 @@
 #![allow(clippy::complexity)]
 
-// TODO: countdown when starting
 // TODO: tests in bevy?
 
-use bevy::{log, prelude::*};
+use bevy::{
+    log,
+    prelude::*,
+    render::camera::{DepthCalculation, OrthographicProjection, ScalingMode},
+};
 use bevy_asset_map::EmbeddedAssetPlugin;
 
 mod bevoids;
@@ -42,8 +45,18 @@ fn main() {
 fn initialize_camera(mut commands: Commands) {
     log::info!("initializing game");
     // Spawns the camera
-    commands
-        .spawn()
-        .insert_bundle(OrthographicCameraBundle::new_2d())
-        .insert(Transform::from_xyz(0.0, 0.0, 1000.0));
+    commands.spawn().insert_bundle(new_camera_2d());
+}
+
+pub fn new_camera_2d() -> OrthographicCameraBundle {
+    let far = 1000.0;
+    let mut camera = OrthographicCameraBundle::new_2d();
+    camera.orthographic_projection = OrthographicProjection {
+        far,
+        depth_calculation: DepthCalculation::ZDifference,
+        scaling_mode: ScalingMode::WindowSize,
+        ..Default::default()
+    };
+    //camera.transform.scale = Vec3::new(400., 400., 1.);
+    camera
 }

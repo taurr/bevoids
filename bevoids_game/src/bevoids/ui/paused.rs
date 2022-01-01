@@ -1,5 +1,8 @@
 use bevy::prelude::*;
-use bevy_egui::{egui, EguiContext};
+use bevy_egui::{
+    egui::{self, RichText},
+    EguiContext,
+};
 
 use crate::bevoids::{highscore::Score, GameState};
 
@@ -21,14 +24,16 @@ pub(crate) fn display_paused_menu(
             ui.with_layout(
                 egui::Layout::top_down_justified(egui::Align::Center),
                 |ui| {
-                    ui.add(
-                        egui::Label::new("Paused")
+                    ui.add(egui::Label::new(
+                        RichText::new("Paused")
                             .heading()
-                            .text_color(egui::Color32::WHITE),
-                    );
+                            .color(egui::Color32::WHITE),
+                    ));
                     ui.add(egui::Separator::default().horizontal().spacing(20.));
 
-                    ui.add(egui::Label::new(score).text_color(egui::Color32::WHITE));
+                    ui.add(egui::Label::new(
+                        RichText::new(score).color(egui::Color32::WHITE),
+                    ));
 
                     let continue_button = ui.button("Continue");
                     if continue_button.clicked() {
@@ -50,6 +55,6 @@ pub(crate) fn display_paused_menu(
         .title_bar(false)
         .anchor(egui::Align2::RIGHT_BOTTOM, [-5., -5.])
         .show(ctx, |ui| {
-            ui.add(egui::Label::new(hint).small());
+            ui.add(egui::Label::new(RichText::new(hint).small()));
         });
 }

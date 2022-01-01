@@ -1,36 +1,59 @@
 use bevy::prelude::*;
 use bevy_egui::{
-    egui::{self, Align2, Color32, Label, ScrollArea},
+    egui::{self, Align2, Color32, Label, RichText, ScrollArea},
     EguiContext,
 };
 
 use crate::bevoids::{highscore::HighScoreRepository, GameState};
 
+const TROPHY_TEXTURE_ID: u64 = 0;
+
 pub(crate) fn display_highscore_menu(
-    egui_context: Res<EguiContext>,
+    mut egui_context: ResMut<EguiContext>,
     mut state: ResMut<State<GameState>>,
     highscores: Res<HighScoreRepository>,
     mut started: Local<bool>,
+    assets: Res<AssetServer>,
 ) {
-    let ctx = egui_context.ctx();
     let mut hint: String = "".to_string();
+
+    if !*started {
+        let texture_handle = assets.load("gfx/trophy.png");
+        egui_context.set_egui_texture(TROPHY_TEXTURE_ID, texture_handle);
+    }
 
     egui::Window::new("HighScore Menu")
         .resizable(false)
         .title_bar(false)
         .anchor(Align2::CENTER_CENTER, [0., 0.])
         .default_width(480.)
-        .show(ctx, |ui| {
+        .show(egui_context.ctx(), |ui| {
             ui.with_layout(
                 egui::Layout::top_down_justified(egui::Align::Center),
                 |ui| {
-                    ui.add(
-                        Label::new("Highscores")
-                            .heading()
-                            .text_color(Color32::WHITE),
-                    );
+                    ui.horizontal(|ui| {
+                        const HSPACE: f32 = 10.;
+                        const VTROPHY: f32 = 50.;
+                        const HTROPHY: f32 = VTROPHY * 0.77;
+                        let x_spacing = ui.spacing().item_spacing.x;
+                        let twidth = ui.available_width() - 2.*HTROPHY - 2.*HSPACE - 2.*x_spacing;
+
+                        ui.add_space(HSPACE);
+                        ui.add(egui::widgets::Image::new(
+                            egui::TextureId::User(TROPHY_TEXTURE_ID),
+                            [HTROPHY, VTROPHY],
+                        ));
+                        ui.add_sized(
+                            [twidth, VTROPHY],
+                            Label::new(RichText::new("Highscores").heading().color(Color32::WHITE)),
+                        );
+                        ui.add(egui::widgets::Image::new(
+                            egui::TextureId::User(TROPHY_TEXTURE_ID),
+                            [HTROPHY, VTROPHY],
+                        ));
+                    });
+
                     ui.add(egui::Separator::default().horizontal().spacing(20.));
-                    // TODO: display 2 small trophys - 1 in each side
 
                     let row_height = ui.fonts()[egui::TextStyle::Body].row_height();
                     let num_rows = highscores.count();
@@ -44,37 +67,39 @@ pub(crate) fn display_highscore_menu(
                                 .enumerate()
                             {
                                 ui.horizontal(|ui| {
-                                    ui.add(
-                                        Label::new(format!("{: >3}", 1 + n + row_range.start))
+                                    ui.add(Label::new(
+                                        RichText::new(format!("{: >3}", 1 + n + row_range.start))
                                             .small()
-                                            .text_color(Color32::LIGHT_BLUE),
-                                    );
-                                    ui.add(
-                                        Label::new(format!("{: >9}", highscore.score()))
+                                            .color(Color32::LIGHT_BLUE),
+                                    ));
+                                    ui.add(Label::new(
+                                        RichText::new(format!("{: >9}", highscore.score()))
                                             .monospace()
-                                            .text_color(Color32::WHITE),
-                                    );
-                                    ui.add(
-                                        Label::new(format!("{}", highscore.name(),))
-                                            .text_color(Color32::WHITE)
-                                            .monospace(),
-                                    );
+                                            .color(Color32::WHITE),
+                                    ));
+                                    ui.add(Label::new(
+                                        RichText::new(format!("{}", highscore.name(),))
+                                            .monospace()
+                                            .color(Color32::WHITE),
+                                    ));
                                 });
                             }
                         });
 
                     ui.add(egui::Separator::default().horizontal().spacing(20.));
                     let mainmenu_button = ui.button("Main Menu");
-                    if mainmenu_button.clicked() {
-                        *started = false;
-                        state.set(GameState::MainMenu).unwrap();
+
+                    if !*started {
+                        *started = true;
+                        mainmenu_button.request_focus();
                     }
 
                     if mainmenu_button.has_focus() {
                         hint = "Hit Enter for main menu".to_string();
-                    } else if !*started {
-                        *started = true;
-                        mainmenu_button.request_focus();
+                    }
+                    if mainmenu_button.clicked() {
+                        *started = false;
+                        state.set(GameState::MainMenu).unwrap();
                     }
                 },
             );
@@ -84,7 +109,7 @@ pub(crate) fn display_highscore_menu(
         .resizable(false)
         .title_bar(false)
         .anchor(egui::Align2::RIGHT_BOTTOM, [-5., -5.])
-        .show(ctx, |ui| {
-            ui.add(egui::Label::new(hint).small());
+        .show(egui_context.ctx(), |ui| {
+            ui.add(egui::Label::new(RichText::new(hint).small()));
         });
 }

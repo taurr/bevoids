@@ -1,6 +1,6 @@
 use bevy::{app::AppExit, prelude::*};
 use bevy_egui::{
-    egui::{self, Align2, Color32, Label},
+    egui::{self, Align2, Color32, Label, RichText},
     EguiContext,
 };
 
@@ -23,7 +23,9 @@ pub(crate) fn display_main_menu(
             ui.with_layout(
                 egui::Layout::top_down_justified(egui::Align::Center),
                 |ui| {
-                    ui.add(Label::new("Game Menu").heading().text_color(Color32::WHITE));
+                    ui.add(Label::new(
+                        RichText::new("Game Menu").heading().color(Color32::WHITE),
+                    ));
                     ui.add(egui::Separator::default().horizontal().spacing(20.));
 
                     let start_button = ui.button("Play");
@@ -60,6 +62,6 @@ pub(crate) fn display_main_menu(
         .title_bar(false)
         .anchor(egui::Align2::RIGHT_BOTTOM, [-5., -5.])
         .show(ctx, |ui| {
-            ui.add(egui::Label::new(hint).small());
+            ui.add(egui::Label::new(RichText::new(hint).small()));
         });
 }

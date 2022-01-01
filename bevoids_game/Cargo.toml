@@ -12,7 +12,7 @@ readme = "../README.md"
 [dependencies]
 bevy_asset_map = { path = "../bevy_asset_map" }
 bevy_effects = { path = "../bevy_effects" }
-bevy_egui = "0.8"
+bevy_egui = "0.9"
 bevy_kira_audio = { version = "0.7.0", features = ["mp3", "wav"] }
 bevy-inspector-egui = { version = "0.6", optional = true }
 parry2d = "0.7"

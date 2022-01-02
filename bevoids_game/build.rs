@@ -5,26 +5,32 @@ use std::{
     path::{Path, PathBuf},
 };
 
+const RESOURCE_EXTENSIONS: &[&str] = &["png", "jpg", "wav"];
+
+fn asset_folder() -> PathBuf {
+    Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("assets")
+}
+
 fn main() {
     let out_dir = env::var_os("OUT_DIR").unwrap();
-    let dest_path = Path::new(&out_dir).join("include_all_assets.rs");
+    generate_include_all_assets(out_dir);
+}
 
+fn generate_include_all_assets(out_dir: std::ffi::OsString) {
+    let dest_path = Path::new(&out_dir).join("include_all_assets.rs");
     let mut file = File::create(&dest_path).unwrap();
     file.write_all(
         "pub fn include_all_assets(in_memory: &mut crate::asset_io::InMemoryAssetIo){\n".as_ref(),
     )
     .unwrap();
-
-    let dir = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("assets");
-    eprintln!("{:?}", dir);
-
+    let dir = asset_folder();
     visit_dirs(&dir)
         .iter()
         .filter(|path| {
             if path
                 .extension()
                 .and_then(std::ffi::OsStr::to_str)
-                .map(|ext| ["png", "jpg", "wav", "mp3", "ttf", "names"].contains(&ext))
+                .map(|ext| RESOURCE_EXTENSIONS.contains(&ext))
                 .unwrap_or_default()
             {
                 true
@@ -46,10 +52,8 @@ fn main() {
             )
             .unwrap();
         });
-
     file.write_all("}".as_ref()).unwrap();
-
-    cargo_emit::rerun_if_changed!("assets");
+    cargo_emit::rerun_if_changed!(dir.display());
 }
 
 fn visit_dirs(dir: &Path) -> Vec<PathBuf> {

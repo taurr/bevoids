@@ -185,7 +185,7 @@ pub fn move_shadow(
             shadow_bounds.set_center(shadow_tf.translation.truncate());
 
             // detect visibility
-            if shadow_bounds.as_aabb().intersects(&window_bounds.as_aabb()) {
+            if shadow_bounds.as_aabb().intersects(window_bounds.as_aabb()) {
                 commands.entity(shadow).insert(InsideWindow);
             } else {
                 commands.entity(shadow).remove::<InsideWindow>();

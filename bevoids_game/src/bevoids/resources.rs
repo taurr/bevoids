@@ -168,17 +168,3 @@ pub(crate) fn wait_for_resources(
             .expect("unable to transition into the InGame state");
     }
 }
-
-use rust_embed::RustEmbed;
-
-#[derive(RustEmbed)]
-#[folder = "assets/"]
-pub struct GameAssets;
-
-impl GameAssets {
-    pub fn get_settings() -> Settings {
-        let settings: Settings = serde_json::from_slice(&Self::get("settings.json").unwrap().data)
-            .expect("unable to parse settings file");
-        settings
-    }
-}

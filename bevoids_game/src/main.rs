@@ -7,15 +7,17 @@ use bevy::{
     prelude::*,
     render::camera::{DepthCalculation, OrthographicProjection, ScalingMode},
 };
-use bevy_asset_map::EmbeddedAssetPlugin;
 
+mod asset_io;
 mod bevoids;
 //mod text;
 
-use crate::bevoids::{Bevoids, GameAssets};
+use crate::bevoids::{Bevoids};
+
+use self::bevoids::settings::Settings;
 
 fn main() {
-    let settings = GameAssets::get_settings();
+    let settings: Settings = serde_json::from_slice(include_bytes!("settings.json")).expect("unable to parse settings file");
 
     App::build()
         .insert_resource(ClearColor(Color::BLACK))
@@ -31,9 +33,7 @@ fn main() {
         .insert_resource(settings)
         //
         .add_plugins_with(DefaultPlugins, |group| {
-            group.add_before::<bevy::asset::AssetPlugin, _>(
-                EmbeddedAssetPlugin::<GameAssets>::default(),
-            )
+            group.add_before::<bevy::asset::AssetPlugin, _>(asset_io::InMemoryAssetPlugin)
         })
         .add_startup_system(initialize_camera.system())
         //

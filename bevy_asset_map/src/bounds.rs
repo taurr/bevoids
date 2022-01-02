@@ -60,12 +60,12 @@ impl GfxBounds {
         self.sphere = GfxBounds::create_sphere(&self.aabb);
     }
 
-    pub fn as_aabb(&self) -> AABB {
-        self.aabb
+    pub fn as_aabb(&self) -> &AABB {
+        &self.aabb
     }
 
-    pub fn as_sphere(&self) -> BoundingSphere {
-        self.sphere
+    pub fn as_sphere(&self) -> &BoundingSphere {
+        &self.sphere
     }
 
     fn create_sphere(aabb: &AABB) -> BoundingSphere {

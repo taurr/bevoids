@@ -27,7 +27,6 @@ mod resources;
 pub mod settings;
 mod ui;
 
-pub use resources::GameAssets;
 use {asteroids::*, hit_test::*, laser::*, movement::*, player::*, resources::*, ui::*};
 
 #[derive(Debug, Display, Copy, Clone, Eq, PartialEq, Hash)]

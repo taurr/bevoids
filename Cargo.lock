@@ -226,7 +226,7 @@ checksum = "47611e530cf21bb89fbfe322aa8b1feae1ace33ff65f8ebf40fe3b4b99b7c9a2"
 
 [[package]]
 name = "bevoids"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "bevy",
  "bevy_asset_map",

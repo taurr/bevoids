@@ -12,12 +12,13 @@ mod asset_io;
 mod bevoids;
 //mod text;
 
-use crate::bevoids::{Bevoids};
+use crate::bevoids::Bevoids;
 
 use self::bevoids::settings::Settings;
 
 fn main() {
-    let settings: Settings = serde_json::from_slice(include_bytes!("settings.json")).expect("unable to parse settings file");
+    let settings: Settings = serde_json::from_slice(include_bytes!("settings.json"))
+        .expect("unable to parse settings file");
 
     App::build()
         .insert_resource(ClearColor(Color::BLACK))

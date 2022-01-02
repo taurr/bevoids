@@ -19,8 +19,7 @@ pub(crate) fn hittest_shot_vs_asteroid(
     'laser: for (laser_entity, laser_bounds) in laser_query.iter() {
         for (asteroid, asteroid_bounds) in asteroids_query.iter() {
             let sphere = laser_bounds.as_sphere();
-            if sphere.intersects(asteroid_bounds.as_sphere())
-            {
+            if sphere.intersects(asteroid_bounds.as_sphere()) {
                 log::debug!(?asteroid, "laser hit asteroid");
                 asteroid_shot_event.send(AsteroidShotEvent::new(asteroid));
                 commands.entity(laser_entity).insert(Despawn);

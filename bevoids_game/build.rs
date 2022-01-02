@@ -10,11 +10,12 @@ fn main() {
     let dest_path = Path::new(&out_dir).join("include_all_assets.rs");
 
     let mut file = File::create(&dest_path).unwrap();
-    file.write_all("pub fn include_all_assets(in_memory: &mut crate::asset_io::InMemoryAssetIo){\n".as_ref())
-        .unwrap();
+    file.write_all(
+        "pub fn include_all_assets(in_memory: &mut crate::asset_io::InMemoryAssetIo){\n".as_ref(),
+    )
+    .unwrap();
 
-    let dir = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap())
-        .join("assets");
+    let dir = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("assets");
     eprintln!("{:?}", dir);
 
     visit_dirs(&dir)
@@ -23,13 +24,7 @@ fn main() {
             if path
                 .extension()
                 .and_then(std::ffi::OsStr::to_str)
-                .map(|ext| [
-                    "png",
-                    "jpg",
-                    "wav",
-                    "mp3",
-                    "ttf",
-                    "names"].contains(&ext))
+                .map(|ext| ["png", "jpg", "wav", "mp3", "ttf", "names"].contains(&ext))
                 .unwrap_or_default()
             {
                 true

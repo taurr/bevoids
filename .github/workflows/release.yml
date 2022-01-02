@@ -15,6 +15,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          lfs: true
+      - name: Checkout LFS objects
+        run: git lfs checkout
 
       - name: Setup | CI dependencies
         run: sudo apt-get install -y libasound2-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
@@ -44,6 +48,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          lfs: true
+      - name: Checkout LFS objects
+        run: git lfs checkout
 
       - name: Setup | rust
         uses: actions-rs/toolchain@v1
@@ -70,6 +78,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          lfs: true
+      - name: Checkout LFS objects
+        run: git lfs checkout
 
       - name: Setup | rust
         uses: actions-rs/toolchain@v1

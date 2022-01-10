@@ -11,6 +11,9 @@ env:
 
 jobs:
   build-linux:
+    strategy:
+      matrix:
+        toolchain: [nightly]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -19,27 +22,35 @@ jobs:
           lfs: true
       - name: Checkout LFS objects
         run: git lfs checkout
-
-      - name: Setup | CI dependencies
-        run: sudo apt-get install -y libasound2-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
-
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-build-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.toml') }}
       - name: Setup | rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ matrix.toolchain }}
           default: true
           profile: minimal
+          components: clippy, rustfmt
+      - name: Setup | CI dependencies
+        run: sudo apt-get update; sudo apt-get install --no-install-recommends -y libasound2-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libudev-dev
+        if: runner.os == 'linux'
 
-      - uses: Swatinem/rust-cache@v1
       - name: Build
-        run: cargo build --release && strip target/release/bevoids  && mv target/release/bevoids target/release/bevoids_amd64
+        run: cargo build --release && strip target/release/bevoids  && mv target/release/bevoids target/release/bevoids_linux
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            target/release/bevoids_amd64
+            target/release/bevoids_linux
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -93,13 +104,13 @@ jobs:
 
       - uses: Swatinem/rust-cache@v1
       - name: Build
-        run: cargo build --release && strip target/release/bevoids  && mv target/release/bevoids target/release/bevoids_darwin
+        run: cargo build --release && strip target/release/bevoids  && mv target/release/bevoids target/release/bevoids_macos
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            target/release/bevoids_darwin
+            target/release/bevoids_macos
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

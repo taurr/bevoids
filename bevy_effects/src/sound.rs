@@ -87,11 +87,13 @@ impl<KEY> PlaySfx<KEY> {
         }
     }
     #[allow(dead_code)]
+    #[must_use]
     pub fn with_volume(mut self, volume: f32) -> Self {
         self.volume = Some(volume.clamp(0., 1.));
         self
     }
     #[allow(dead_code)]
+    #[must_use]
     pub fn with_panning(mut self, panning: f32) -> Self {
         self.panning = Some(panning.clamp(0., 1.));
         self
@@ -106,6 +108,7 @@ pub struct LoopSfx<KEY> {
 }
 impl<KEY> LoopSfx<KEY> {
     #[allow(dead_code)]
+    #[must_use]
     pub fn new(key: KEY) -> Self {
         Self {
             key,
@@ -114,11 +117,13 @@ impl<KEY> LoopSfx<KEY> {
         }
     }
     #[allow(dead_code)]
+    #[must_use]
     pub fn with_volume(mut self, volume: f32) -> Self {
         self.volume = Some(volume.clamp(0., 1.));
         self
     }
     #[allow(dead_code)]
+    #[must_use]
     pub fn with_panning(mut self, panning: f32) -> Self {
         self.panning = Some(panning.clamp(0., 1.));
         self

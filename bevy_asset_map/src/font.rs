@@ -43,6 +43,7 @@ enum FontMapEntry<KEY> {
 
 impl<KEY> FontPaths<KEY> {
     #[allow(dead_code)]
+    #[must_use]
     pub fn from_files<TP: Into<String>, T: IntoIterator<Item = (KEY, TP)>>(paths: T) -> Self {
         Self {
             base_path: None,
@@ -54,6 +55,7 @@ impl<KEY> FontPaths<KEY> {
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn with_base_path<P: Into<String>>(mut self, base_path: P) -> Self {
         self.base_path = Some(base_path.into());
         self
@@ -64,6 +66,7 @@ impl<KEY> FontAssetMap<KEY>
 where
     KEY: Clone + Eq + Send + Sync,
 {
+    #[must_use]
     pub fn with_font_paths(font_paths: &FontPaths<KEY>, asset_server: &AssetServer) -> Self {
         Self(
             font_paths

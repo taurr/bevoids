@@ -44,6 +44,7 @@ pub(crate) struct HighScoreRepository {
 
 impl HighScoreRepository {
     #[allow(dead_code)]
+    #[must_use]
     pub fn with_capacity(max_records: u8) -> Self {
         Self {
             scores: Vec::with_capacity(max_records as usize),
@@ -122,6 +123,7 @@ impl HighScoreRepository {
 
 impl HighScore {
     #[allow(dead_code)]
+    #[must_use]
     pub fn new<T: Into<String>>(score: Score, name: T) -> Self {
         Self {
             score,

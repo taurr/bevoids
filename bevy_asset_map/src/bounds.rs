@@ -35,6 +35,7 @@ impl GfxBounds {
         Self { aabb, sphere }
     }
 
+    #[must_use]
     pub fn from_window(window: &Window) -> Self {
         GfxBounds::from_pos_and_size(Vec2::ZERO, Vec2::from((window.width(), window.height())))
     }

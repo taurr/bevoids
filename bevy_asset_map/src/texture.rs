@@ -56,6 +56,7 @@ enum TextureMapEntry<KEY> {
 
 impl<KEY> TexturePaths<KEY> {
     #[allow(dead_code)]
+    #[must_use]
     pub fn from_files<TP: Into<String>, T: IntoIterator<Item = (KEY, TP)>>(paths: T) -> Self {
         Self {
             keys_and_paths: paths
@@ -67,6 +68,7 @@ impl<KEY> TexturePaths<KEY> {
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn with_base_path<P>(mut self, base_path: P) -> Self
     where
         P: Into<String>,
@@ -80,6 +82,7 @@ impl<KEY> TextureAssetMap<KEY>
 where
     KEY: Clone + Eq + Send + Sync,
 {
+    #[must_use]
     pub fn with_texture_paths(
         texture_paths: &TexturePaths<KEY>,
         asset_server: &AssetServer,

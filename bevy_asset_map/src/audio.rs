@@ -51,6 +51,7 @@ enum AudioMapEntry<KEY> {
 
 impl<KEY> AudioPaths<KEY> {
     #[allow(dead_code)]
+    #[must_use]
     pub fn from_files<TP: Into<String>, T: IntoIterator<Item = (KEY, TP)>>(paths: T) -> Self {
         Self {
             base_path: None,
@@ -62,6 +63,7 @@ impl<KEY> AudioPaths<KEY> {
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn with_base_path<P: Into<String>>(mut self, base_path: P) -> Self {
         self.base_path = Some(base_path.into());
         self
@@ -72,6 +74,7 @@ impl<KEY> AudioAssetMap<KEY>
 where
     KEY: Clone + Eq + Send + Sync,
 {
+    #[must_use]
     pub fn with_audio_paths(audio_paths: &AudioPaths<KEY>, asset_server: &AssetServer) -> Self {
         Self(
             audio_paths

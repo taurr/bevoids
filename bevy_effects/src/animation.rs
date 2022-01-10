@@ -33,6 +33,7 @@ where
     KEY: 'static + Clone + Eq + Send + Sync,
 {
     #[allow(dead_code)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             run_criteria: Mutex::new(Cell::new(None)),
@@ -40,6 +41,7 @@ where
         }
     }
 
+    #[must_use]
     pub fn with_run_criteria<Marker, T: IntoRunCriteria<Marker>>(run_criteria: T) -> Self {
         Self {
             run_criteria: Mutex::new(Cell::new(Some(run_criteria.into()))),

@@ -67,6 +67,7 @@ enum AtlasMapEntry<KEY> {
 
 impl<KEY> TextureAtlasPaths<KEY> {
     #[allow(dead_code)]
+    #[must_use]
     pub fn from_files<T, TP>(paths: T) -> Self
     where
         T: IntoIterator<Item = (KEY, TP, AtlasDefinition)>,
@@ -82,6 +83,7 @@ impl<KEY> TextureAtlasPaths<KEY> {
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn with_base_path<P>(mut self, base_path: P) -> Self
     where
         P: Into<String>,
@@ -95,6 +97,7 @@ impl<KEY> AtlasAssetMap<KEY>
 where
     KEY: Clone + Eq + Sync + Send,
 {
+    #[must_use]
     pub fn with_texture_paths(
         texture_paths: &TextureAtlasPaths<KEY>,
         asset_server: &AssetServer,

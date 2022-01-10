@@ -26,6 +26,7 @@ impl Default for FadeIn {
 }
 
 impl From<Duration> for FadeIn {
+    #[must_use]
     fn from(delay: Duration) -> Self {
         Self::new(delay)
     }
@@ -33,6 +34,7 @@ impl From<Duration> for FadeIn {
 
 impl FadeIn {
     #[allow(dead_code)]
+    #[must_use]
     pub fn new(fade_duration: Duration) -> Self {
         Self {
             fade_duration,
@@ -42,6 +44,7 @@ impl FadeIn {
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn after_fadein<F>(self, func: F) -> Self
     where
         F: FnOnce(&mut EntityCommands) + Send + Sync + 'static,
@@ -64,12 +67,14 @@ impl Default for DespawnPlugin {
 }
 
 impl DespawnPlugin {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             run_criteria: Mutex::new(Cell::new(None)),
         }
     }
 
+    #[must_use]
     pub fn with_run_criteria<Marker, T: IntoRunCriteria<Marker>>(run_criteria: T) -> Self {
         Self {
             run_criteria: Mutex::new(Cell::new(Some(run_criteria.into()))),
@@ -130,22 +135,26 @@ impl Default for Despawn {
 
 impl Despawn {
     #[allow(dead_code)]
+    #[must_use]
     pub fn new() -> Self {
         Self
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn with_delay(delay: Duration) -> DelayedDespawn {
         DelayedDespawn::from(delay)
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn fade_over(duration: Duration) -> FadeDespawn {
         FadeDespawn::from(duration)
     }
 }
 
 impl From<Duration> for DelayedDespawn {
+    #[must_use]
     fn from(delay: Duration) -> Self {
         Self::new(delay)
     }
@@ -153,6 +162,7 @@ impl From<Duration> for DelayedDespawn {
 
 impl DelayedDespawn {
     #[allow(dead_code)]
+    #[must_use]
     pub fn new(delay: Duration) -> Self {
         Self {
             timer: Timer::new(delay, false),
@@ -161,6 +171,7 @@ impl DelayedDespawn {
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn before_despawning<F>(self, func: F) -> Self
     where
         F: FnOnce(&mut EntityCommands) + Send + Sync + 'static,
@@ -200,6 +211,7 @@ impl Default for FadeDespawn {
 
 impl FadeDespawn {
     #[allow(dead_code)]
+    #[must_use]
     pub fn new(fade_time: Duration) -> Self {
         Self {
             fade_duration: fade_time,
@@ -209,6 +221,7 @@ impl FadeDespawn {
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn before_despawn<F>(self, func: F) -> Self
     where
         F: FnOnce(&mut EntityCommands) + Send + Sync + 'static,
@@ -220,6 +233,7 @@ impl FadeDespawn {
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn delay(self, delay: Duration) -> DelayedFadeDespawn {
         if let Some(before_despawn) = self.before_despawn {
             DelayedFadeDespawn::new(delay, self.fade_duration).before_despawn(before_despawn)
@@ -231,6 +245,7 @@ impl FadeDespawn {
 
 impl DelayedFadeDespawn {
     #[allow(dead_code)]
+    #[must_use]
     pub fn new(delay: Duration, fade_duration: Duration) -> Self {
         Self {
             timer: Timer::new(delay, false),
@@ -241,6 +256,7 @@ impl DelayedFadeDespawn {
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn before_despawn<F>(self, func: F) -> Self
     where
         F: FnOnce(&mut EntityCommands) + Send + Sync + 'static,
@@ -252,6 +268,7 @@ impl DelayedFadeDespawn {
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn before_fading<F>(self, func: F) -> Self
     where
         F: FnOnce(&mut EntityCommands) + Send + Sync + 'static,

@@ -193,7 +193,10 @@ fn update_texture_map<KEY>(
             let texture = texture_assets
                 .get(texture_handle)
                 .expect("texture not found though just updated");
-            let size = Size::new(texture.texture_descriptor.size.width, texture.texture_descriptor.size.height);
+            let size = Size::new(
+                texture.texture_descriptor.size.width,
+                texture.texture_descriptor.size.height,
+            );
             log::info!(?key, ?size, texture_handle=?texture_handle, "texture loaded");
             TextureAssetInfo {
                 key,

@@ -4,21 +4,17 @@ use derive_more::{Add, Deref, DerefMut, From, Into, Sub};
 use enum_iterator::IntoEnumIterator;
 use parry2d::bounding_volume::BoundingVolume;
 
-#[derive(Debug, Copy, Clone, Deref, DerefMut, Add, Sub, From, Into)]
-#[derive(Component)]
+#[derive(Debug, Copy, Clone, Deref, DerefMut, Add, Sub, From, Into, Component)]
 pub struct Velocity(pub Vec2);
 
-#[derive(Debug)]
-#[derive(Component)]
+#[derive(Debug, Component)]
 pub struct ShadowController;
 
-#[derive(Debug)]
-#[derive(Component)]
+#[derive(Debug, Component)]
 pub struct NonWrapping;
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, IntoEnumIterator, PartialEq, Copy, Clone)]
-#[derive(Component)]
+#[derive(Debug, IntoEnumIterator, PartialEq, Copy, Clone, Component)]
 enum ShadowPlacement {
     MinW_MaxH,
     MedW_MaxH,
@@ -30,15 +26,13 @@ enum ShadowPlacement {
     MaxW_MinH,
 }
 
-#[derive(Debug, From, Into)]
-#[derive(Component)]
+#[derive(Debug, From, Into, Component)]
 pub struct ShadowOf {
     pub controller: Entity,
     placement: ShadowPlacement,
 }
 
-#[derive(Debug)]
-#[derive(Component)]
+#[derive(Debug, Component)]
 pub struct InsideWindow;
 
 pub struct EnterWindowEvent(Entity);

@@ -35,13 +35,11 @@ pub(crate) struct SpawnAsteroidEvent {
 }
 
 // Marks an entity as an asteroid
-#[derive(Debug, Copy, Clone)]
-#[derive(Component)]
+#[derive(Debug, Copy, Clone, Component)]
 pub(crate) struct Asteroid;
 
 // Marks an entity as an asteroid
-#[derive(Debug, Copy, Clone)]
-#[derive(Component)]
+#[derive(Debug, Copy, Clone, Component)]
 pub(crate) struct BackgroundAsteroid;
 
 #[derive(Default)]
@@ -50,8 +48,7 @@ pub(crate) struct AsteroidCounter {
     shot: usize,
 }
 
-#[derive(Debug)]
-#[derive(Component)]
+#[derive(Debug, Component)]
 pub(crate) struct AsteroidsSpawner {
     delay: Duration,
     timer: Timer,

@@ -16,8 +16,7 @@ use super::{
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct FireLaserEvent;
 
-#[derive(Debug)]
-#[derive(Component)]
+#[derive(Debug, Component)]
 pub(crate) struct Laser;
 
 pub(crate) fn handle_fire_laser(

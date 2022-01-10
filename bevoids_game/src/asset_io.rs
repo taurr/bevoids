@@ -1,5 +1,5 @@
 use bevy::asset::AssetIo;
-use bevy::prelude::{AssetServer, Plugin, App};
+use bevy::prelude::{App, AssetServer, Plugin};
 use bevy::tasks::IoTaskPool;
 use std::path::{Path, PathBuf};
 

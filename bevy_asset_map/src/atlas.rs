@@ -219,7 +219,10 @@ fn update_atlas_map<KEY>(
             let texture = texture_assets
                 .get(texture_handle)
                 .expect("texture not found though just updated");
-            Size::new(texture.texture_descriptor.size.width, texture.texture_descriptor.size.height)
+            Size::new(
+                texture.texture_descriptor.size.width,
+                texture.texture_descriptor.size.height,
+            )
         };
         let (tile_size, atlas) = match definition {
             AtlasDefinition::Grid { columns, rows } => {

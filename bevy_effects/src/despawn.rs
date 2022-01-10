@@ -90,10 +90,7 @@ impl Plugin for DespawnPlugin {
             app.add_system_set_to_stage(CoreStage::PostUpdate, fade_set);
         }
 
-        app.add_system_set_to_stage(
-            CoreStage::Last,
-            SystemSet::new().with_system(despawn),
-        );
+        app.add_system_set_to_stage(CoreStage::Last, SystemSet::new().with_system(despawn));
     }
 }
 

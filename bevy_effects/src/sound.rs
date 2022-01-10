@@ -28,9 +28,7 @@ where
     fn build(&self, app: &mut App) {
         app.add_plugin(AudioAssetMapPlugin::<KEY>::default())
             .add_event::<SfxCmdEvent<KEY>>()
-            .add_system_set(
-                SystemSet::new().with_system(play_sound_effect_on_event::<KEY>),
-            );
+            .add_system_set(SystemSet::new().with_system(play_sound_effect_on_event::<KEY>));
     }
 }
 

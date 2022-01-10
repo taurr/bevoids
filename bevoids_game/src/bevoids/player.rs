@@ -23,12 +23,10 @@ use super::{
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct PlayerDeadEvent;
 
-#[derive(Debug)]
-#[derive(Component)]
+#[derive(Debug, Component)]
 pub(crate) struct Player;
 
-#[derive(Debug)]
-#[derive(Component)]
+#[derive(Debug, Component)]
 pub(crate) struct Flame;
 
 pub(crate) fn handle_player_dead(
@@ -214,12 +212,7 @@ fn accelleration(
                     .with_panning(panning)
                     .into(),
             );
-            let flame = spawn_flame(
-                &mut commands,
-                texture_asset_map,
-                player_transform,
-                settings,
-            );
+            let flame = spawn_flame(&mut commands, texture_asset_map, player_transform, settings);
             commands.entity(player).push_children(&[flame]);
         } else {
             sfx_event.send(SetPanSfx::new(SoundEffect::Thruster, panning).into());

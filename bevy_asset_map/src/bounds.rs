@@ -18,8 +18,7 @@ impl Plugin for BoundsPlugin {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-#[derive(Component)]
+#[derive(Debug, Copy, Clone, Component)]
 pub struct GfxBounds {
     aabb: AABB,
     sphere: BoundingSphere,

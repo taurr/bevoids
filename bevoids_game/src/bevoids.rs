@@ -76,15 +76,10 @@ impl Plugin for Bevoids {
             .add_system(esc_to_pause_unpause)
             .add_system(
                 wrapping_linear_movement
-
                     .chain(move_shadow)
                     .with_run_criteria(run_if_not_paused),
             )
-            .add_system(
-                non_wrapping_linear_movement
-
-                    .with_run_criteria(run_if_not_paused),
-            )
+            .add_system(non_wrapping_linear_movement.with_run_criteria(run_if_not_paused))
             .add_system(handle_spawn_asteroid)
             .add_system(handle_asteroid_explosion);
 
@@ -173,10 +168,8 @@ fn setup_gameover(app: &mut App) {
 fn setup_new_highscore(app: &mut App) {
     let state = GameState::NewHighScore;
 
-    app.add_system_set(
-        SystemSet::on_update(state).with_system(display_new_highscore_menu),
-    )
-    .add_system_set(SystemSet::on_exit(state).with_system(clear_playingfield));
+    app.add_system_set(SystemSet::on_update(state).with_system(display_new_highscore_menu))
+        .add_system_set(SystemSet::on_exit(state).with_system(clear_playingfield));
 }
 
 fn esc_to_pause_unpause(mut kb: ResMut<Input<KeyCode>>, mut state: ResMut<State<GameState>>) {
@@ -249,8 +242,7 @@ fn set_egui_defaults(egui_context: Res<EguiContext>) {
     //ctx.set_style(style);
 }
 
-#[derive(Debug)]
-#[derive(Component)]
+#[derive(Debug, Component)]
 pub(crate) struct Background;
 
 pub(crate) fn spawn_background(

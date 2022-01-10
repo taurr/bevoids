@@ -8,6 +8,7 @@ use bevy::{
 };
 use std::{cell::Cell, sync::Mutex, time::Duration};
 
+#[derive(Component)]
 pub struct FadeIn {
     fade_duration: Duration,
     alpha_value: f32,
@@ -77,12 +78,12 @@ impl DespawnPlugin {
 }
 
 impl Plugin for DespawnPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         let fade_set = SystemSet::new()
-            .with_system(delayed_despawn.system())
-            .with_system(delayed_fade_despawn.system())
-            .with_system(fadein.system())
-            .with_system(fadeout_despawn.system());
+            .with_system(delayed_despawn)
+            .with_system(delayed_fade_despawn)
+            .with_system(fadein)
+            .with_system(fadeout_despawn);
         if let Some(r) = self.run_criteria.lock().unwrap().take() {
             app.add_system_set_to_stage(CoreStage::PostUpdate, fade_set.with_run_criteria(r));
         } else {
@@ -91,22 +92,24 @@ impl Plugin for DespawnPlugin {
 
         app.add_system_set_to_stage(
             CoreStage::Last,
-            SystemSet::new().with_system(despawn.system()),
+            SystemSet::new().with_system(despawn),
         );
     }
 }
 
 /// Component used to despawn entities after [Corestage::PostUpdate].
+#[derive(Component)]
 pub struct Despawn;
 
 /// Component used to despawn entities after a specific duration.
+#[derive(Component)]
 pub struct DelayedDespawn {
     timer: Timer,
     before_despawn: Option<Box<dyn FnOnce(&mut EntityCommands) + Send + Sync>>,
 }
 
 /// Component added to entites that should fade to invisibility, then despawn.
-/// Requires the entity to have a [ColorMaterial]
+#[derive(Component)]
 pub struct FadeDespawn {
     fade_duration: Duration,
     alpha_value: f32,
@@ -114,7 +117,7 @@ pub struct FadeDespawn {
 }
 
 /// Component added to entites that after a delay should fade to invisibility, then despawn.
-/// Requires the entity to have a [ColorMaterial]
+#[derive(Component)]
 pub struct DelayedFadeDespawn {
     timer: Timer,
     fade_duration: Duration,
@@ -288,7 +291,7 @@ fn delayed_despawn(
 
 fn delayed_fade_despawn(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut DelayedFadeDespawn), With<Handle<ColorMaterial>>>,
+    mut query: Query<(Entity, &mut DelayedFadeDespawn)>,
     time: Res<Time>,
 ) {
     for (entity, mut expiry) in query.iter_mut() {
@@ -306,35 +309,30 @@ fn delayed_fade_despawn(
 
 fn fadeout_despawn(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut FadeDespawn, &Handle<ColorMaterial>)>,
-    mut color_material_assets: ResMut<Assets<ColorMaterial>>,
+    mut query: Query<(Entity, &mut FadeDespawn, &mut Sprite)>,
     time: Res<Time>,
 ) {
-    for (entity, mut fadeout, material_handle) in query.iter_mut() {
+    // TODO: For now, this does not work! Bevy 0.6 doesn't use `Color`Material` for Sprites anymore - how do we create a semi-transparent `Sprite`?
+    for (entity, mut fadeout, mut sprite) in query.iter_mut() {
         fadeout.alpha_value = (fadeout.alpha_value
             - (1.0 / fadeout.fade_duration.as_secs_f32()) * time.delta_seconds())
         .clamp(0., 1.);
 
         if fadeout.alpha_value <= 0.01 {
             log::trace!(?entity, "faded");
-            // reset material
-            if let Some(material) = color_material_assets.get_mut(material_handle) {
-                material.color.set_a(1.);
-            }
             commands.entity(entity).despawn_recursive();
-        } else if let Some(material) = color_material_assets.get_mut(material_handle) {
-            material.color.set_a(fadeout.alpha_value);
+        } else {
+            sprite.color.set_a(fadeout.alpha_value);
         }
     }
 }
 
 fn fadein(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut FadeIn, &Handle<ColorMaterial>)>,
-    mut color_material_assets: ResMut<Assets<ColorMaterial>>,
+    mut query: Query<(Entity, &mut FadeIn, &mut Sprite)>,
     time: Res<Time>,
 ) {
-    for (entity, mut fadein, material_handle) in query.iter_mut() {
+    for (entity, mut fadein, mut sprite) in query.iter_mut() {
         fadein.alpha_value = (fadein.alpha_value
             + (1.0 / fadein.fade_duration.as_secs_f32()) * time.delta_seconds())
         .clamp(0., 1.);
@@ -348,8 +346,6 @@ fn fadein(
             }
         }
 
-        if let Some(material) = color_material_assets.get_mut(material_handle) {
-            material.color.set_a(fadein.alpha_value);
-        }
+        sprite.color.set_a(fadein.alpha_value);
     }
 }

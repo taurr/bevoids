@@ -1,5 +1,5 @@
 use bevy::asset::AssetIo;
-use bevy::prelude::{AppBuilder, AssetServer, Plugin};
+use bevy::prelude::{AssetServer, Plugin, App};
 use bevy::tasks::IoTaskPool;
 use std::path::{Path, PathBuf};
 
@@ -7,9 +7,9 @@ use std::path::{Path, PathBuf};
 pub struct InMemoryAssetPlugin;
 
 impl Plugin for InMemoryAssetPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         let task_pool = app
-            .world()
+            .world
             .get_resource::<IoTaskPool>()
             .expect("`IoTaskPool` resource not found.")
             .0

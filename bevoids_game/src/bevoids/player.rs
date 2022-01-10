@@ -24,9 +24,11 @@ use super::{
 pub(crate) struct PlayerDeadEvent;
 
 #[derive(Debug)]
+#[derive(Component)]
 pub(crate) struct Player;
 
 #[derive(Debug)]
+#[derive(Component)]
 pub(crate) struct Flame;
 
 pub(crate) fn handle_player_dead(
@@ -74,7 +76,6 @@ pub(crate) fn handle_player_dead(
 
 pub(crate) fn spawn_player(
     mut commands: Commands,
-    mut color_assets: ResMut<Assets<ColorMaterial>>,
     background_query: Query<Entity, With<Background>>,
     texture_asset_map: Res<TextureAssetMap<GeneralTexture>>,
     background_asset_map: Res<TextureAssetMap<BackgroundTexture>>,
@@ -84,7 +85,6 @@ pub(crate) fn spawn_player(
     let mut rng = rand::thread_rng();
     spawn_background(
         &background_asset_map,
-        &mut color_assets,
         &background_query,
         &win_bounds,
         &mut commands,
@@ -101,7 +101,7 @@ pub(crate) fn spawn_player(
         .get(GeneralTexture::Spaceship)
         .expect("no texture for spaceship");
     let texture_size = spaceship_texture.size;
-    let player_material = color_assets.add(spaceship_texture.texture.clone().into());
+    let player_material = spaceship_texture.texture.clone();
     let player_scale = settings.player.size / texture_size.max_element() as f32;
     let player_size = Vec2::new(texture_size.x as f32, texture_size.y as f32) * player_scale;
     let random_rotation = Quat::from_rotation_z(rng.gen_range(0.0..(2. * PI)));
@@ -109,7 +109,7 @@ pub(crate) fn spawn_player(
 
     let player_id: Entity = commands
         .spawn_bundle(SpriteBundle {
-            material: player_material.clone(),
+            texture: player_material.clone(),
             transform: Transform {
                 translation: player_position,
                 rotation: random_rotation,
@@ -153,7 +153,6 @@ pub(crate) fn player_controls(
     fire_laser_event: EventWriter<FireLaserEvent>,
     mut player_query: Query<(Entity, &mut Velocity, &mut Transform), With<Player>>,
     flame_query: Query<Entity, With<Flame>>,
-    mut color_assets: ResMut<Assets<ColorMaterial>>,
     texture_asset_map: Res<TextureAssetMap<GeneralTexture>>,
     time: Res<Time>,
     settings: Res<Settings>,
@@ -175,7 +174,6 @@ pub(crate) fn player_controls(
         &time,
         commands,
         flame_query,
-        &mut color_assets,
         &texture_asset_map,
         &bounds,
         &settings,
@@ -191,7 +189,6 @@ fn accelleration(
     time: &Time,
     mut commands: Commands,
     flame_query: Query<Entity, With<Flame>>,
-    color_assets: &mut Assets<ColorMaterial>,
     texture_asset_map: &TextureAssetMap<GeneralTexture>,
     bounds: &GfxBounds,
     settings: &Settings,
@@ -219,7 +216,6 @@ fn accelleration(
             );
             let flame = spawn_flame(
                 &mut commands,
-                color_assets,
                 texture_asset_map,
                 player_transform,
                 settings,
@@ -286,7 +282,6 @@ fn turn_player(
 
 fn spawn_flame(
     commands: &mut Commands,
-    color_assets: &mut Assets<ColorMaterial>,
     textures: &TextureAssetMap<GeneralTexture>,
     player_transform: &Transform,
     settings: &Settings,
@@ -298,7 +293,7 @@ fn spawn_flame(
     let scale = settings.player.flame_width / flame_width;
     let flame = commands
         .spawn_bundle(SpriteBundle {
-            material: color_assets.add(texture.texture.clone().into()),
+            texture: texture.texture.clone(),
             transform: Transform {
                 translation: Vec3::new(0., settings.player.flame_ypos, -1.0)
                     / player_transform.scale,

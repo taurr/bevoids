@@ -20,7 +20,7 @@ impl<KEY> Plugin for FontAssetMapPlugin<KEY>
 where
     KEY: 'static + core::fmt::Debug + Clone + Eq + Sync + Send,
 {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new().with_system(monitor_font_assets::<KEY>.system()),

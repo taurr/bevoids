@@ -36,10 +36,12 @@ pub(crate) struct SpawnAsteroidEvent {
 
 // Marks an entity as an asteroid
 #[derive(Debug, Copy, Clone)]
+#[derive(Component)]
 pub(crate) struct Asteroid;
 
 // Marks an entity as an asteroid
 #[derive(Debug, Copy, Clone)]
+#[derive(Component)]
 pub(crate) struct BackgroundAsteroid;
 
 #[derive(Default)]
@@ -49,6 +51,7 @@ pub(crate) struct AsteroidCounter {
 }
 
 #[derive(Debug)]
+#[derive(Component)]
 pub(crate) struct AsteroidsSpawner {
     delay: Duration,
     timer: Timer,
@@ -196,7 +199,6 @@ pub(crate) fn handle_spawn_asteroid(
     mut spawn_asteroid_events: EventReader<SpawnAsteroidEvent>,
     mut commands: Commands,
     mut counter: Option<ResMut<AsteroidCounter>>,
-    mut material_assets: ResMut<Assets<ColorMaterial>>,
     textures: Res<TextureAssetMap<AsteroidTexture>>,
     player_tf_query: Query<&Transform, (With<Player>, With<ShadowController>)>,
     window_bounds: Res<GfxBounds>,
@@ -246,14 +248,14 @@ pub(crate) fn handle_spawn_asteroid(
         let asset_info = textures
             .get(AsteroidTexture(rng.gen_range(0..textures.len())))
             .expect("unable to get texture for asteroid");
-        let material = material_assets.add(ColorMaterial::texture(asset_info.texture.clone()));
+        let material = asset_info.texture.clone();
         let asteroid_scale = size / asset_info.size.max_element() as f32;
         let asteroid_size =
             Vec2::new(asset_info.size.x as f32, asset_info.size.y as f32) * asteroid_scale;
 
         let asteroid_id = commands
             .spawn_bundle(SpriteBundle {
-                material: material.clone(),
+                texture: material.clone(),
                 transform: Transform {
                     translation: position,
                     scale: Vec2::splat(asteroid_scale).extend(1.),

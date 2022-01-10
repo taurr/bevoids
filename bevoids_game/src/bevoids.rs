@@ -44,7 +44,7 @@ pub enum GameState {
 pub struct Bevoids {}
 
 impl Plugin for Bevoids {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         log::trace!("setting up systems");
 
         // events
@@ -62,31 +62,31 @@ impl Plugin for Bevoids {
 
         // misc
         app.add_plugin(EguiPlugin)
-            .add_plugin(DespawnPlugin::with_run_criteria(run_if_not_paused.system()))
+            .add_plugin(DespawnPlugin::with_run_criteria(run_if_not_paused))
             .add_plugin(AnimationEffectPlugin::<AnimationAtlas>::with_run_criteria(
-                run_if_not_paused.system(),
+                run_if_not_paused,
             ))
             .add_plugin(SoundEffectsPlugin::<SoundEffect>::default())
             .add_plugin(TextureAssetMapPlugin::<GeneralTexture>::default())
             .add_plugin(TextureAssetMapPlugin::<AsteroidTexture>::default())
             .add_plugin(TextureAssetMapPlugin::<BackgroundTexture>::default())
             .add_plugin(BoundsPlugin)
-            .add_startup_system(set_egui_defaults.system())
-            .add_system(capture_cursor_when_playing.system())
-            .add_system(esc_to_pause_unpause.system())
+            .add_startup_system(set_egui_defaults)
+            .add_system(capture_cursor_when_playing)
+            .add_system(esc_to_pause_unpause)
             .add_system(
                 wrapping_linear_movement
-                    .system()
-                    .chain(move_shadow.system())
-                    .with_run_criteria(run_if_not_paused.system()),
+
+                    .chain(move_shadow)
+                    .with_run_criteria(run_if_not_paused),
             )
             .add_system(
                 non_wrapping_linear_movement
-                    .system()
-                    .with_run_criteria(run_if_not_paused.system()),
+
+                    .with_run_criteria(run_if_not_paused),
             )
-            .add_system(handle_spawn_asteroid.system())
-            .add_system(handle_asteroid_explosion.system());
+            .add_system(handle_spawn_asteroid)
+            .add_system(handle_asteroid_explosion);
 
         // introduce the state to its relevant stages
         app.insert_resource(State::new(GameState::Initialize))
@@ -104,79 +104,79 @@ impl Plugin for Bevoids {
     }
 }
 
-fn setup_initialize(app: &mut AppBuilder) {
+fn setup_initialize(app: &mut App) {
     let state = GameState::Initialize;
 
-    app.add_startup_system(load_highscores.system())
-        .add_startup_system(load_general_textures.system())
-        .add_startup_system(load_asteroid_textures.system())
-        .add_startup_system(load_background_textures.system())
-        .add_startup_system(load_animations.system())
-        .add_startup_system(load_audio.system())
-        .add_system_set(SystemSet::on_update(state).with_system(wait_for_resources.system()));
+    app.add_startup_system(load_highscores)
+        .add_startup_system(load_general_textures)
+        .add_startup_system(load_asteroid_textures)
+        .add_startup_system(load_background_textures)
+        .add_startup_system(load_animations)
+        .add_startup_system(load_audio)
+        .add_system_set(SystemSet::on_update(state).with_system(wait_for_resources));
 }
 
-fn setup_mainmenu(app: &mut AppBuilder) {
+fn setup_mainmenu(app: &mut App) {
     let state = GameState::MainMenu;
 
     app //.add_plugin(EguiPlugin)
-        .add_system_set(SystemSet::on_enter(state).with_system(set_menu_background.system()))
-        .add_system_set(SystemSet::on_update(state).with_system(display_main_menu.system()));
+        .add_system_set(SystemSet::on_enter(state).with_system(set_menu_background))
+        .add_system_set(SystemSet::on_update(state).with_system(display_main_menu));
 }
 
-fn setup_highscore(app: &mut AppBuilder) {
+fn setup_highscore(app: &mut App) {
     let state = GameState::HighScoreMenu;
-    app.add_system_set(SystemSet::on_enter(state).with_system(set_menu_background.system()))
-        .add_system_set(SystemSet::on_update(state).with_system(display_highscore_menu.system()));
+    app.add_system_set(SystemSet::on_enter(state).with_system(set_menu_background))
+        .add_system_set(SystemSet::on_update(state).with_system(display_highscore_menu));
 }
 
-fn setup_playing(app: &mut AppBuilder) {
+fn setup_playing(app: &mut App) {
     let state = GameState::Playing;
 
     app.add_system_set(
         SystemSet::on_enter(state)
-            .with_system(prep_playingfield.system())
-            .with_system(spawn_player.system())
-            .with_system(spawn_asteroid_spawner.system()),
+            .with_system(prep_playingfield)
+            .with_system(spawn_player)
+            .with_system(spawn_asteroid_spawner),
     )
     .add_system_set(
         SystemSet::on_update(state)
-            .with_system(display_playing_ui.system())
-            .with_system(asteroid_spawner.system())
-            .with_system(player_controls.system().label("input"))
-            .with_system(handle_fire_laser.system().after("input"))
-            .with_system(hittest_shot_vs_asteroid.system().label("hittest"))
-            .with_system(hittest_player_vs_asteroid.system().label("hittest"))
-            .with_system(handle_player_dead.system().after("hittest"))
-            .with_system(update_score.system().after("hittest"))
-            .with_system(handle_shot_asteroids.system().after("hittest")),
+            .with_system(display_playing_ui)
+            .with_system(asteroid_spawner)
+            .with_system(player_controls.label("input"))
+            .with_system(handle_fire_laser.after("input"))
+            .with_system(hittest_shot_vs_asteroid.label("hittest"))
+            .with_system(hittest_player_vs_asteroid.label("hittest"))
+            .with_system(handle_player_dead.after("hittest"))
+            .with_system(update_score.after("hittest"))
+            .with_system(handle_shot_asteroids.after("hittest")),
     )
     .add_system_set(
         SystemSet::on_exit(state)
-            .with_system(stop_thruster_sounds.system())
-            .with_system(despawn_asteroid_spawner.system()),
+            .with_system(stop_thruster_sounds)
+            .with_system(despawn_asteroid_spawner),
     );
 }
 
-fn setup_paused(app: &mut AppBuilder) {
+fn setup_paused(app: &mut App) {
     let state = GameState::Paused;
-    app.add_system_set(SystemSet::on_update(state).with_system(display_paused_menu.system()));
+    app.add_system_set(SystemSet::on_update(state).with_system(display_paused_menu));
 }
 
-fn setup_gameover(app: &mut AppBuilder) {
+fn setup_gameover(app: &mut App) {
     let state = GameState::GameOver;
 
-    app.add_system_set(SystemSet::on_update(state).with_system(display_gameover_menu.system()))
-        .add_system_set(SystemSet::on_exit(state).with_system(clear_playingfield.system()));
+    app.add_system_set(SystemSet::on_update(state).with_system(display_gameover_menu))
+        .add_system_set(SystemSet::on_exit(state).with_system(clear_playingfield));
 }
 
-fn setup_new_highscore(app: &mut AppBuilder) {
+fn setup_new_highscore(app: &mut App) {
     let state = GameState::NewHighScore;
 
     app.add_system_set(
-        SystemSet::on_update(state).with_system(display_new_highscore_menu.system()),
+        SystemSet::on_update(state).with_system(display_new_highscore_menu),
     )
-    .add_system_set(SystemSet::on_exit(state).with_system(clear_playingfield.system()));
+    .add_system_set(SystemSet::on_exit(state).with_system(clear_playingfield));
 }
 
 fn esc_to_pause_unpause(mut kb: ResMut<Input<KeyCode>>, mut state: ResMut<State<GameState>>) {
@@ -250,11 +250,11 @@ fn set_egui_defaults(egui_context: Res<EguiContext>) {
 }
 
 #[derive(Debug)]
+#[derive(Component)]
 pub(crate) struct Background;
 
 pub(crate) fn spawn_background(
     background_asset_map: &TextureAssetMap<BackgroundTexture>,
-    color_assets: &mut Assets<ColorMaterial>,
     background_query: &Query<Entity, With<Background>>,
     win_bounds: &GfxBounds,
     commands: &mut Commands,
@@ -267,8 +267,7 @@ pub(crate) fn spawn_background(
             rng.gen_range(0..background_asset_map.len()),
         ))
         .expect("no texture for background");
-    let bg_material = color_assets.add(bg_texture.texture.clone().into());
-    color_assets.get_mut(&bg_material).unwrap().color.set_a(0.0);
+    let bg_material = bg_texture.texture.clone();
     let bg_size = bg_texture.size;
     let bg_scale = f32::max(
         win_bounds.width() / bg_size.x as f32,
@@ -284,7 +283,7 @@ pub(crate) fn spawn_background(
     }
     commands
         .spawn_bundle(SpriteBundle {
-            material: bg_material,
+            texture: bg_material,
             transform: Transform {
                 scale: Vec3::splat(bg_scale),
                 ..Default::default()
@@ -299,28 +298,22 @@ pub(crate) fn spawn_background(
 
 fn set_menu_background(
     mut commands: Commands,
-    mut color_assets: ResMut<Assets<ColorMaterial>>,
     background_query: Query<Entity, With<Background>>,
     background_asset_map: Res<TextureAssetMap<BackgroundTexture>>,
     win_bounds: Res<GfxBounds>,
     settings: Res<Settings>,
     mut spawn_event: EventWriter<SpawnAsteroidEvent>,
-    mut background_asteroids_query: Query<&mut Visible, With<BackgroundAsteroid>>,
+    mut background_asteroids_query: Query<Entity, With<BackgroundAsteroid>>,
 ) {
     spawn_background(
         &background_asset_map,
-        &mut color_assets,
         &background_query,
         &win_bounds,
         &mut commands,
         &settings,
     );
 
-    if background_asteroids_query.iter_mut().next().is_some() {
-        for mut visible in background_asteroids_query.iter_mut() {
-            visible.is_visible = true;
-        }
-    } else {
+    if background_asteroids_query.iter_mut().next().is_none() {
         let mut rng = rand::thread_rng();
         for _ in 0..settings.general.asteroids_in_start_menu {
             spawn_event.send(SpawnAsteroidEvent::new(
@@ -334,11 +327,11 @@ fn set_menu_background(
 
 fn prep_playingfield(
     mut commands: Commands,
-    mut background_asteroids_query: Query<&mut Visible, With<BackgroundAsteroid>>,
+    mut background_asteroids_query: Query<Entity, With<BackgroundAsteroid>>,
 ) {
     // hide background asteroids
-    for mut visible in background_asteroids_query.iter_mut() {
-        visible.is_visible = false;
+    for e in background_asteroids_query.iter_mut() {
+        commands.entity(e).despawn_recursive();
     }
 
     // clear asteroid counter

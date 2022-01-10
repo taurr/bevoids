@@ -5,16 +5,20 @@ use enum_iterator::IntoEnumIterator;
 use parry2d::bounding_volume::BoundingVolume;
 
 #[derive(Debug, Copy, Clone, Deref, DerefMut, Add, Sub, From, Into)]
+#[derive(Component)]
 pub struct Velocity(pub Vec2);
 
 #[derive(Debug)]
+#[derive(Component)]
 pub struct ShadowController;
 
 #[derive(Debug)]
+#[derive(Component)]
 pub struct NonWrapping;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, IntoEnumIterator, PartialEq, Copy, Clone)]
+#[derive(Component)]
 enum ShadowPlacement {
     MinW_MaxH,
     MedW_MaxH,
@@ -27,12 +31,14 @@ enum ShadowPlacement {
 }
 
 #[derive(Debug, From, Into)]
+#[derive(Component)]
 pub struct ShadowOf {
     pub controller: Entity,
     placement: ShadowPlacement,
 }
 
 #[derive(Debug)]
+#[derive(Component)]
 pub struct InsideWindow;
 
 pub struct EnterWindowEvent(Entity);
@@ -43,7 +49,7 @@ pub fn spawn_display_shadows(
     controller: Entity,
     controller_size: Vec2,
     controller_scale: f32,
-    controller_material: Handle<ColorMaterial>,
+    controller_image: Handle<Image>,
     component_inserter: &Option<impl Fn(EntityCommands)>,
     window_bounds: &GfxBounds,
     commands: &mut Commands,
@@ -51,7 +57,7 @@ pub fn spawn_display_shadows(
     for placement in ShadowPlacement::into_enum_iter() {
         let shadow_id = commands
             .spawn_bundle(SpriteBundle {
-                material: controller_material.clone(),
+                texture: controller_image.clone(),
                 transform: Transform {
                     translation: window_bounds.size().extend(0.),
                     scale: Vec2::splat(controller_scale).extend(1.),

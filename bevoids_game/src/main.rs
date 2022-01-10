@@ -10,7 +10,6 @@ use bevy::{
 
 mod asset_io;
 mod bevoids;
-//mod text;
 
 use crate::bevoids::Bevoids;
 
@@ -20,12 +19,12 @@ fn main() {
     let settings: Settings = serde_json::from_slice(include_bytes!("settings.json"))
         .expect("unable to parse settings file");
 
-    App::build()
+    App::new()
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(WindowDescriptor {
             vsync: true,
-            resizable: false,
+            resizable: true,
             width: settings.window.width as f32,
             height: settings.window.height as f32,
             title: module_path!().into(),

@@ -17,13 +17,13 @@ use super::{
 pub(crate) struct FireLaserEvent;
 
 #[derive(Debug)]
+#[derive(Component)]
 pub(crate) struct Laser;
 
 pub(crate) fn handle_fire_laser(
     mut commands: Commands,
     mut events: EventReader<FireLaserEvent>,
     mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
-    mut material_assets: ResMut<Assets<ColorMaterial>>,
     player_query: Query<(&Transform, &Velocity), (With<Player>, With<ShadowController>)>,
     textures: Res<TextureAssetMap<GeneralTexture>>,
     bounds: Res<GfxBounds>,
@@ -60,7 +60,7 @@ pub(crate) fn handle_fire_laser(
 
         let laser_id = commands
             .spawn_bundle(SpriteBundle {
-                material: material_assets.add(laser_texture.texture.clone().into()),
+                texture: laser_texture.texture.clone(),
                 transform: Transform {
                     translation: position,
                     rotation: Quat::from_rotation_z(PI / 2.).mul_quat(player_orientation),

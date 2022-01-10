@@ -23,11 +23,11 @@ impl<KEY> Plugin for TextureAssetMapPlugin<KEY>
 where
     KEY: 'static + core::fmt::Debug + Clone + Eq + Sync + Send,
 {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_event::<TextureAssetInfo<KEY>>();
         app.add_system_set_to_stage(
             CoreStage::Update,
-            SystemSet::new().with_system(monitor_texture_assets::<KEY>.system()),
+            SystemSet::new().with_system(monitor_texture_assets::<KEY>),
         );
     }
 }
@@ -37,7 +37,7 @@ where
 #[derive(Debug, Clone)]
 pub struct TextureAssetInfo<KEY> {
     pub key: KEY,
-    pub texture: Handle<Texture>,
+    pub texture: Handle<Image>,
     pub size: Size,
 }
 
@@ -50,7 +50,7 @@ pub struct TexturePaths<KEY> {
 
 #[derive(Debug, Clone)]
 enum TextureMapEntry<KEY> {
-    Loading { key: KEY, texture: Handle<Texture> },
+    Loading { key: KEY, texture: Handle<Image> },
     Loaded(TextureAssetInfo<KEY>),
 }
 
@@ -146,10 +146,10 @@ where
 }
 
 pub fn monitor_texture_assets<KEY>(
-    mut texture_events: EventReader<AssetEvent<Texture>>,
+    mut texture_events: EventReader<AssetEvent<Image>>,
     mut texture_info_event: EventWriter<TextureAssetInfo<KEY>>,
     texture_asset_map: Option<ResMut<TextureAssetMap<KEY>>>,
-    texture_assets: Res<Assets<Texture>>,
+    texture_assets: Res<Assets<Image>>,
 ) where
     KEY: 'static + core::fmt::Debug + Clone + Eq + Send + Sync,
 {
@@ -174,8 +174,8 @@ pub fn monitor_texture_assets<KEY>(
 
 fn update_texture_map<KEY>(
     texture_asset_map: &mut TextureAssetMap<KEY>,
-    texture_assets: &Assets<Texture>,
-    texture_handle: &Handle<Texture>,
+    texture_assets: &Assets<Image>,
+    texture_handle: &Handle<Image>,
     texture_info_event: &mut EventWriter<TextureAssetInfo<KEY>>,
 ) where
     KEY: 'static + core::fmt::Debug + Clone + Eq + Send + Sync,
@@ -193,7 +193,7 @@ fn update_texture_map<KEY>(
             let texture = texture_assets
                 .get(texture_handle)
                 .expect("texture not found though just updated");
-            let size = Size::new(texture.size.width, texture.size.height);
+            let size = Size::new(texture.texture_descriptor.size.width, texture.texture_descriptor.size.height);
             log::info!(?key, ?size, texture_handle=?texture_handle, "texture loaded");
             TextureAssetInfo {
                 key,
@@ -208,7 +208,7 @@ fn update_texture_map<KEY>(
 
 fn warn_removed_texture<KEY>(
     texture_asset_map: &TextureAssetMap<KEY>,
-    texture_handle: &Handle<Texture>,
+    texture_handle: &Handle<Image>,
 ) where
     KEY: 'static + core::fmt::Debug,
 {

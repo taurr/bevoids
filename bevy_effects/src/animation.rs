@@ -52,7 +52,7 @@ impl<KEY> Plugin for AnimationEffectPlugin<KEY>
 where
     KEY: 'static + core::fmt::Debug + Clone + Eq + Send + Sync,
 {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         let mut set = SystemSet::new()
             .with_system(start_animation_effect::<KEY>.system())
             .with_system(update_animation_effect::<KEY>.system());
@@ -65,7 +65,7 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Component)]
 pub struct AnimEffect;
 
 pub fn start_animation_effect<KEY>(
@@ -122,7 +122,7 @@ pub fn update_animation_effect<KEY>(
             let texture_atlas = atlas_assets
                 .get(texture_atlas_handle)
                 .expect("texture atlas not found");
-            sprite.index = ((sprite.index as usize + 1) % texture_atlas.textures.len()) as u32;
+            sprite.index = (sprite.index as usize + 1) % texture_atlas.textures.len();
 
             if sprite.index == 0 {
                 commands.entity(entity).despawn();

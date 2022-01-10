@@ -19,11 +19,11 @@ impl<KEY> Plugin for AtlasAssetMapPlugin<KEY>
 where
     KEY: 'static + core::fmt::Debug + Clone + Eq + Sync + Send,
 {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_event::<AtlasAssetInfo<KEY>>();
         app.add_system_set_to_stage(
             CoreStage::Update,
-            SystemSet::new().with_system(monitor_atlas_assets::<KEY>.system()),
+            SystemSet::new().with_system(monitor_atlas_assets::<KEY>),
         );
     }
 }
@@ -38,7 +38,7 @@ pub struct AtlasAssetMap<KEY>(Vec<AtlasMapEntry<KEY>>);
 pub struct AtlasAssetInfo<KEY> {
     pub key: KEY,
     pub atlas: Handle<TextureAtlas>,
-    pub texture: Handle<Texture>,
+    pub texture: Handle<Image>,
     pub tile_size: Vec2,
     pub definition: AtlasDefinition,
 }
@@ -59,7 +59,7 @@ pub enum AtlasDefinition {
 enum AtlasMapEntry<KEY> {
     Loading {
         key: KEY,
-        texture: Handle<Texture>,
+        texture: Handle<Image>,
         definition: AtlasDefinition,
     },
     Loaded(AtlasAssetInfo<KEY>),
@@ -161,10 +161,10 @@ where
 }
 
 pub fn monitor_atlas_assets<KEY>(
-    mut texture_events: EventReader<AssetEvent<Texture>>,
+    mut texture_events: EventReader<AssetEvent<Image>>,
     mut atlas_info_event: EventWriter<AtlasAssetInfo<KEY>>,
     atlas_asset_map: Option<ResMut<AtlasAssetMap<KEY>>>,
-    texture_assets: Res<Assets<Texture>>,
+    texture_assets: Res<Assets<Image>>,
     mut texture_atlas_assets: ResMut<Assets<TextureAtlas>>,
 ) where
     KEY: 'static + core::fmt::Debug + Clone + Send + Sync,
@@ -191,8 +191,8 @@ pub fn monitor_atlas_assets<KEY>(
 
 fn update_atlas_map<KEY>(
     atlas_asset_map: &mut AtlasAssetMap<KEY>,
-    texture_handle: &Handle<Texture>,
-    texture_assets: &Assets<Texture>,
+    texture_handle: &Handle<Image>,
+    texture_assets: &Assets<Image>,
     texture_atlas_assets: &mut Assets<TextureAtlas>,
     atlas_info_event: &mut EventWriter<AtlasAssetInfo<KEY>>,
 ) where
@@ -219,7 +219,7 @@ fn update_atlas_map<KEY>(
             let texture = texture_assets
                 .get(texture_handle)
                 .expect("texture not found though just updated");
-            Size::new(texture.size.width, texture.size.height)
+            Size::new(texture.texture_descriptor.size.width, texture.texture_descriptor.size.height)
         };
         let (tile_size, atlas) = match definition {
             AtlasDefinition::Grid { columns, rows } => {
@@ -254,7 +254,7 @@ fn update_atlas_map<KEY>(
 
 fn warn_removed_atlas_texture<KEY>(
     atlas_asset_map: &AtlasAssetMap<KEY>,
-    texture_handle: &Handle<Texture>,
+    texture_handle: &Handle<Image>,
 ) where
     KEY: 'static + core::fmt::Debug,
 {

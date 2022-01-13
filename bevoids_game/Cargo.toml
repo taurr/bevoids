@@ -1,6 +1,6 @@
 [package]
 name = "bevoids"
-version = "0.9.2"
+version = "0.9.3"
 edition = "2021"
 license-file = "../LICENSE-MIT"
 authors = ["Johnny T. Vestergaard (jtv@jrtv.dk)"]

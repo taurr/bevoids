@@ -12,7 +12,6 @@ fn main() {
             "sounds/notification.wav",
             "sounds/ship_explode.wav",
             "sounds/thruster.wav",
-
             "gfx/asteroids/asteroid_1.png",
             "gfx/asteroids/asteroid_2.png",
             "gfx/asteroids/asteroid_3.png",
@@ -20,7 +19,6 @@ fn main() {
             "gfx/asteroids/asteroid_5.png",
             "gfx/asteroids/asteroid_6.png",
             "gfx/asteroids/asteroid_7.png",
-
             "gfx/backgrounds/bg_1.jpg",
             "gfx/backgrounds/bg_2.jpg",
             "gfx/backgrounds/bg_3.jpg",
@@ -33,7 +31,6 @@ fn main() {
             "gfx/backgrounds/bg_10.jpg",
             "gfx/backgrounds/bg_11.jpg",
             "gfx/backgrounds/bg_12.jpg",
-
             "gfx/explosion.png",
             "gfx/flame.png",
             "gfx/laser.png",

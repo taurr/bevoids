@@ -28,15 +28,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-build-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.toml') }}
       - name: Setup | rust
         uses: actions-rs/toolchain@v1
         with:
@@ -47,6 +38,5 @@ jobs:
       - name: Setup | CI dependencies
         run: sudo apt-get update; sudo apt-get install --no-install-recommends -y libasound2-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libudev-dev
         if: runner.os == 'linux'
-
       - uses: Swatinem/rust-cache@v1
       - run: cargo ${{ matrix['cargo-cmd'] }}

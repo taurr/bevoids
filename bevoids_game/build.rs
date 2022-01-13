@@ -1,73 +1,48 @@
-use std::{
-    env,
-    fs::{self, File},
-    io::Write,
-    path::{Path, PathBuf},
-};
-
-const RESOURCE_EXTENSIONS: &[&str] = &["png", "jpg", "wav"];
-
-fn asset_folder() -> PathBuf {
-    Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("assets")
-}
+use std::{env, path::Path};
 
 fn main() {
-    let out_dir = env::var_os("OUT_DIR").unwrap();
-    generate_include_all_assets(out_dir);
-}
+    // bevy_embasset::include_all_assets(
+    //     &Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("assets"),
+    // );
+    if bevy_embasset::include_assets(
+        &Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("assets"),
+        &[
+            "sounds/asteroid_explode.wav",
+            "sounds/laser.wav",
+            "sounds/notification.wav",
+            "sounds/ship_explode.wav",
+            "sounds/thruster.wav",
 
-fn generate_include_all_assets(out_dir: std::ffi::OsString) {
-    let dest_path = Path::new(&out_dir).join("include_all_assets.rs");
-    let mut file = File::create(&dest_path).unwrap();
-    file.write_all(
-        "pub fn include_all_assets(in_memory: &mut crate::asset_io::InMemoryAssetIo){\n".as_ref(),
+            "gfx/asteroids/asteroid_1.png",
+            "gfx/asteroids/asteroid_2.png",
+            "gfx/asteroids/asteroid_3.png",
+            "gfx/asteroids/asteroid_4.png",
+            "gfx/asteroids/asteroid_5.png",
+            "gfx/asteroids/asteroid_6.png",
+            "gfx/asteroids/asteroid_7.png",
+
+            "gfx/backgrounds/bg_1.jpg",
+            "gfx/backgrounds/bg_2.jpg",
+            "gfx/backgrounds/bg_3.jpg",
+            "gfx/backgrounds/bg_4.jpg",
+            "gfx/backgrounds/bg_5.jpg",
+            "gfx/backgrounds/bg_6.jpg",
+            "gfx/backgrounds/bg_7.jpg",
+            "gfx/backgrounds/bg_8.jpg",
+            "gfx/backgrounds/bg_9.jpg",
+            "gfx/backgrounds/bg_10.jpg",
+            "gfx/backgrounds/bg_11.jpg",
+            "gfx/backgrounds/bg_12.jpg",
+
+            "gfx/explosion.png",
+            "gfx/flame.png",
+            "gfx/laser.png",
+            "gfx/spaceship.png",
+            "gfx/trophy.png",
+        ],
     )
-    .unwrap();
-    let dir = asset_folder();
-    visit_dirs(&dir)
-        .iter()
-        .filter(|path| {
-            if path
-                .extension()
-                .and_then(std::ffi::OsStr::to_str)
-                .map(|ext| RESOURCE_EXTENSIONS.contains(&ext))
-                .unwrap_or_default()
-            {
-                true
-            } else {
-                cargo_emit::warning!("Unmanaged file: {}", path.to_string_lossy());
-                false
-            }
-        })
-        .map(|path| (path, path.strip_prefix(&dir).unwrap()))
-        .for_each(|(fullpath, path)| {
-            file.write_all(
-                format!(
-                    r#"in_memory.add_entity(std::path::Path::new({:?}), include_bytes!({:?}));
-"#,
-                    path.to_string_lossy(),
-                    fullpath.to_string_lossy()
-                )
-                .as_ref(),
-            )
-            .unwrap();
-        });
-    file.write_all("}".as_ref()).unwrap();
-    cargo_emit::rerun_if_changed!(dir.display());
-}
-
-fn visit_dirs(dir: &Path) -> Vec<PathBuf> {
-    let mut collected = vec![];
-    if dir.is_dir() {
-        for entry in fs::read_dir(dir).unwrap() {
-            let entry = entry.unwrap();
-            let path = entry.path();
-            if path.is_dir() {
-                collected.append(&mut visit_dirs(&path));
-            } else {
-                collected.push(path);
-            }
-        }
+    .is_err()
+    {
+        std::process::exit(-1);
     }
-    collected
 }

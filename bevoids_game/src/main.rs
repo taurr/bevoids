@@ -7,8 +7,8 @@ use bevy::{
     prelude::*,
     render::camera::{DepthCalculation, OrthographicProjection, ScalingMode},
 };
+use bevy_embasset::*;
 
-mod asset_io;
 mod bevoids;
 
 use crate::bevoids::Bevoids;
@@ -24,7 +24,7 @@ fn main() {
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(WindowDescriptor {
             vsync: true,
-            resizable: true,
+            resizable: false,
             width: settings.window.width as f32,
             height: settings.window.height as f32,
             title: module_path!().into(),
@@ -32,15 +32,15 @@ fn main() {
         })
         .insert_resource(settings)
         //
-        .add_plugins_with(DefaultPlugins, |group| {
-            group.add_before::<bevy::asset::AssetPlugin, _>(asset_io::InMemoryAssetPlugin)
-        })
+        .add_embasset_plugin(add_embasset_assets)
         .add_startup_system(initialize_camera.system())
         //
         .add_plugin(Bevoids::default())
         //
         .run();
 }
+
+include!(concat!(env!("OUT_DIR"), "/add_embasset_assets.rs"));
 
 fn initialize_camera(mut commands: Commands) {
     log::info!("initializing game");

@@ -23,7 +23,7 @@
     "zpos": 900.0,
     "gun_ypos": 20.0,
     "accelleration": 250.0,
-    "decelleration": 33.3,
+    "decelleration": 8,
     "turn_speed_slow": 1.75,
     "turn_speed_fast": 4.5,
     "max_speed": 800.0,

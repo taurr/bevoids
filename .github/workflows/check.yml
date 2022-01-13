@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain: [nightly]
+        toolchain: [stable]
         cargo-cmd:
           - check
           - fmt --all -- --check
@@ -45,7 +45,7 @@ jobs:
     needs: check
     strategy:
       matrix:
-        toolchain: [nightly]
+        toolchain: [stable]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

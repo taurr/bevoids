@@ -9,13 +9,10 @@ readme = "../README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[build-dependencies]
-bevy-embasset = { git = "https://github.com/taurr/bevy-embasset", features = [
-    "build",
-] }
-
 [dependencies]
 bevy-embasset = { git = "https://github.com/taurr/bevy-embasset" }
+
+bevoids_assets = { path = "../bevoids_assets" }
 bevy_asset_map = { path = "../bevy_asset_map" }
 bevy_effects = { path = "../bevy_effects" }
 

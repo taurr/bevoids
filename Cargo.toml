@@ -1,5 +1,5 @@
 [workspace]
-members = ["bevoids_game", "bevy_asset_map", "bevy_effects"]
+members = ["bevoids_game", "bevy_asset_map", "bevy_effects", "bevoids_assets"]
 
 resolver = "2"
 

@@ -1,0 +1,8 @@
+[package]
+name = "bevoids_assets"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { version = "0.6", default-features = false }
+bevy-embasset = { git = "https://github.com/taurr/bevy-embasset" }

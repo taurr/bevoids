@@ -2,6 +2,7 @@
 
 // TODO: tests in bevy?
 
+use bevoids_assets::BevoidsAssets;
 use bevy::{
     log,
     prelude::*,
@@ -40,7 +41,9 @@ fn main() {
         .run();
 }
 
-include!(concat!(env!("OUT_DIR"), "/add_embasset_assets.rs"));
+fn add_embasset_assets(io: &mut EmbassetIo) {
+    io.add_handler(AssetIoAlternative::new("", BevoidsAssets::new()));
+}
 
 fn initialize_camera(mut commands: Commands) {
     log::info!("initializing game");

@@ -3,8 +3,14 @@ members = ["bevoids_game", "bevy_asset_map", "bevy_effects", "bevoids_assets"]
 
 resolver = "2"
 
-#[profile.dev.package."*"]
-#opt-level = 3
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
 
 #[patch.crates-io]
 #bevy = { git = "https://github.com/bevyengine/bevy", rev = "add1818a05ad4b8d4672197afd477ab29f8446b5" }

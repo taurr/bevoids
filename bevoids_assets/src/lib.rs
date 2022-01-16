@@ -7,7 +7,10 @@ pub struct BevoidsAssets(EmbassetIo);
 
 macro_rules! include_asset {
     ($io:ident, $asset:literal) => {
-        $io.add_embedded_asset(Path::new($asset), include_bytes!(concat!("../assets/", $asset)));
+        $io.add_embedded_asset(
+            Path::new($asset),
+            include_bytes!(concat!("../assets/", $asset)),
+        );
     };
 }
 

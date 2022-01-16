@@ -249,8 +249,9 @@ dependencies = [
 
 [[package]]
 name = "bevy-embasset"
-version = "0.1.0"
-source = "git+https://github.com/taurr/bevy-embasset#465fa7c2ca7c6017ed10b0558234e4da84bf21f7"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18e32df108dd8f753159cb986ec5379e0cb5c1e5421e73c2ac652f0d05a739ef"
 dependencies = [
  "bevy",
  "derive_more",
@@ -432,9 +433,9 @@ dependencies = [
 
 [[package]]
 name = "bevy_egui"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e67b60ec9d4f5247bfec6e5231d7d779919021ccf4e39f8a0d84364f75f48c4"
+checksum = "2506c2b0b7d4554ce3f4a8e9c3c4b6042f5294be3715c735eb6a21960b6fdcd6"
 dependencies = [
  "bevy",
  "bytemuck",
@@ -3121,9 +3122,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.74"
+version = "1.0.75"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee2bb9cd061c5865d345bb02ca49fcef1391741b672b54a0bf7b679badec3142"
+checksum = "c059c05b48c5c0067d4b4b2b4f0732dd65feb52daf7e0ea09cd87e7dadc1af79"
 dependencies = [
  "itoa",
  "ryu",
@@ -3132,9 +3133,18 @@ dependencies = [
 
 [[package]]
 name = "sha1"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2579985fda508104f7587689507983eadd6a6e84dd35d6d115361f530916fa0d"
+checksum = "c1da05c97445caa12d05e848c4a4fcbbea29e748ac28f7e80e9b010392063770"
+dependencies = [
+ "sha1_smol",
+]
+
+[[package]]
+name = "sha1_smol"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae1a47186c03a32177042e55dbc5fd5aee900b8e0069a8d70fba96a9375cd012"
 
 [[package]]
 name = "sharded-slab"

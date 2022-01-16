@@ -43,9 +43,6 @@ jobs:
 
   build-linux:
     needs: check
-    strategy:
-      matrix:
-        toolchain: [stable]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -58,7 +55,7 @@ jobs:
       - name: Setup | rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ matrix.toolchain }}
+          toolchain: stable
           default: true
           profile: minimal
           components: clippy, rustfmt

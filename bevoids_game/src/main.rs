@@ -2,7 +2,7 @@
 
 // TODO: tests in bevy?
 
-use bevoids_assets::BevoidsAssets;
+use bevoids_assets::BevoidsAssetsIo;
 use bevy::{
     log,
     prelude::*,
@@ -33,16 +33,14 @@ fn main() {
         })
         .insert_resource(settings)
         //
-        .add_embasset_plugin(add_embasset_assets)
+        .add_embasset_plugin(|io| {
+            io.add_handler(BevoidsAssetsIo::new().into());
+        })
         .add_startup_system(initialize_camera.system())
         //
         .add_plugin(Bevoids::default())
         //
         .run();
-}
-
-fn add_embasset_assets(io: &mut EmbassetIo) {
-    io.add_handler(AssetIoAlternative::new("", BevoidsAssets::new()));
 }
 
 fn initialize_camera(mut commands: Commands) {

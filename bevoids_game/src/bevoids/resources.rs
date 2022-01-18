@@ -1,3 +1,4 @@
+use bevoids_assets::BevoidsAssets;
 use bevy::{log, prelude::*};
 use bevy_asset_map::{
     AtlasAssetMap, AtlasDefinition, AudioAssetMap, AudioPaths, TextureAssetMap, TextureAtlasPaths,
@@ -42,10 +43,10 @@ pub(crate) fn load_general_textures(mut commands: Commands, asset_server: Res<As
 
     commands.insert_resource(TextureAssetMap::with_texture_paths(
         &TexturePaths::from_files([
-            (GeneralTexture::Laser, "gfx/laser.png"),
-            (GeneralTexture::Spaceship, "gfx/spaceship.png"),
-            (GeneralTexture::Flame, "gfx/flame.png"),
-            (GeneralTexture::Trophy, "gfx/trophy.png"),
+            (GeneralTexture::Laser, BevoidsAssets::GfxLaser.path().display().to_string()),
+            (GeneralTexture::Spaceship, BevoidsAssets::GfxSpaceship.path().display().to_string()),
+            (GeneralTexture::Flame, BevoidsAssets::GfxFlame.path().display().to_string()),
+            (GeneralTexture::Trophy, BevoidsAssets::GfxTrophy.path().display().to_string()),
         ]),
         &asset_server,
     ));
@@ -54,21 +55,21 @@ pub(crate) fn load_general_textures(mut commands: Commands, asset_server: Res<As
 pub(crate) fn load_asteroid_textures(mut commands: Commands, asset_server: Res<AssetServer>) {
     log::debug!("loading asteroids");
     let assets = vec![
-        "gfx/asteroids/asteroid_1.png",
-        "gfx/asteroids/asteroid_2.png",
-        "gfx/asteroids/asteroid_3.png",
-        "gfx/asteroids/asteroid_4.png",
-        "gfx/asteroids/asteroid_5.png",
-        "gfx/asteroids/asteroid_6.png",
-        "gfx/asteroids/asteroid_7.png",
+        BevoidsAssets::GfxAsteroids1.path().display().to_string(),
+        BevoidsAssets::GfxAsteroids2.path().display().to_string(),
+        BevoidsAssets::GfxAsteroids3.path().display().to_string(),
+        BevoidsAssets::GfxAsteroids4.path().display().to_string(),
+        BevoidsAssets::GfxAsteroids5.path().display().to_string(),
+        BevoidsAssets::GfxAsteroids6.path().display().to_string(),
+        BevoidsAssets::GfxAsteroids7.path().display().to_string(),
     ];
 
     commands.insert_resource(TextureAssetMap::with_texture_paths(
         &TexturePaths::from_files(
             assets
-                .iter()
+                .into_iter()
                 .enumerate()
-                .map(|(i, &e)| (AsteroidTexture(i), e)),
+                .map(|(i, e)| (AsteroidTexture(i), e)),
         ),
         &asset_server,
     ));
@@ -77,26 +78,26 @@ pub(crate) fn load_asteroid_textures(mut commands: Commands, asset_server: Res<A
 pub(crate) fn load_background_textures(mut commands: Commands, asset_server: Res<AssetServer>) {
     log::debug!("loading backgrounds");
     let assets = vec![
-        "gfx/backgrounds/bg_1.jpg",
-        "gfx/backgrounds/bg_2.jpg",
-        "gfx/backgrounds/bg_3.jpg",
-        "gfx/backgrounds/bg_4.jpg",
-        "gfx/backgrounds/bg_5.jpg",
-        "gfx/backgrounds/bg_6.jpg",
-        "gfx/backgrounds/bg_7.jpg",
-        "gfx/backgrounds/bg_8.jpg",
-        "gfx/backgrounds/bg_9.jpg",
-        "gfx/backgrounds/bg_10.jpg",
-        "gfx/backgrounds/bg_11.jpg",
-        "gfx/backgrounds/bg_12.jpg",
+        BevoidsAssets::GfxBackgrounds1.path().display().to_string(),
+        BevoidsAssets::GfxBackgrounds2.path().display().to_string(),
+        BevoidsAssets::GfxBackgrounds3.path().display().to_string(),
+        BevoidsAssets::GfxBackgrounds4.path().display().to_string(),
+        BevoidsAssets::GfxBackgrounds5.path().display().to_string(),
+        BevoidsAssets::GfxBackgrounds6.path().display().to_string(),
+        BevoidsAssets::GfxBackgrounds7.path().display().to_string(),
+        BevoidsAssets::GfxBackgrounds8.path().display().to_string(),
+        BevoidsAssets::GfxBackgrounds9.path().display().to_string(),
+        BevoidsAssets::GfxBackgrounds10.path().display().to_string(),
+        BevoidsAssets::GfxBackgrounds11.path().display().to_string(),
+        BevoidsAssets::GfxBackgrounds12.path().display().to_string(),
     ];
 
     commands.insert_resource(TextureAssetMap::with_texture_paths(
         &TexturePaths::from_files(
             assets
-                .iter()
+                .into_iter()
                 .enumerate()
-                .map(|(i, &e)| (BackgroundTexture(i), e)),
+                .map(|(i, e)| (BackgroundTexture(i), e)),
         ),
         &asset_server,
     ));
@@ -107,7 +108,7 @@ pub(crate) fn load_animations(mut commands: Commands, asset_server: Res<AssetSer
     commands.insert_resource(AtlasAssetMap::with_texture_paths(
         &TextureAtlasPaths::from_files([(
             AnimationAtlas::BigExplosion,
-            "gfx/explosion.png",
+            BevoidsAssets::GfxExplosion.path().display().to_string(),
             AtlasDefinition::Grid {
                 columns: 9,
                 rows: 9,
@@ -126,11 +127,11 @@ pub(crate) fn load_audio(
     log::debug!("loading audio");
     commands.insert_resource(AudioAssetMap::with_audio_paths(
         &AudioPaths::from_files([
-            (SoundEffect::Notification, "sounds/notification.wav"),
-            (SoundEffect::AsteroidExplode, "sounds/asteroid_explode.wav"),
-            (SoundEffect::Laser, "sounds/laser.wav"),
-            (SoundEffect::ShipExplode, "sounds/ship_explode.wav"),
-            (SoundEffect::Thruster, "sounds/thruster.wav"),
+            (SoundEffect::Notification, BevoidsAssets::SoundNotification.path().display().to_string()),
+            (SoundEffect::AsteroidExplode, BevoidsAssets::SoundAsteroidExplode.path().display().to_string()),
+            (SoundEffect::Laser, BevoidsAssets::SoundLaser.path().display().to_string()),
+            (SoundEffect::ShipExplode, BevoidsAssets::SoundShipExplode.path().display().to_string()),
+            (SoundEffect::Thruster, BevoidsAssets::SoundThruster.path().display().to_string()),
         ]),
         &asset_server,
     ));

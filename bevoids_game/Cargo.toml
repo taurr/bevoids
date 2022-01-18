@@ -10,7 +10,7 @@ readme = "../README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy-embasset = "0.1"
+bevy-embasset = "0.2"
 
 bevoids_assets = { path = "../bevoids_assets" }
 bevy_asset_map = { path = "../bevy_asset_map" }

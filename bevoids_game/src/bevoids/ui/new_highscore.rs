@@ -1,3 +1,4 @@
+use bevoids_assets::BevoidsAssets;
 use bevy::prelude::*;
 use bevy_egui::{
     egui::{self, RichText},
@@ -25,7 +26,7 @@ pub(crate) fn display_new_highscore_menu(
     let mut hint: String = "".to_string();
 
     if !*started {
-        let texture_handle = assets.load("gfx/trophy.png");
+        let texture_handle = assets.load(BevoidsAssets::GfxTrophy.path());
         egui_context.set_egui_texture(TROPHY_TEXTURE_ID, texture_handle);
     }
 

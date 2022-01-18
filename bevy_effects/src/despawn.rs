@@ -326,7 +326,6 @@ fn fadeout_despawn(
     mut query: Query<(Entity, &mut FadeDespawn, &mut Sprite)>,
     time: Res<Time>,
 ) {
-    // TODO: For now, this does not work! Bevy 0.6 doesn't use `Color`Material` for Sprites anymore - how do we create a semi-transparent `Sprite`?
     for (entity, mut fadeout, mut sprite) in query.iter_mut() {
         fadeout.alpha_value = (fadeout.alpha_value
             - (1.0 / fadeout.fade_duration.as_secs_f32()) * time.delta_seconds())

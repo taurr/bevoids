@@ -43,10 +43,22 @@ pub(crate) fn load_general_textures(mut commands: Commands, asset_server: Res<As
 
     commands.insert_resource(TextureAssetMap::with_texture_paths(
         &TexturePaths::from_files([
-            (GeneralTexture::Laser, BevoidsAssets::GfxLaser.path().display().to_string()),
-            (GeneralTexture::Spaceship, BevoidsAssets::GfxSpaceship.path().display().to_string()),
-            (GeneralTexture::Flame, BevoidsAssets::GfxFlame.path().display().to_string()),
-            (GeneralTexture::Trophy, BevoidsAssets::GfxTrophy.path().display().to_string()),
+            (
+                GeneralTexture::Laser,
+                BevoidsAssets::GfxLaser.path().display().to_string(),
+            ),
+            (
+                GeneralTexture::Spaceship,
+                BevoidsAssets::GfxSpaceship.path().display().to_string(),
+            ),
+            (
+                GeneralTexture::Flame,
+                BevoidsAssets::GfxFlame.path().display().to_string(),
+            ),
+            (
+                GeneralTexture::Trophy,
+                BevoidsAssets::GfxTrophy.path().display().to_string(),
+            ),
         ]),
         &asset_server,
     ));
@@ -127,11 +139,32 @@ pub(crate) fn load_audio(
     log::debug!("loading audio");
     commands.insert_resource(AudioAssetMap::with_audio_paths(
         &AudioPaths::from_files([
-            (SoundEffect::Notification, BevoidsAssets::SoundNotification.path().display().to_string()),
-            (SoundEffect::AsteroidExplode, BevoidsAssets::SoundAsteroidExplode.path().display().to_string()),
-            (SoundEffect::Laser, BevoidsAssets::SoundLaser.path().display().to_string()),
-            (SoundEffect::ShipExplode, BevoidsAssets::SoundShipExplode.path().display().to_string()),
-            (SoundEffect::Thruster, BevoidsAssets::SoundThruster.path().display().to_string()),
+            (
+                SoundEffect::Notification,
+                BevoidsAssets::SoundNotification
+                    .path()
+                    .display()
+                    .to_string(),
+            ),
+            (
+                SoundEffect::AsteroidExplode,
+                BevoidsAssets::SoundAsteroidExplode
+                    .path()
+                    .display()
+                    .to_string(),
+            ),
+            (
+                SoundEffect::Laser,
+                BevoidsAssets::SoundLaser.path().display().to_string(),
+            ),
+            (
+                SoundEffect::ShipExplode,
+                BevoidsAssets::SoundShipExplode.path().display().to_string(),
+            ),
+            (
+                SoundEffect::Thruster,
+                BevoidsAssets::SoundThruster.path().display().to_string(),
+            ),
         ]),
         &asset_server,
     ));

@@ -1,7 +1,5 @@
 #![allow(clippy::complexity)]
 
-// TODO: tests in bevy?
-
 use bevoids_assets::BevoidsAssetsIo;
 use bevy::{
     log,

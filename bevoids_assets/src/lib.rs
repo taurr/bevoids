@@ -1,6 +1,4 @@
-use bevy_embasset::embasset_assets;
-
-embasset_assets!(
+bevy_embasset::assets!(
     pub enum BevoidsAssets {
         SoundAsteroidExplode = "sounds/asteroid_explode.wav",
         SoundLaser = "sounds/laser.wav",

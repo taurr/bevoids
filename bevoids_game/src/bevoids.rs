@@ -206,8 +206,8 @@ fn capture_cursor_when_playing(state: Res<State<GameState>>, mut windows: ResMut
     window.set_cursor_visibility(!capture);
 }
 
-fn set_egui_defaults(egui_context: Res<EguiContext>) {
-    let ctx = egui_context.ctx();
+fn set_egui_defaults(mut egui_context: ResMut<EguiContext>) {
+    let ctx = egui_context.ctx_mut();
     let mut fonts = egui::FontDefinitions::default();
     fonts.family_and_size.insert(
         egui::TextStyle::Button,

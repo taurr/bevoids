@@ -6,8 +6,8 @@ use bevy_egui::{
 
 use crate::bevoids::highscore::Score;
 
-pub(crate) fn display_playing_ui(egui_context: Res<EguiContext>, score: Res<Score>) {
-    let ctx = egui_context.ctx();
+pub(crate) fn display_playing_ui(mut egui_context: ResMut<EguiContext>, score: Res<Score>) {
+    let ctx = egui_context.ctx_mut();
 
     let score = score.to_string();
 

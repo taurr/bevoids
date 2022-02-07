@@ -7,12 +7,12 @@ use bevy_egui::{
 use crate::bevoids::GameState;
 
 pub(crate) fn display_main_menu(
-    egui_context: Res<EguiContext>,
+    mut egui_context: ResMut<EguiContext>,
     mut state: ResMut<State<GameState>>,
     mut exit: EventWriter<AppExit>,
     mut started: Local<bool>,
 ) {
-    let ctx = egui_context.ctx();
+    let ctx = egui_context.ctx_mut();
     let mut hint: String = "".to_string();
 
     egui::Window::new("MainMenu Menu")

@@ -34,7 +34,7 @@ pub(crate) fn display_new_highscore_menu(
         .resizable(false)
         .title_bar(false)
         .anchor(egui::Align2::CENTER_CENTER, [0., 0.])
-        .show(egui_context.ctx(), |ui| {
+        .show(egui_context.ctx_mut(), |ui| {
             ui.with_layout(
                 egui::Layout::top_down_justified(egui::Align::Center),
                 |ui| {
@@ -88,7 +88,7 @@ pub(crate) fn display_new_highscore_menu(
         .resizable(false)
         .title_bar(false)
         .anchor(egui::Align2::RIGHT_BOTTOM, [-5., -5.])
-        .show(egui_context.ctx(), |ui| {
+        .show(egui_context.ctx_mut(), |ui| {
             ui.add(egui::Label::new(RichText::new(hint).small()));
         });
 }

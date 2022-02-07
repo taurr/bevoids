@@ -10,7 +10,7 @@ readme = "../README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy-embasset = "0.2"
+bevy-embasset = "0.3"
 
 bevoids_assets = { path = "../bevoids_assets" }
 bevy_asset_map = { path = "../bevy_asset_map" }
@@ -18,7 +18,7 @@ bevy_effects = { path = "../bevy_effects" }
 
 # Bevy features: https://github.com/bevyengine/bevy/blob/v0.5.0/Cargo.toml#L23-L34
 bevy = { version = "0.6", features = ["png", "jpeg", "serialize"] }
-bevy_egui = "0.10"
+bevy_egui = "0.11"
 bevy_kira_audio = { version = "0.8.0", features = ["mp3", "wav"] }
 
 parry2d = "0.8"

@@ -7,12 +7,12 @@ use bevy_egui::{
 use crate::bevoids::{highscore::Score, GameState};
 
 pub(crate) fn display_gameover_menu(
-    egui_context: Res<EguiContext>,
+    mut egui_context: ResMut<EguiContext>,
     score: Res<Score>,
     mut state: ResMut<State<GameState>>,
     mut started: Local<bool>,
 ) {
-    let ctx = egui_context.ctx();
+    let ctx = egui_context.ctx_mut();
     let score = score.to_string();
     let mut hint: String = "".to_string();
 

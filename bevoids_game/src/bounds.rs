@@ -6,12 +6,12 @@ use parry2d::{
     math::Point,
 };
 
-pub struct BoundsPlugin;
+pub struct WinBoundsPlugin;
 
-impl Plugin for BoundsPlugin {
+impl Plugin for WinBoundsPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system_to_stage(
-            StartupStage::PostStartup,
+            StartupStage::PreStartup,
             initialize_window_bounds.system(),
         )
         .add_system(resized.system());

@@ -1,5 +1,5 @@
 [workspace]
-members = ["bevoids_game", "bevy_asset_map", "bevy_effects", "bevoids_assets"]
+members = ["bevoids_game", "bevy_effects", "bevoids_assets"]
 
 resolver = "2"
 
@@ -9,7 +9,7 @@ incremental = true
 
 [profile.release]
 
-#[patch.crates-io]
+[patch.crates-io]
 #bevy = { git = "https://github.com/bevyengine/bevy", rev = "add1818a05ad4b8d4672197afd477ab29f8446b5" }
 #bevy_kira_audio = { git="https://github.com/NiklasEi/bevy_kira_audio.git", branch="bevy_main" }
 # egui doesn't work with main version of bevy :-(

@@ -1,23 +1,25 @@
+use bevoids_assets::{SoundAsset, SpriteAsset};
 use bevy::{ecs::system::EntityCommands, log, math::vec3, prelude::*};
-use bevy_asset_map::{GfxBounds, TextureAssetMap};
 use bevy_effects::{
-    animation::AnimationEffectEvent,
+    animation::{SpawnSpriteAnimation, SpriteAnimation, TextureAtlasMap},
     despawn::Despawn,
     sound::{LoopSfx, PlaySfx, SetPanSfx, SfxCmdEvent, StopSfx},
 };
 use rand::Rng;
 use std::f32::consts::PI;
 
-use crate::bevoids::{
-    highscore::{HighScoreRepository, Score},
-    spawn_background, Background,
+use crate::{
+    bevoids::{
+        highscore::{HighScoreRepository, Score},
+    },
+    bounds::GfxBounds,
 };
 
 use super::{
     laser::FireLaserEvent,
     movement::{spawn_display_shadows, InsideWindow, ShadowController, Velocity},
     settings::Settings,
-    AnimationAtlas, BackgroundTexture, GameState, GeneralTexture, SoundEffect,
+    GameState,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -29,10 +31,9 @@ pub(crate) struct Player;
 #[derive(Debug, Component)]
 pub(crate) struct Flame;
 
-pub(crate) fn handle_player_dead(
+pub(crate) fn player_dead_system(
     mut events: EventReader<PlayerDeadEvent>,
-    mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
-    mut anim_effect_event: EventWriter<AnimationEffectEvent<AnimationAtlas>>,
+    mut sfx_event: EventWriter<SfxCmdEvent<SoundAsset>>,
     player_query: Query<(Entity, &Transform, &GfxBounds), (With<Player>, With<ShadowController>)>,
     mut commands: Commands,
     mut state: ResMut<State<GameState>>,
@@ -40,22 +41,30 @@ pub(crate) fn handle_player_dead(
     settings: Res<Settings>,
     score: Res<Score>,
     highscore_repository: Res<HighScoreRepository>,
+    texture_atlas_map: Res<TextureAtlasMap>,
 ) {
     for _ in events.iter() {
         for (player, transform, bounds) in player_query.iter() {
             let panning = (transform.translation.x + win_bounds.width() / 2.) / win_bounds.width();
             sfx_event.send(
-                PlaySfx::new(SoundEffect::ShipExplode)
+                PlaySfx::new(SoundAsset::ShipExplode)
                     .with_panning(panning)
                     .into(),
             );
 
-            anim_effect_event.send(AnimationEffectEvent {
-                key: AnimationAtlas::BigExplosion,
-                position: transform.translation,
-                size: bounds.size().max_element(),
-                fps: settings.general.animation_fps,
-            });
+            let explosion_atlas = texture_atlas_map.get(SpriteAsset::GfxExplosion).unwrap();
+
+            // TODO: we need to stop the anim!
+            commands.spawn_sprite_animation(
+                explosion_atlas,
+                SpriteAnimation {
+                    fps: settings.general.animation_fps,
+                    position: transform.translation,
+                    size: Some(bounds.size()),
+                    ..Default::default()
+                },
+            );
+
             log::warn!(?player, "player dead");
             commands
                 .entity(player)
@@ -72,22 +81,13 @@ pub(crate) fn handle_player_dead(
     }
 }
 
-pub(crate) fn spawn_player(
+pub(crate) fn spawn_player_system(
     mut commands: Commands,
-    background_query: Query<Entity, With<Background>>,
-    texture_asset_map: Res<TextureAssetMap<GeneralTexture>>,
-    background_asset_map: Res<TextureAssetMap<BackgroundTexture>>,
+    asset_server: Res<AssetServer>,
     win_bounds: Res<GfxBounds>,
     settings: Res<Settings>,
 ) {
     let mut rng = rand::thread_rng();
-    spawn_background(
-        &background_asset_map,
-        &background_query,
-        &win_bounds,
-        &mut commands,
-        &settings,
-    );
 
     let player_position = Vec3::new(
         rng.gen_range(-win_bounds.width() / 2.0..win_bounds.width() / 2.0),
@@ -95,23 +95,22 @@ pub(crate) fn spawn_player(
         settings.player.zpos,
     );
 
-    let spaceship_texture = texture_asset_map
-        .get(GeneralTexture::Spaceship)
-        .expect("no texture for spaceship");
-    let texture_size = spaceship_texture.size;
-    let player_material = spaceship_texture.texture.clone();
-    let player_scale = settings.player.size / texture_size.max_element() as f32;
-    let player_size = Vec2::new(texture_size.x as f32, texture_size.y as f32) * player_scale;
+    let spaceship_texture = asset_server.load(SpriteAsset::GfxSpaceship);
     let random_rotation = Quat::from_rotation_z(rng.gen_range(0.0..(2. * PI)));
     let player_velocity = random_rotation.mul_vec3(Vec3::Y).truncate() * 1.;
+    let player_size = Vec2::new(settings.player.size.width, settings.player.size.height);
 
     let player_id: Entity = commands
         .spawn_bundle(SpriteBundle {
-            texture: player_material.clone(),
+            texture: spaceship_texture.clone(),
             transform: Transform {
                 translation: player_position,
                 rotation: random_rotation,
-                scale: Vec2::splat(player_scale).extend(1.),
+                ..Default::default()
+            },
+            sprite: Sprite {
+                custom_size: Some(player_size),
+                ..Default::default()
             },
             ..SpriteBundle::default()
         })
@@ -128,8 +127,7 @@ pub(crate) fn spawn_player(
     spawn_display_shadows(
         player_id,
         player_size,
-        player_scale,
-        player_material,
+        spaceship_texture,
         &Some(|mut cmds: EntityCommands| {
             cmds.insert(Player);
         }),
@@ -140,18 +138,18 @@ pub(crate) fn spawn_player(
     log::info!(player=?player_id, "player spawned");
 }
 
-pub(crate) fn stop_thruster_sounds(mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>) {
-    sfx_event.send(StopSfx::new(SoundEffect::Thruster).into());
+pub(crate) fn stop_thruster_sound_system(mut sfx_event: EventWriter<SfxCmdEvent<SoundAsset>>) {
+    sfx_event.send(StopSfx::new(SoundAsset::Thruster).into());
 }
 
-pub(crate) fn player_controls(
+pub(crate) fn player_controls_system(
     commands: Commands,
     kb: Res<Input<KeyCode>>,
-    sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
+    sfx_event: EventWriter<SfxCmdEvent<SoundAsset>>,
     fire_laser_event: EventWriter<FireLaserEvent>,
     mut player_query: Query<(Entity, &mut Velocity, &mut Transform), With<Player>>,
+    asset_server: Res<AssetServer>,
     flame_query: Query<Entity, With<Flame>>,
-    texture_asset_map: Res<TextureAssetMap<GeneralTexture>>,
     time: Res<Time>,
     settings: Res<Settings>,
     bounds: Res<GfxBounds>,
@@ -167,12 +165,12 @@ pub(crate) fn player_controls(
         &kb,
         player,
         &mut player_velocity,
+        &asset_server,
         &player_transform,
         sfx_event,
         &time,
         commands,
         flame_query,
-        &texture_asset_map,
         &bounds,
         &settings,
     );
@@ -182,12 +180,12 @@ fn accelleration(
     kb: &Input<KeyCode>,
     player: Entity,
     player_velocity: &mut Velocity,
+    asset_server: &AssetServer,
     player_transform: &Transform,
-    mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
+    mut sfx_event: EventWriter<SfxCmdEvent<SoundAsset>>,
     time: &Time,
     mut commands: Commands,
     flame_query: Query<Entity, With<Flame>>,
-    texture_asset_map: &TextureAssetMap<GeneralTexture>,
     bounds: &GfxBounds,
     settings: &Settings,
 ) {
@@ -208,14 +206,14 @@ fn accelleration(
         if keycodes.accellerate.iter().any(|&c| kb.just_pressed(c)) {
             log::trace!("accellerate on");
             sfx_event.send(
-                LoopSfx::new(SoundEffect::Thruster)
+                LoopSfx::new(SoundAsset::Thruster)
                     .with_panning(panning)
                     .into(),
             );
-            let flame = spawn_flame(&mut commands, texture_asset_map, player_transform, settings);
+            let flame = spawn_flame(&mut commands, player_transform, asset_server, settings);
             commands.entity(player).push_children(&[flame]);
         } else {
-            sfx_event.send(SetPanSfx::new(SoundEffect::Thruster, panning).into());
+            sfx_event.send(SetPanSfx::new(SoundAsset::Thruster, panning).into());
         }
     } else {
         // decellerate
@@ -227,7 +225,7 @@ fn accelleration(
         *player_velocity = velocity.into();
         if keycodes.accellerate.iter().any(|&c| kb.just_released(c)) {
             log::trace!("accellerate off");
-            sfx_event.send(StopSfx::new(SoundEffect::Thruster).into());
+            sfx_event.send(StopSfx::new(SoundAsset::Thruster).into());
             for flame in flame_query.iter() {
                 commands.entity(flame).despawn();
             }
@@ -275,23 +273,23 @@ fn turn_player(
 
 fn spawn_flame(
     commands: &mut Commands,
-    textures: &TextureAssetMap<GeneralTexture>,
     player_transform: &Transform,
+    asset_server: &AssetServer,
     settings: &Settings,
 ) -> Entity {
-    let texture = textures
-        .get(GeneralTexture::Flame)
-        .expect("no flame texture");
-    let flame_width = texture.size.x as f32;
-    let scale = settings.player.flame_width / flame_width;
+    let texture = asset_server.load(SpriteAsset::GfxFlame);
     let flame = commands
         .spawn_bundle(SpriteBundle {
-            texture: texture.texture.clone(),
+            texture,
             transform: Transform {
                 translation: Vec3::new(0., settings.player.flame_ypos, -1.0)
                     / player_transform.scale,
                 rotation: Quat::default(),
-                scale: Vec2::splat(scale / player_transform.scale.x).extend(1.),
+                ..Default::default()
+            },
+            sprite: Sprite {
+                custom_size: Some(settings.player.flame_size.into()),
+                ..Default::default()
             },
             ..SpriteBundle::default()
         })

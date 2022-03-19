@@ -1,8 +1,9 @@
 use bevy::{ecs::system::EntityCommands, log, prelude::*};
-use bevy_asset_map::GfxBounds;
 use derive_more::{Add, Deref, DerefMut, From, Into, Sub};
 use enum_iterator::IntoEnumIterator;
 use parry2d::bounding_volume::BoundingVolume;
+
+use crate::bounds::GfxBounds;
 
 #[derive(Debug, Copy, Clone, Deref, DerefMut, Add, Sub, From, Into, Component)]
 pub struct Velocity(pub Vec2);
@@ -42,7 +43,6 @@ pub struct ExitWindowEvent(Entity);
 pub fn spawn_display_shadows(
     controller: Entity,
     controller_size: Vec2,
-    controller_scale: f32,
     controller_image: Handle<Image>,
     component_inserter: &Option<impl Fn(EntityCommands)>,
     window_bounds: &GfxBounds,
@@ -54,8 +54,11 @@ pub fn spawn_display_shadows(
                 texture: controller_image.clone(),
                 transform: Transform {
                     translation: window_bounds.size().extend(0.),
-                    scale: Vec2::splat(controller_scale).extend(1.),
                     ..Transform::default()
+                },
+                sprite: Sprite {
+                    custom_size: Some(controller_size),
+                    ..Default::default()
                 },
                 ..SpriteBundle::default()
             })
@@ -76,7 +79,7 @@ pub fn spawn_display_shadows(
     }
 }
 
-pub fn wrapping_linear_movement(
+pub fn wrapping_linear_movement_system(
     mut query: Query<
         (&mut Transform, &mut GfxBounds, &Velocity),
         (Without<ShadowOf>, Without<NonWrapping>),
@@ -107,7 +110,7 @@ pub fn wrapping_linear_movement(
     }
 }
 
-pub fn non_wrapping_linear_movement(
+pub fn non_wrapping_linear_movement_system(
     mut query: Query<
         (Entity, &mut Transform, &mut GfxBounds, &Velocity),
         (Without<ShadowOf>, With<NonWrapping>),
@@ -140,7 +143,7 @@ pub fn non_wrapping_linear_movement(
     }
 }
 
-pub fn move_shadow(
+pub fn move_shadow_system(
     mut commands: Commands,
     mut shadows: Query<(Entity, &mut Transform, &mut GfxBounds, &ShadowOf)>,
     controllers: Query<(Entity, &Transform), (With<ShadowController>, Without<ShadowOf>)>,

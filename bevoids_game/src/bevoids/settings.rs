@@ -1,5 +1,13 @@
-use bevy::prelude::KeyCode;
+use bevy::{math::Vec2, prelude::KeyCode};
 use serde_derive::{Deserialize, Serialize};
+use serde_with::{serde_as, DurationSecondsWithFrac};
+use std::time::Duration;
+
+#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, PartialOrd)]
+pub struct Size {
+    pub width: f32,
+    pub height: f32,
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct Settings {
@@ -12,10 +20,12 @@ pub struct Settings {
     pub keycodes: KeyCodes,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize)]
 pub struct General {
     pub animation_fps: f32,
-    pub background_fade_seconds: f32,
+    #[serde_as(as = "DurationSecondsWithFrac<f64>")]
+    pub background_fade: Duration,
     pub asteroids_in_start_menu: usize,
     pub highscores_capacity: u8,
 }
@@ -29,19 +39,8 @@ pub struct KeyCodes {
     pub fire: Vec<KeyCode>,
 }
 
-impl Default for KeyCodes {
-    fn default() -> Self {
-        Self {
-            turn_left: vec![KeyCode::Left, KeyCode::A],
-            turn_right: vec![KeyCode::Right, KeyCode::D],
-            modifier: vec![KeyCode::RControl, KeyCode::LControl],
-            accellerate: vec![KeyCode::Up, KeyCode::W],
-            fire: vec![KeyCode::Space],
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize)]
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Asteroid {
     pub max_score: f32,
     pub size_max: f32,
@@ -50,9 +49,12 @@ pub struct Asteroid {
     pub speed_min: f32,
     pub zpos_min: f32,
     pub zpos_max: f32,
-    pub spawndelay_seconds: f32,
-    pub spawndelay_initial_seconds: f32,
-    pub spawndelay_min_seconds: f32,
+    #[serde_as(as = "DurationSecondsWithFrac<f64>")]
+    pub spawndelay: Duration,
+    #[serde_as(as = "DurationSecondsWithFrac<f64>")]
+    pub spawndelay_initial: Duration,
+    #[serde_as(as = "DurationSecondsWithFrac<f64>")]
+    pub spawndelay_min: Duration,
     pub spawndelay_multiplier: f32,
     pub spawn_player_distance: f32,
     pub split_number: u32,
@@ -67,7 +69,7 @@ pub struct Window {
 
 #[derive(Serialize, Deserialize)]
 pub struct Player {
-    pub size: f32,
+    pub size: Size,
     pub zpos: f32,
     pub gun_ypos: f32,
     pub accelleration: f32,
@@ -75,16 +77,19 @@ pub struct Player {
     pub turn_speed_slow: f32,
     pub turn_speed_fast: f32,
     pub max_speed: f32,
-    pub flame_width: f32,
+    pub flame_size: Size,
     pub flame_ypos: f32,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize)]
 pub struct Laser {
-    pub size: f32,
+    pub size: Size,
     pub speed: f32,
-    pub lifetime_miliseconds: u64,
-    pub fadeout_miliseconds: u64,
+    #[serde_as(as = "DurationSecondsWithFrac<f64>")]
+    pub lifetime: Duration,
+    #[serde_as(as = "DurationSecondsWithFrac<f64>")]
+    pub fadeout: Duration,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -93,4 +98,22 @@ pub struct Volume {
     pub thruster: f32,
     pub ship_explosion: f32,
     pub asteroid_explosion: f32,
+}
+
+impl From<Size> for Vec2 {
+    fn from(size: Size) -> Self {
+        Vec2::new(size.width, size.height)
+    }
+}
+
+impl Default for KeyCodes {
+    fn default() -> Self {
+        Self {
+            turn_left: vec![KeyCode::Left, KeyCode::A],
+            turn_right: vec![KeyCode::Right, KeyCode::D],
+            modifier: vec![KeyCode::RControl, KeyCode::LControl],
+            accellerate: vec![KeyCode::Up, KeyCode::W],
+            fire: vec![KeyCode::Space],
+        }
+    }
 }

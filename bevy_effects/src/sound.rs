@@ -1,18 +1,48 @@
-use std::marker::PhantomData;
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    marker::PhantomData,
+};
 
-use bevy::prelude::*;
-use bevy_asset_map::{AudioAssetMap, AudioAssetMapPlugin};
-use bevy_kira_audio::{Audio, AudioChannel};
-use itertools::*;
+use bevy::{
+    asset::{AssetPath, AssetPathId},
+    prelude::*,
+    utils::HashMap,
+};
+use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin, AudioSource};
 
-#[derive(Debug, Clone)]
+/// Plugin for playing SoundEffects by sending events.
+///
+/// `KEY` must be an enumeration type identifying the usable sounds.
+/// Each sound will be played in its own channel, so overlapping sounds
+/// are fully supported.
 pub struct SoundEffectsPlugin<KEY> {
     _marker: PhantomData<KEY>,
 }
 
+/// Enumeration of events that may be sent to control SoundEffects.
+#[derive(Debug)]
+pub enum SfxCmdEvent<KEY> {
+    Play(PlaySfx<KEY>),
+    Loop(LoopSfx<KEY>),
+    Stop(StopSfx<KEY>),
+    SetPan(SetPanSfx<KEY>),
+    SetVol(SetVolSfx<KEY>),
+}
+
+#[derive(Debug)]
+pub struct SoundEffectSetting {
+    channel: AudioChannel,
+    pub panning: f32,
+    pub volume: f32,
+}
+
+#[derive(Debug, Default)]
+pub struct SoundEffectSettings(HashMap<AssetPathId, SoundEffectSetting>);
+
 impl<KEY> Default for SoundEffectsPlugin<KEY>
 where
-    KEY: 'static + core::fmt::Debug + Send + Sync,
+    KEY: 'static + Send + Sync + Clone + Into<AssetPath<'static>>,
 {
     fn default() -> Self {
         Self {
@@ -23,61 +53,44 @@ where
 
 impl<KEY> Plugin for SoundEffectsPlugin<KEY>
 where
-    KEY: 'static + core::fmt::Debug + Clone + Eq + core::hash::Hash + Send + Sync + ToString,
+    KEY: 'static + Send + Sync + Clone + Into<AssetPath<'static>>,
 {
     fn build(&self, app: &mut App) {
-        app.add_plugin(AudioAssetMapPlugin::<KEY>::default())
-            .add_event::<SfxCmdEvent<KEY>>()
-            .add_system_set(SystemSet::new().with_system(play_sound_effect_on_event::<KEY>));
+        app.add_event::<SfxCmdEvent<KEY>>()
+            .add_plugin(AudioPlugin)
+            .add_system_set(SystemSet::new().with_system(play_sound_effect_on_event_system::<KEY>));
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum SfxCmdEvent<KEY> {
-    Play(PlaySfx<KEY>),
-    Loop(LoopSfx<KEY>),
-    Stop(StopSfx<KEY>),
-    Pan(SetPanSfx<KEY>),
-    Vol(SetVolSfx<KEY>),
+macro_rules! impl_evt_from {
+    ($struct:ident, $enum:ident) => {
+        impl<KEY> From<$struct<KEY>> for SfxCmdEvent<KEY>
+        where
+            KEY: 'static + Send + Sync + Clone + Into<AssetPath<'static>>,
+        {
+            fn from(x: $struct<KEY>) -> Self {
+                SfxCmdEvent::$enum(x)
+            }
+        }
+    };
 }
 
-impl<KEY> From<PlaySfx<KEY>> for SfxCmdEvent<KEY> {
-    fn from(x: PlaySfx<KEY>) -> Self {
-        SfxCmdEvent::Play(x)
-    }
-}
+impl_evt_from!(PlaySfx, Play);
+impl_evt_from!(LoopSfx, Loop);
+impl_evt_from!(StopSfx, Stop);
+impl_evt_from!(SetPanSfx, SetPan);
+impl_evt_from!(SetVolSfx, SetVol);
 
-impl<KEY> From<LoopSfx<KEY>> for SfxCmdEvent<KEY> {
-    fn from(x: LoopSfx<KEY>) -> Self {
-        SfxCmdEvent::Loop(x)
-    }
-}
-
-impl<KEY> From<StopSfx<KEY>> for SfxCmdEvent<KEY> {
-    fn from(x: StopSfx<KEY>) -> Self {
-        SfxCmdEvent::Stop(x)
-    }
-}
-
-impl<KEY> From<SetPanSfx<KEY>> for SfxCmdEvent<KEY> {
-    fn from(x: SetPanSfx<KEY>) -> Self {
-        SfxCmdEvent::Pan(x)
-    }
-}
-
-impl<KEY> From<SetVolSfx<KEY>> for SfxCmdEvent<KEY> {
-    fn from(x: SetVolSfx<KEY>) -> Self {
-        SfxCmdEvent::Vol(x)
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PlaySfx<KEY> {
     key: KEY,
     panning: Option<f32>,
     volume: Option<f32>,
 }
-impl<KEY> PlaySfx<KEY> {
+impl<KEY> PlaySfx<KEY>
+where
+    KEY: 'static + Send + Sync + Clone + Into<AssetPath<'static>>,
+{
     #[allow(dead_code)]
     pub fn new(key: KEY) -> Self {
         Self {
@@ -86,27 +99,47 @@ impl<KEY> PlaySfx<KEY> {
             panning: None,
         }
     }
+
     #[allow(dead_code)]
     #[must_use]
     pub fn with_volume(mut self, volume: f32) -> Self {
         self.volume = Some(volume.clamp(0., 1.));
         self
     }
+
     #[allow(dead_code)]
     #[must_use]
     pub fn with_panning(mut self, panning: f32) -> Self {
         self.panning = Some(panning.clamp(0., 1.));
         self
     }
+
+    fn execute(
+        &self,
+        asset_server: &AssetServer,
+        settings: &mut SoundEffectSettings,
+        audio: &Audio,
+    ) {
+        let asset_path_id = self.key.clone().into().get_id();
+        let settings = settings.get_mut_or_insert(asset_path_id);
+        set_volume_and_panning(&self.volume, &self.panning, audio, settings);
+        audio.play_in_channel(
+            asset_server.load::<AudioSource, KEY>(self.key.clone()),
+            &settings.channel,
+        );
+    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct LoopSfx<KEY> {
     key: KEY,
     panning: Option<f32>,
     volume: Option<f32>,
 }
-impl<KEY> LoopSfx<KEY> {
+impl<KEY> LoopSfx<KEY>
+where
+    KEY: 'static + Send + Sync + Clone + Into<AssetPath<'static>>,
+{
     #[allow(dead_code)]
     #[must_use]
     pub fn new(key: KEY) -> Self {
@@ -116,37 +149,66 @@ impl<KEY> LoopSfx<KEY> {
             panning: None,
         }
     }
+
     #[allow(dead_code)]
     #[must_use]
     pub fn with_volume(mut self, volume: f32) -> Self {
         self.volume = Some(volume.clamp(0., 1.));
         self
     }
+
     #[allow(dead_code)]
     #[must_use]
     pub fn with_panning(mut self, panning: f32) -> Self {
         self.panning = Some(panning.clamp(0., 1.));
         self
     }
+
+    fn execute(
+        &self,
+        asset_server: &AssetServer,
+        settings: &mut SoundEffectSettings,
+        audio: &Audio,
+    ) {
+        let asset_path_id = self.key.clone().into().get_id();
+        let settings = settings.get_mut_or_insert(asset_path_id);
+        set_volume_and_panning(&self.volume, &self.panning, audio, settings);
+        audio.play_looped_in_channel(
+            asset_server.load::<AudioSource, KEY>(self.key.clone()),
+            &settings.channel,
+        );
+    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct StopSfx<KEY> {
     key: KEY,
 }
-impl<KEY> StopSfx<KEY> {
+impl<KEY> StopSfx<KEY>
+where
+    KEY: 'static + Send + Sync + Clone + Into<AssetPath<'static>>,
+{
     #[allow(dead_code)]
     pub fn new(key: KEY) -> Self {
         Self { key }
     }
+
+    fn execute(&self, settings: &mut SoundEffectSettings, audio: &Audio) {
+        let asset_path_id = self.key.clone().into().get_id();
+        let settings = settings.get_mut_or_insert(asset_path_id);
+        audio.stop_channel(&settings.channel);
+    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SetPanSfx<KEY> {
     key: KEY,
     panning: f32,
 }
-impl<KEY> SetPanSfx<KEY> {
+impl<KEY> SetPanSfx<KEY>
+where
+    KEY: 'static + Send + Sync + Clone + Into<AssetPath<'static>>,
+{
     #[allow(dead_code)]
     pub fn new(key: KEY, panning: f32) -> Self {
         Self {
@@ -154,14 +216,24 @@ impl<KEY> SetPanSfx<KEY> {
             panning: panning.clamp(0., 1.),
         }
     }
+
+    fn execute(&self, settings: &mut SoundEffectSettings, audio: &Audio) {
+        let asset_path_id = self.key.clone().into().get_id();
+        let settings = settings.get_mut_or_insert(asset_path_id);
+        settings.panning = self.panning;
+        audio.set_panning_in_channel(self.panning, &settings.channel);
+    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SetVolSfx<KEY> {
     key: KEY,
     volume: f32,
 }
-impl<KEY> SetVolSfx<KEY> {
+impl<KEY> SetVolSfx<KEY>
+where
+    KEY: 'static + Send + Sync + Clone + Into<AssetPath<'static>>,
+{
     #[allow(dead_code)]
     pub fn new(key: KEY, volume: f32) -> Self {
         Self {
@@ -169,134 +241,51 @@ impl<KEY> SetVolSfx<KEY> {
             volume: volume.clamp(0., 1.),
         }
     }
-}
 
-pub fn set_audio_channel_defaults<KEY, IV: AsRef<[(KEY, f32)]>, IP: AsRef<[(KEY, f32)]>>(
-    volume: Option<IV>,
-    panning: Option<IP>,
-    audio: &Audio,
-    commands: &mut Commands,
-) where
-    KEY: 'static + Clone + Eq + core::hash::Hash + Send + Sync + ToString,
-{
-    let resource = SoundEffectChannels(
-        volume
-            .iter()
-            .flat_map(|volume| volume.as_ref().iter().map(|(key, _)| key.clone()))
-            .chain(
-                panning
-                    .iter()
-                    .flat_map(|panning| panning.as_ref().iter().map(|(key, _)| key.clone())),
-            )
-            .unique()
-            .map(|key| {
-                (
-                    key.clone(),
-                    SoundEffectSetting {
-                        channel: AudioChannel::new(key.to_string()),
-                        default_volume: volume
-                            .iter()
-                            .flat_map(|v| v.as_ref())
-                            .find(|(k, _)| *k == key)
-                            .map_or(1.0, |(_, v)| *v),
-                        default_panning: panning
-                            .iter()
-                            .flat_map(|p| p.as_ref())
-                            .find(|(k, _)| *k == key)
-                            .map_or(0.5, |(_, v)| *v),
-                    },
-                )
-            })
-            .collect(),
-    );
-    for (_, setting) in resource.0.iter() {
-        audio.set_volume_in_channel(setting.default_volume, &setting.channel);
-        audio.set_panning_in_channel(setting.default_panning, &setting.channel);
+    fn execute(&self, settings: &mut SoundEffectSettings, audio: &Audio) {
+        let asset_path_id = self.key.clone().into().get_id();
+        let settings = settings.get_mut_or_insert(asset_path_id);
+        settings.volume = self.volume;
+        audio.set_volume_in_channel(self.volume, &settings.channel);
     }
-    commands.insert_resource(resource);
 }
 
-#[derive(Debug, Clone)]
-struct SoundEffectSetting {
-    channel: AudioChannel,
-    default_panning: f32,
-    default_volume: f32,
+impl SoundEffectSettings {
+    pub fn get_mut_or_insert(&mut self, asset_path_id: AssetPathId) -> &mut SoundEffectSetting {
+        let asset_path_id_hash = {
+            let mut hasher = DefaultHasher::new();
+            asset_path_id.hash(&mut hasher);
+            hasher.finish()
+        };
+        let settings = self
+            .0
+            .entry(asset_path_id)
+            .or_insert_with(|| SoundEffectSetting {
+                channel: AudioChannel::new(asset_path_id_hash.to_string()),
+                volume: 1.0,
+                panning: 0.5,
+            });
+        settings
+    }
 }
 
-pub struct SoundEffectChannels<KEY>(Vec<(KEY, SoundEffectSetting)>);
-
-pub fn play_sound_effect_on_event<KEY>(
-    mut cmd_events: EventReader<SfxCmdEvent<KEY>>,
-    mut channels: ResMut<SoundEffectChannels<KEY>>,
-    audio_asset_map: Res<AudioAssetMap<KEY>>,
+pub fn play_sound_effect_on_event_system<KEY>(
+    mut events: EventReader<SfxCmdEvent<KEY>>,
+    mut settings: ResMut<SoundEffectSettings>,
+    asset_server: ResMut<AssetServer>,
     audio: Res<Audio>,
 ) where
-    KEY: 'static + Clone + Eq + Send + Sync + ToString,
+    KEY: 'static + Send + Sync + Clone + Into<AssetPath<'static>>,
 {
-    for cmd in cmd_events.iter() {
+    for cmd in events.iter() {
         match cmd {
-            SfxCmdEvent::Play(PlaySfx {
-                key,
-                volume,
-                panning,
-            }) => {
-                execute_sfx(key, &mut channels, |setting| {
-                    set_volume_and_panning(volume, panning, &audio, setting);
-                    audio.play_in_channel(
-                        audio_asset_map.get(key).expect("missing sound"),
-                        &setting.channel,
-                    );
-                });
-            }
-            SfxCmdEvent::Loop(LoopSfx {
-                key,
-                volume,
-                panning,
-            }) => {
-                execute_sfx(key, &mut channels, |setting| {
-                    set_volume_and_panning(volume, panning, &audio, setting);
-                    audio.play_looped_in_channel(
-                        audio_asset_map.get(key).expect("missing sound"),
-                        &setting.channel,
-                    );
-                });
-            }
-            SfxCmdEvent::Stop(StopSfx { key }) => {
-                execute_sfx(key, &mut channels, |setting| {
-                    audio.stop_channel(&setting.channel);
-                });
-            }
-            SfxCmdEvent::Pan(SetPanSfx { key, panning }) => {
-                execute_sfx(key, &mut channels, |setting| {
-                    set_volume_and_panning(&None, &Some(*panning), &audio, setting);
-                });
-            }
-            SfxCmdEvent::Vol(SetVolSfx { key, volume }) => {
-                execute_sfx(key, &mut channels, |setting| {
-                    set_volume_and_panning(&Some(*volume), &None, &audio, setting);
-                });
-            }
+            SfxCmdEvent::Play(evt) => evt.execute(&asset_server, &mut settings, &audio),
+            SfxCmdEvent::Loop(evt) => evt.execute(&asset_server, &mut settings, &audio),
+            SfxCmdEvent::Stop(evt) => evt.execute(&mut settings, &audio),
+            SfxCmdEvent::SetPan(evt) => evt.execute(&mut settings, &audio),
+            SfxCmdEvent::SetVol(evt) => evt.execute(&mut settings, &audio),
         }
     }
-}
-
-fn execute_sfx<KEY, T>(key: &KEY, channels: &mut SoundEffectChannels<KEY>, x: T)
-where
-    T: FnOnce(&SoundEffectSetting),
-    KEY: 'static + Clone + Eq + Send + Sync + ToString,
-{
-    let setting = channels.0.iter().find(|(k, _)| *key == *k).map(|(_, s)| s);
-    if let Some(setting) = setting {
-        x(setting);
-    } else {
-        let setting = SoundEffectSetting {
-            channel: AudioChannel::new(key.to_string()),
-            default_panning: 0.5,
-            default_volume: 1.0,
-        };
-        x(&setting);
-        channels.0.push((key.clone(), setting));
-    };
 }
 
 fn set_volume_and_panning(
@@ -309,7 +298,7 @@ fn set_volume_and_panning(
         if let Some(volume) = volume {
             *volume
         } else {
-            setting.default_volume
+            setting.volume
         },
         &setting.channel,
     );
@@ -318,7 +307,7 @@ fn set_volume_and_panning(
         if let Some(panning) = panning {
             *panning
         } else {
-            setting.default_panning
+            setting.panning
         },
         &setting.channel,
     );

@@ -6,7 +6,7 @@ use bevy_egui::{
 
 use crate::bevoids::GameState;
 
-pub(crate) fn display_main_menu(
+pub(crate) fn display_main_menu_system(
     mut egui_context: ResMut<EguiContext>,
     mut state: ResMut<State<GameState>>,
     mut exit: EventWriter<AppExit>,

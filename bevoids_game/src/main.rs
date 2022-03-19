@@ -1,14 +1,16 @@
 #![allow(clippy::complexity)]
 
-use bevoids_assets::BevoidsAssetsIo;
+use bevoids_assets::{SpriteAssetIo, AsteroidAssetIo, BackgroundAssetIo, SoundAssetIo};
 use bevy::{
     log,
     prelude::*,
     render::camera::{DepthCalculation, OrthographicProjection, ScalingMode},
 };
+use bevy_effects::{animation::TextureAtlasMap, sound::SoundEffectSettings};
 use bevy_embasset::*;
 
 mod bevoids;
+mod bounds;
 
 use crate::bevoids::Bevoids;
 
@@ -21,6 +23,8 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa { samples: 4 })
+        .init_resource::<TextureAtlasMap>() // TODO: auto add if not added by user
+        .init_resource::<SoundEffectSettings>() // TODO: auto add if not added by user
         .insert_resource(WindowDescriptor {
             vsync: true,
             resizable: false,
@@ -32,7 +36,10 @@ fn main() {
         .insert_resource(settings)
         //
         .add_embasset_plugin(|io| {
-            io.add_handler(BevoidsAssetsIo::new().into());
+            io.add_handler(SpriteAssetIo::new().into());
+            io.add_handler(AsteroidAssetIo::new().into());
+            io.add_handler(BackgroundAssetIo::new().into());
+            io.add_handler(SoundAssetIo::new().into());
         })
         .add_startup_system(initialize_camera.system())
         //

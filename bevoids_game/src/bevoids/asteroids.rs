@@ -1,22 +1,25 @@
+use bevoids_assets::{AsteroidAsset, SoundAsset, SpriteAsset};
 use bevy::{ecs::system::EntityCommands, log, prelude::*};
-use bevy_asset_map::{GfxBounds, TextureAssetMap};
 use bevy_effects::{
-    animation::AnimationEffectEvent,
+    animation::{SpawnSpriteAnimation, SpriteAnimation, TextureAtlasMap},
     despawn::Despawn,
     sound::{PlaySfx, SfxCmdEvent},
 };
+use bevy_embasset::EnumCount;
 use derive_more::{Constructor, Deref};
 use itertools::Itertools;
 use rand::Rng;
 use std::{f32::consts::PI, time::Duration};
 
-use crate::bevoids::highscore::{AddScoreEvent, Score};
+use crate::{
+    bevoids::highscore::{AddScoreEvent, Score},
+    bounds::GfxBounds,
+};
 
 use super::{
     movement::{spawn_display_shadows, InsideWindow, ShadowController, ShadowOf, Velocity},
     player::Player,
     settings::Settings,
-    AnimationAtlas, AsteroidTexture, SoundEffect,
 };
 
 /// Remove an asteroid  - no points
@@ -55,9 +58,9 @@ pub(crate) struct AsteroidsSpawner {
     paused: bool,
 }
 
-pub(crate) fn spawn_asteroid_spawner(mut commands: Commands, settings: Res<Settings>) {
+pub(crate) fn spawn_asteroid_spawner_system(mut commands: Commands, settings: Res<Settings>) {
     // start spawning new asteroid entities
-    let delay = Duration::from_secs_f32(settings.asteroid.spawndelay_initial_seconds);
+    let delay = settings.asteroid.spawndelay_initial;
     commands.spawn().insert(AsteroidsSpawner {
         delay,
         timer: Timer::new(delay, false),
@@ -65,7 +68,7 @@ pub(crate) fn spawn_asteroid_spawner(mut commands: Commands, settings: Res<Setti
     });
 }
 
-pub(crate) fn asteroid_spawner(
+pub(crate) fn asteroid_spawner_system(
     mut spawner_query: Query<&mut AsteroidsSpawner>,
     mut spawn_event: EventWriter<SpawnAsteroidEvent>,
     asteroids_query: Query<&Asteroid>,
@@ -81,7 +84,7 @@ pub(crate) fn asteroid_spawner(
     ) {
         (true, false, _) => {
             // reset timer with a short timeout to NOT spawn asteroid because player crashed!
-            let delay = Duration::from_secs_f32(settings.asteroid.spawndelay_seconds);
+            let delay = settings.asteroid.spawndelay;
             spawner_data.timer.set_duration(delay);
             spawner_data.timer.reset();
             spawner_data.paused = true;
@@ -107,8 +110,8 @@ pub(crate) fn asteroid_spawner(
             // start timer again, new timeout
             let delay = Duration::from_secs_f32(
                 (spawner_data.delay.as_secs_f32() * settings.asteroid.spawndelay_multiplier).clamp(
-                    settings.asteroid.spawndelay_min_seconds,
-                    settings.asteroid.spawndelay_initial_seconds,
+                    settings.asteroid.spawndelay_min.as_secs_f32(),
+                    settings.asteroid.spawndelay_initial.as_secs_f32(),
                 ),
             );
             spawner_data.timer.set_duration(delay);
@@ -126,7 +129,7 @@ pub(crate) fn asteroid_spawner(
     };
 }
 
-pub(crate) fn handle_shot_asteroids(
+pub(crate) fn shot_asteroid_system(
     mut shot_events: EventReader<AsteroidShotEvent>,
     mut spawn_event: EventWriter<SpawnAsteroidEvent>,
     mut remove_event: EventWriter<AsteroidExplosionEvent>,
@@ -180,7 +183,7 @@ pub(crate) fn handle_shot_asteroids(
     }
 }
 
-pub(crate) fn despawn_asteroid_spawner(
+pub(crate) fn despawn_asteroid_spawner_system(
     mut commands: Commands,
     spawner_query: Query<Entity, With<AsteroidsSpawner>>,
 ) {
@@ -192,11 +195,11 @@ pub(crate) fn despawn_asteroid_spawner(
         .for_each(|e| commands.entity(e).despawn_recursive());
 }
 
-pub(crate) fn handle_spawn_asteroid(
+pub(crate) fn spawn_asteroid_event_system(
     mut spawn_asteroid_events: EventReader<SpawnAsteroidEvent>,
     mut commands: Commands,
     mut counter: Option<ResMut<AsteroidCounter>>,
-    textures: Res<TextureAssetMap<AsteroidTexture>>,
+    asset_server: Res<AssetServer>,
     player_tf_query: Query<&Transform, (With<Player>, With<ShadowController>)>,
     window_bounds: Res<GfxBounds>,
     settings: Res<Settings>,
@@ -214,23 +217,11 @@ pub(crate) fn handle_spawn_asteroid(
         let mut rng = rand::thread_rng();
 
         let position = position.unwrap_or_else(|| {
-            loop {
-                let position = {
-                    let (w, h) = (window_bounds.width() / 2.0, window_bounds.height() / 2.0);
-                    Vec2::new(rng.gen_range(-w..w), rng.gen_range(-h..h))
-                };
-                if let Some(player_tf) = player_tf {
-                    if position
-                        .extend(player_tf.translation.z)
-                        .distance(player_tf.translation)
-                        > settings.asteroid.spawn_player_distance
-                    {
-                        break position;
-                    }
-                } else {
-                    break position;
-                }
-            }
+            random_2d_position_no_closer_than(
+                player_tf,
+                settings.asteroid.spawn_player_distance,
+                &window_bounds,
+            )
             .extend(rng.gen_range(settings.asteroid.zpos_min..settings.asteroid.zpos_max))
         });
         let velocity = {
@@ -242,27 +233,29 @@ pub(crate) fn handle_spawn_asteroid(
                 .truncate()
                 * random_speed
         };
-        let asset_info = textures
-            .get(AsteroidTexture(rng.gen_range(0..textures.len())))
-            .expect("unable to get texture for asteroid");
-        let material = asset_info.texture.clone();
-        let asteroid_scale = size / asset_info.size.max_element() as f32;
-        let asteroid_size =
-            Vec2::new(asset_info.size.x as f32, asset_info.size.y as f32) * asteroid_scale;
 
+        let texture = asset_server.load(
+            AsteroidAsset::iter()
+                .nth(rng.gen_range(0..(AsteroidAsset::COUNT - 1)))
+                .unwrap(),
+        );
+        let custom_size = Vec2::splat(*size);
         let asteroid_id = commands
             .spawn_bundle(SpriteBundle {
-                texture: material.clone(),
+                texture: texture.clone(),
                 transform: Transform {
                     translation: position,
-                    scale: Vec2::splat(asteroid_scale).extend(1.),
                     ..Transform::default()
+                },
+                sprite: Sprite {
+                    custom_size: Some(custom_size),
+                    ..Default::default()
                 },
                 ..SpriteBundle::default()
             })
             .insert(GfxBounds::from_pos_and_size(
                 position.truncate(),
-                asteroid_size,
+                custom_size,
             ))
             .insert(ShadowController)
             .insert(Velocity::from(velocity))
@@ -276,9 +269,8 @@ pub(crate) fn handle_spawn_asteroid(
 
         spawn_display_shadows(
             asteroid_id,
-            asteroid_size,
-            asteroid_scale,
-            material,
+            custom_size,
+            texture,
             &Some(|mut cmds: EntityCommands| {
                 if *is_background {
                     cmds.insert(BackgroundAsteroid);
@@ -297,11 +289,36 @@ pub(crate) fn handle_spawn_asteroid(
     }
 }
 
-pub(crate) fn handle_asteroid_explosion(
+fn random_2d_position_no_closer_than(
+    position: Option<&Transform>,
+    distance: f32,
+    window_bounds: &Res<GfxBounds>,
+) -> Vec2 {
+    let mut rng = rand::thread_rng();
+    loop {
+        let rnd_position = {
+            let (w, h) = (window_bounds.width() / 2.0, window_bounds.height() / 2.0);
+            Vec2::new(rng.gen_range(-w..w), rng.gen_range(-h..h))
+        };
+        if let Some(player_tf) = position {
+            if rnd_position
+                .extend(player_tf.translation.z)
+                .distance(player_tf.translation)
+                > distance
+            {
+                break rnd_position;
+            }
+        } else {
+            break rnd_position;
+        }
+    }
+}
+
+pub(crate) fn asteroid_explosion_system(
     mut remove_events: EventReader<AsteroidExplosionEvent>,
-    mut anim_event: EventWriter<AnimationEffectEvent<AnimationAtlas>>,
-    mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
+    mut sfx_event: EventWriter<SfxCmdEvent<SoundAsset>>,
     mut commands: Commands,
+    texture_atlas_map: Res<TextureAtlasMap>,
     transform_and_bounds_query: Query<(&Transform, &GfxBounds), With<Asteroid>>,
     shadows_query: Query<(Entity, &ShadowOf), With<Asteroid>>,
     settings: Res<Settings>,
@@ -319,6 +336,8 @@ pub(crate) fn handle_asteroid_explosion(
         )
         .unique();
 
+    let explosion_atlas = texture_atlas_map.get(SpriteAsset::GfxExplosion).unwrap();
+
     for (asteroid, asteroid_tf, asteroid_bounds) in
         asteroids.filter_map(|e| match transform_and_bounds_query.get(e) {
             Ok((t, b)) => Some((e, t, b)),
@@ -331,16 +350,20 @@ pub(crate) fn handle_asteroid_explosion(
         anim_position.z -= 1.;
 
         // display explosion
-        anim_event.send(AnimationEffectEvent {
-            key: AnimationAtlas::BigExplosion,
-            position: anim_position,
-            size: asteroid_bounds.size().max_element(),
-            fps: settings.general.animation_fps,
-        });
+        // TODO: we need to stop the anim!
+        commands.spawn_sprite_animation(
+            explosion_atlas,
+            SpriteAnimation {
+                fps: settings.general.animation_fps,
+                position: anim_position,
+                size: Some(asteroid_bounds.size()),
+                ..Default::default()
+            },
+        );
 
         // play explosion
         sfx_event.send(
-            PlaySfx::new(SoundEffect::AsteroidExplode)
+            PlaySfx::new(SoundAsset::AsteroidExplode)
                 .with_panning({
                     let (transform, _) = transform_and_bounds_query.get(asteroid).unwrap();
                     (transform.translation.x + win_bounds.width() / 2.) / win_bounds.width()

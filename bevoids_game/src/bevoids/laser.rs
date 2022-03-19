@@ -1,16 +1,17 @@
+use bevoids_assets::{SoundAsset, SpriteAsset};
 use bevy::{log, prelude::*};
-use bevy_asset_map::{GfxBounds, TextureAssetMap};
 use bevy_effects::{
     despawn::DelayedFadeDespawn,
     sound::{PlaySfx, SfxCmdEvent},
 };
-use std::{f32::consts::PI, time::Duration};
+use std::f32::consts::PI;
+
+use crate::bounds::GfxBounds;
 
 use super::{
     movement::{ShadowController, Velocity},
     player::Player,
     settings::Settings,
-    GeneralTexture, SoundEffect,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -19,12 +20,12 @@ pub(crate) struct FireLaserEvent;
 #[derive(Debug, Component)]
 pub(crate) struct Laser;
 
-pub(crate) fn handle_fire_laser(
+pub(crate) fn laser_fired_system(
     mut commands: Commands,
     mut events: EventReader<FireLaserEvent>,
-    mut sfx_event: EventWriter<SfxCmdEvent<SoundEffect>>,
+    mut sfx_event: EventWriter<SfxCmdEvent<SoundAsset>>,
     player_query: Query<(&Transform, &Velocity), (With<Player>, With<ShadowController>)>,
-    textures: Res<TextureAssetMap<GeneralTexture>>,
+    asset_server: Res<AssetServer>,
     bounds: Res<GfxBounds>,
     settings: Res<Settings>,
 ) {
@@ -38,16 +39,8 @@ pub(crate) fn handle_fire_laser(
             &Velocity(player_velocity),
         ) = player_query.iter().next().expect("missing player");
 
-        let laser_texture = textures
-            .get(GeneralTexture::Laser)
-            .expect("no texture for laser");
-        let (size, scale) = {
-            let scale = settings.laser.size / laser_texture.size.max_element() as f32;
-            (
-                Vec2::new(laser_texture.size.x as f32, laser_texture.size.y as f32) * scale,
-                scale,
-            )
-        };
+        let laser_texture = asset_server.load(SpriteAsset::GfxLaser);
+        let size = settings.laser.size.into();
 
         let position = player_position
             + player_orientation.mul_vec3(Vec3::new(0., settings.player.gun_ypos, -1.));
@@ -59,11 +52,15 @@ pub(crate) fn handle_fire_laser(
 
         let laser_id = commands
             .spawn_bundle(SpriteBundle {
-                texture: laser_texture.texture.clone(),
+                texture: laser_texture,
                 transform: Transform {
                     translation: position,
                     rotation: Quat::from_rotation_z(PI / 2.).mul_quat(player_orientation),
-                    scale: Vec2::splat(scale).extend(1.),
+                    ..Default::default()
+                },
+                sprite: Sprite {
+                    custom_size: Some(size),
+                    ..Default::default()
                 },
                 ..SpriteBundle::default()
             })
@@ -71,15 +68,14 @@ pub(crate) fn handle_fire_laser(
             .insert(Velocity::from(velocity))
             .insert(GfxBounds::from_pos_and_size(position.truncate(), size))
             .insert(DelayedFadeDespawn::new(
-                Duration::from_millis(settings.laser.lifetime_miliseconds),
-                Duration::from_millis(settings.laser.fadeout_miliseconds),
+                settings.laser.lifetime,
+                settings.laser.fadeout,
             ))
             .id();
 
-        let panning = (position.x + bounds.width() / 2.) / bounds.width();
         sfx_event.send(
-            PlaySfx::new(SoundEffect::Laser)
-                .with_panning(panning)
+            PlaySfx::new(SoundAsset::Laser)
+                .with_panning((position.x + bounds.width() / 2.) / bounds.width())
                 .into(),
         );
         log::trace!(buller=?laser_id, "spawned laser");

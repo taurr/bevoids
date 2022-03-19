@@ -6,7 +6,7 @@ use bevy_egui::{
 
 use crate::bevoids::{highscore::Score, GameState};
 
-pub(crate) fn display_paused_menu(
+pub(crate) fn display_paused_menu_system(
     mut egui_context: ResMut<EguiContext>,
     score: Res<Score>,
     mut started: Local<bool>,

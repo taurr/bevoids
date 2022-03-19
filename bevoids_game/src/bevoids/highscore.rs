@@ -201,7 +201,7 @@ mod test {
     }
 }
 
-pub(crate) fn update_score(
+pub(crate) fn update_score_system(
     mut addscore_events: EventReader<AddScoreEvent>,
     mut score: ResMut<Score>,
 ) {

@@ -8,11 +8,26 @@ use bevy::{
 };
 use std::{cell::Cell, sync::Mutex, time::Duration};
 
+pub struct DespawnPlugin {
+    run_criteria: Mutex<Cell<Option<RunCriteriaDescriptorOrLabel>>>,
+}
+
 #[derive(Component)]
 pub struct FadeIn {
     fade_duration: Duration,
     alpha_value: f32,
     after_fadein: Option<Box<dyn FnOnce(&mut EntityCommands) + Send + Sync>>,
+}
+
+/// Component used to despawn entities after [Corestage::PostUpdate].
+#[derive(Component)]
+pub struct Despawn;
+
+/// Component used to despawn entities after a specific duration.
+#[derive(Component)]
+pub struct DelayedDespawn {
+timer: Timer,
+    before_despawn: Option<Box<dyn FnOnce(&mut EntityCommands) + Send + Sync>>,
 }
 
 impl Default for FadeIn {
@@ -56,10 +71,6 @@ impl FadeIn {
     }
 }
 
-pub struct DespawnPlugin {
-    run_criteria: Mutex<Cell<Option<RunCriteriaDescriptorOrLabel>>>,
-}
-
 impl Default for DespawnPlugin {
     fn default() -> Self {
         Self::new()
@@ -85,9 +96,9 @@ impl DespawnPlugin {
 impl Plugin for DespawnPlugin {
     fn build(&self, app: &mut App) {
         let fade_set = SystemSet::new()
+            .with_system(fadein)
             .with_system(delayed_despawn)
             .with_system(delayed_fade_despawn)
-            .with_system(fadein)
             .with_system(fadeout_despawn);
         if let Some(r) = self.run_criteria.lock().unwrap().take() {
             app.add_system_set_to_stage(CoreStage::PostUpdate, fade_set.with_run_criteria(r));
@@ -97,17 +108,6 @@ impl Plugin for DespawnPlugin {
 
         app.add_system_set_to_stage(CoreStage::Last, SystemSet::new().with_system(despawn));
     }
-}
-
-/// Component used to despawn entities after [Corestage::PostUpdate].
-#[derive(Component)]
-pub struct Despawn;
-
-/// Component used to despawn entities after a specific duration.
-#[derive(Component)]
-pub struct DelayedDespawn {
-    timer: Timer,
-    before_despawn: Option<Box<dyn FnOnce(&mut EntityCommands) + Send + Sync>>,
 }
 
 /// Component added to entites that should fade to invisibility, then despawn.

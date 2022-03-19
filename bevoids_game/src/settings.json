@@ -1,25 +1,19 @@
 {
+  "window": {
+    "width": 800,
+    "height": 800
+  },
   "general": {
     "animation_fps": 60.0,
-    "background_fade_seconds": 1.0,
+    "background_fade": 1.0,
     "asteroids_in_start_menu": 20,
     "highscores_capacity": 10
   },
-  "keycodes": {
-    "turn_left": ["Left", "A"],
-    "turn_right": ["Right", "D"],
-    "modifier": ["LControl", "RControl"],
-    "accellerate": ["Up", "W"],
-    "fire": ["Space"]
-  },
-  "laser": {
-    "size": 35.0,
-    "speed": 500.0,
-    "lifetime_miliseconds": 800,
-    "fadeout_miliseconds": 250
-  },
   "player": {
-    "size": 50.0,
+    "size": {
+      "width": 28,
+      "height": 50
+    },
     "zpos": 900.0,
     "gun_ypos": 20.0,
     "accelleration": 250.0,
@@ -27,18 +21,20 @@
     "turn_speed_slow": 1.75,
     "turn_speed_fast": 4.5,
     "max_speed": 800.0,
-    "flame_width": 15.0,
-    "flame_ypos": -30.0
+    "flame_size": {
+      "width": 12.0,
+      "height": 20.0
+    },
+    "flame_ypos": -27.0
   },
-  "volume": {
-    "laser": 0.6,
-    "thruster": 0.4,
-    "ship_explosion": 1.0,
-    "asteroid_explosion": 0.8
-  },
-  "window": {
-    "width": 800,
-    "height": 800
+  "laser": {
+    "size": {
+      "width": 30,
+      "height": 15
+    },
+    "speed": 500.0,
+    "lifetime": 0.800,
+    "fadeout": 0.250
   },
   "asteroid": {
     "max_score": 100.0,
@@ -48,12 +44,25 @@
     "speed_min": 25.0,
     "zpos_min": 100.0,
     "zpos_max": 200.0,
-    "spawndelay_seconds": 0.5,
-    "spawndelay_initial_seconds": 15.0,
-    "spawndelay_min_seconds": 5.0,
+    "spawndelay": 0.5,
+    "spawndelay_initial": 15.0,
+    "spawndelay_min": 3.5,
     "spawndelay_multiplier": 0.98,
     "spawn_player_distance": 200.0,
     "split_number": 2,
     "split_size_factor": 0.66
+  },
+  "keycodes": {
+    "turn_left": ["Left", "A"],
+    "turn_right": ["Right", "D"],
+    "modifier": ["LControl", "RControl"],
+    "accellerate": ["Up", "W"],
+    "fire": ["Space"]
+  },
+  "volume": {
+    "laser": 0.6,
+    "thruster": 0.4,
+    "ship_explosion": 1.0,
+    "asteroid_explosion": 0.8
   }
 }

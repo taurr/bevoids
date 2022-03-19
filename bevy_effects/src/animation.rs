@@ -1,133 +1,128 @@
-use std::{cell::Cell, sync::Mutex};
-
 use bevy::{
-    ecs::schedule::{IntoRunCriteria, RunCriteriaDescriptorOrLabel},
+    asset::{AssetPath, AssetPathId},
+    ecs::system::EntityCommands,
     prelude::*,
+    utils::HashMap,
 };
-use bevy_asset_map::{AtlasAssetMap, AtlasAssetMapPlugin};
 
-pub struct AnimationEffectPlugin<KEY> {
-    run_criteria: Mutex<Cell<Option<RunCriteriaDescriptorOrLabel>>>,
-    _marker: core::marker::PhantomData<KEY>,
-}
-
+/// Descripe all the initial settings for an `TextureAtlasSprite`
+/// to be spawned as a Sprite animation.
 #[derive(Debug, Clone)]
-pub struct AnimationEffectEvent<KEY> {
-    pub key: KEY,
-    pub size: f32,
+pub struct SpriteAnimation {
     pub position: Vec3,
+    pub rotation: Quat,
+    pub flip_x: bool,
+    pub flip_y: bool,
     pub fps: f32,
+    pub tint: Color,
+    pub size: Option<Vec2>,
 }
 
-impl<KEY> Default for AnimationEffectPlugin<KEY>
-where
-    KEY: 'static + Clone + Eq + Send + Sync,
-{
+#[derive(Debug, Default)]
+pub struct TextureAtlasMap {
+    map: HashMap<AssetPathId, Handle<TextureAtlas>>,
+}
+
+/// Event raised whenever a `TextureAtlasSprite` animation loops around
+#[derive(Debug, Clone, Copy)]
+pub struct SpriteAnimationEvent(pub Entity);
+
+/// Plugin for handling `TextureAtlasSprite` animations
+#[derive(Debug, Default)]
+pub struct SpriteAnimationPlugin;
+
+pub trait SpawnSpriteAnimation<'w, 's> {
+    fn spawn_sprite_animation<'a>(
+        &'a mut self,
+        texture_atlas_handle: &Handle<TextureAtlas>,
+        sprite_animation: SpriteAnimation,
+    ) -> EntityCommands<'w, 's, 'a>;
+}
+
+impl Default for SpriteAnimation {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<KEY> AnimationEffectPlugin<KEY>
-where
-    KEY: 'static + Clone + Eq + Send + Sync,
-{
-    #[allow(dead_code)]
-    #[must_use]
-    pub fn new() -> Self {
         Self {
-            run_criteria: Mutex::new(Cell::new(None)),
-            _marker: Default::default(),
-        }
-    }
-
-    #[must_use]
-    pub fn with_run_criteria<Marker, T: IntoRunCriteria<Marker>>(run_criteria: T) -> Self {
-        Self {
-            run_criteria: Mutex::new(Cell::new(Some(run_criteria.into()))),
-            _marker: Default::default(),
+            position: Default::default(),
+            rotation: Default::default(),
+            flip_x: false,
+            flip_y: false,
+            fps: 30.0,
+            tint: Color::WHITE,
+            size: None,
         }
     }
 }
 
-impl<KEY> Plugin for AnimationEffectPlugin<KEY>
-where
-    KEY: 'static + core::fmt::Debug + Clone + Eq + Send + Sync,
-{
-    fn build(&self, app: &mut App) {
-        let mut set = SystemSet::new()
-            .with_system(start_animation_effect::<KEY>.system())
-            .with_system(update_animation_effect::<KEY>.system());
-        if let Some(r) = self.run_criteria.lock().unwrap().take() {
-            set = set.with_run_criteria(r);
-        }
-        app.add_plugin(AtlasAssetMapPlugin::<KEY>::default())
-            .add_event::<AnimationEffectEvent<KEY>>()
-            .add_system_set(set);
-    }
-}
-
-#[derive(Debug, Component)]
-pub struct AnimEffect;
-
-pub fn start_animation_effect<KEY>(
-    mut commands: Commands,
-    mut animation_events: EventReader<AnimationEffectEvent<KEY>>,
-    atlas_asset_map: Res<AtlasAssetMap<KEY>>,
-) where
-    KEY: 'static + Clone + Eq + Send + Sync,
-{
-    for AnimationEffectEvent {
-        key,
-        size,
-        position,
-        fps,
-    } in animation_events.iter()
-    {
-        let atlas_info = atlas_asset_map.get(key).expect("texture atlas not present");
-        let texture_atlas = atlas_info.atlas.clone();
-        let scale = size / atlas_info.tile_size.max_element();
-        let transform = Transform {
-            translation: *position,
-            scale: Vec3::splat(scale),
-            ..Default::default()
-        };
-        commands
-            .spawn_bundle(SpriteSheetBundle {
-                texture_atlas,
-                transform,
+impl<'w, 's> SpawnSpriteAnimation<'w, 's> for Commands<'w, 's> {
+    fn spawn_sprite_animation<'a>(
+        &'a mut self,
+        // TODO: handle can be part of the SpriteAnimation struct
+        texture_atlas_handle: &Handle<TextureAtlas>,
+        sprite_animation: SpriteAnimation,
+    ) -> EntityCommands<'w, 's, 'a> {
+        let mut x = self.spawn_bundle(SpriteSheetBundle {
+            texture_atlas: texture_atlas_handle.clone(),
+            sprite: TextureAtlasSprite {
+                color: sprite_animation.tint,
+                flip_x: sprite_animation.flip_x,
+                flip_y: sprite_animation.flip_y,
+                custom_size: sprite_animation.size,
                 ..Default::default()
-            })
-            .insert(AnimEffect)
-            .insert(Timer::from_seconds(1. / fps, true));
+            },
+            transform: Transform {
+                translation: sprite_animation.position,
+                rotation: sprite_animation.rotation,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        x.insert(Timer::from_seconds(1. / sprite_animation.fps, true));
+        x
     }
 }
 
-pub fn update_animation_effect<KEY>(
-    mut commands: Commands,
+impl TextureAtlasMap {
+    pub fn get<'a, T: Into<AssetPath<'a>>>(&self, key: T) -> Option<&Handle<TextureAtlas>> {
+        self.map.get(&key.into().get_id())
+    }
+
+    pub fn insert<'a, T: Into<AssetPath<'a>>>(
+        &'a mut self,
+        key: T,
+        texture_atlas: TextureAtlas,
+        texture_atlases: &mut Assets<TextureAtlas>,
+    ) {
+        self.map
+            .insert(key.into().into(), texture_atlases.add(texture_atlas));
+    }
+}
+
+impl Plugin for SpriteAnimationPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_event::<SpriteAnimationEvent>()
+            .add_system(update_sprite_animation_system);
+    }
+}
+
+fn update_sprite_animation_system(
     time: Res<Time>,
-    atlas_assets: Res<Assets<TextureAtlas>>,
-    mut query: Query<
-        (
-            Entity,
-            &mut Timer,
-            &mut TextureAtlasSprite,
-            &Handle<TextureAtlas>,
-        ),
-        With<AnimEffect>,
-    >,
-) where
-    KEY: 'static + Clone + Eq + Send + Sync,
-{
+    texture_atlases: Res<Assets<TextureAtlas>>,
+    mut query: Query<(
+        Entity,
+        &mut Timer,
+        &mut TextureAtlasSprite,
+        &Handle<TextureAtlas>,
+    )>,
+    mut evt: EventWriter<SpriteAnimationEvent>,
+) {
     for (entity, mut timer, mut sprite, texture_atlas_handle) in query.iter_mut() {
-        if timer.tick(time.delta()).finished() {
-            let texture_atlas = atlas_assets
-                .get(texture_atlas_handle)
-                .expect("texture atlas not found");
-            sprite.index = (sprite.index as usize + 1) % texture_atlas.textures.len();
+        timer.tick(time.delta());
+        if timer.finished() {
+            let texture_atlas = texture_atlases.get(texture_atlas_handle).unwrap();
+            sprite.index = (sprite.index + 1) % texture_atlas.textures.len();
 
             if sprite.index == 0 {
-                commands.entity(entity).despawn();
+                evt.send(SpriteAnimationEvent(entity));
             }
         }
     }

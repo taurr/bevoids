@@ -1,7 +1,8 @@
 use bevy::{log, prelude::*};
-use bevy_asset_map::GfxBounds;
 use bevy_effects::despawn::Despawn;
 use parry2d::bounding_volume::BoundingVolume;
+
+use crate::bounds::GfxBounds;
 
 use super::{
     asteroids::{Asteroid, AsteroidExplosionEvent, AsteroidShotEvent},
@@ -10,7 +11,7 @@ use super::{
     player::{Player, PlayerDeadEvent},
 };
 
-pub(crate) fn hittest_shot_vs_asteroid(
+pub(crate) fn laser_vs_asteroid_system(
     mut commands: Commands,
     laser_query: Query<(Entity, &GfxBounds), With<Laser>>,
     asteroids_query: Query<(Entity, &GfxBounds), (With<Asteroid>, With<InsideWindow>)>,
@@ -29,7 +30,7 @@ pub(crate) fn hittest_shot_vs_asteroid(
     }
 }
 
-pub(crate) fn hittest_player_vs_asteroid(
+pub(crate) fn player_vs_asteroid_system(
     player_query: Query<&GfxBounds, (With<Player>, With<InsideWindow>)>,
     asteroids_query: Query<(Entity, &GfxBounds), (With<Asteroid>, With<InsideWindow>)>,
     mut player_dead_event: EventWriter<PlayerDeadEvent>,
